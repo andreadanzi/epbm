@@ -1,0 +1,10 @@
+*.pyc
+*.bkp
+*.png
+*.db-journal
+*.csv
+*.xls
+*.zip
+*.log
+*.1
+*.svg
