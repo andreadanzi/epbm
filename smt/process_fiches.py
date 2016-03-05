@@ -2,8 +2,10 @@
 import glob,io
 import csv
 import sys, getopt, os
+from minimongo import Model, Index
 # danzi.tn@20160229 - estrazione sensibilita
 # danzi.tn@20160301 - completamento estrazione tabelle
+# danzi.tn@20160303 - aggiunto il modello Mongo DB
 t1 = u"Altitude du terrain naturel (NGF)  " #35 
 t2 = u"Altitude du toit du tunnel  " # 5 
 t3 = u"Profondeur du toit du tunnel/ terrain naturel (à ce PK)  " #30 
