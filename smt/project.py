@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import csv
+import datetime
 from base import BaseSmtModel
 from domain import Domain
         
@@ -24,7 +25,9 @@ class Project(BaseSmtModel):
             rows = []
             align_reader = csv.DictReader(csvfile, delimiter=';')
             for row in align_reader:
-                row["project_id"] = self._id
+                row["project_id"] = self._id 
+                row["created"] = datetime.datetime.utcnow()
+                row["updated"] = datetime.datetime.utcnow()
                 rows.append(row)
             self.delete_referencing()
             d_collection = self.db["Domain"] 

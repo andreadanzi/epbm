@@ -499,9 +499,10 @@ class Alignment(BaseSmtModel):
         except AttributeError as ae:
             self.logger.debug("Alignment %f , missing attribute [%s]" % (align.PK, ae))
         if "REFERENCE_STRATA" in self.item:
-            self.item["updated"] = datetime.datetime.utcnow()
             self.save()
         return retVal
+    
+    
     
     @classmethod
     def aggregate_by_strata(cls, db, domain_id):

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging, csv
+import datetime
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 
@@ -19,6 +20,8 @@ class BaseSmtModel:
             rows = []
             align_reader = csv.DictReader(csvfile, delimiter=';')
             for row in align_reader:
+                row["created"] = datetime.datetime.utcnow()
+                row["updated"] = datetime.datetime.utcnow()
                 rows.append(row)
             #db.Alignment.insert(rows)
             collection = db[cls.__name__]
@@ -58,6 +61,7 @@ class BaseSmtModel:
    
     def save(self, *args, **kwargs):
         self.logger.debug('save %s' % (self.__class__.__name__))
+        self.item["updated"] = datetime.datetime.utcnow()
         self._id = self.collection.save(self.item,*args, **kwargs)
     
     def delete(self):
