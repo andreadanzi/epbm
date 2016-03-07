@@ -46,5 +46,6 @@ for c in cr:
     d.load()
     d.import_alignment("../data/profilo_progetto.csv")
     d.import_strata("../data/stratigrafia.csv")
+    d.import_falda("../data/falda.csv")
 
 Building.ImportFromCSVFile("../data/buildings.csv", db)
