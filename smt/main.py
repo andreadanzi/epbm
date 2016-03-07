@@ -1,4 +1,5 @@
 import logging
+import logging.handlers
 import ConfigParser, os
 from datetime import datetime
 from pymongo import MongoClient
@@ -8,11 +9,12 @@ from building import Building
 from domain import Domain
 from bson.objectid import ObjectId
 
+
 # create logger with 
 logger = logging.getLogger('smt_main')
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
-fh = logging.FileHandler('spam.log')
+fh = logging.handlers.RotatingFileHandler('main.log',maxBytes=500000, backupCount=5)
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 fh.setFormatter(formatter)
@@ -44,8 +46,14 @@ cr = Domain.find(db, {"project_id": p._id})
 for c in cr:
     d = Domain(db,c)
     d.load()
+    d.import_reference_strata("../data/reference_strata.csv")
     d.import_alignment("../data/profilo_progetto.csv")
     d.import_strata("../data/stratigrafia.csv")
     d.import_falda("../data/falda.csv")
-
 Building.ImportFromCSVFile("../data/buildings.csv", db)
+
+als = Alignment.find(db,{})
+for al in als:
+    a = Alignment(db,al)
+    a.load()
+    a.perform_calc("Here I am")

@@ -63,7 +63,7 @@ class BaseSmtModel:
         self.logger.debug("after_doit with parm = %s and out = %s" % (parm,out) )
         return out
     
-    def base_doit(self, parm):
+    def perform_calc(self, parm):
         retVal = {}
         parm = self.before_doit(parm)
         retVal = self.doit(parm)
@@ -71,7 +71,7 @@ class BaseSmtModel:
         return retVal
     
     def doit(self, parm):
-        self.logger.debug("post with parm = %s and out = %s" % (parm,out) )
+        self.logger.debug("doit with parm = %s and out = %s" % (parm,out) )
 
 
         
