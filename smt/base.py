@@ -3,6 +3,15 @@ import logging, csv
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 
+class BaseStruct(object):
+    def __init__(self, d):
+        for a, b in d.iteritems():
+            if isinstance(b, (list, tuple)):
+               setattr(self, a, [BaseStruct(x) if isinstance(x, dict) else x for x in b])
+            else:
+               setattr(self, a, BaseStruct(b) if isinstance(b, dict) else b)
+
+
 class BaseSmtModel:
     @classmethod
     def ImportFromCSVFile(cls,csvFilePath, db, delete_existing=True):
