@@ -1,4 +1,5 @@
-import ogr, osr
+# -*- coding: utf-8 -*-
+# import ogr, osr
 
 def toFloat(s):
         try:
@@ -8,7 +9,8 @@ def toFloat(s):
         except TypeError:
             pass             
         return s
-        
+
+"""        
 def latLonToProjection(lat, lon, epsg):
     '''
     Converte le coordinate nel formato latitudine, longitudine (EPSG 4326)
@@ -25,3 +27,5 @@ def latLonToProjection(lat, lon, epsg):
     coordTransform = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
     point.Transform(coordTransform)
     return (point.GetX(), point.GetY())
+    
+"""

@@ -87,6 +87,25 @@ class Domain(BaseSmtModel):
                     align = Alignment(self.db,ac)
                     align.save()
 
+    def import_sezioni(self, csvFilePath):
+        with open(csvFilePath, 'rb') as csvfile:
+            rows = []
+            sezioni_reader = csv.DictReader(csvfile, delimiter=';')
+            pk = -1.0
+            a_collection = self.db["Alignment"]
+            ac = None
+            falda_list = list(sezioni_reader)
+            self.logger.debug('import_sezioni - starting reading %d rows from %s' % (len(falda_list),csvFilePath))
+            for row in falda_list:
+                pk = float(row["PK"])                                    
+                ac = a_collection.find_one({"PK":pk,"domain_id":self._id})
+                if ac:
+                    ac["SECTIONS"] = { "Excavation":{"Radius":toFloat(row["Excavation Radius"])}, "Lining":{"Internal Radius":toFloat(row["Lining Internal Radius"]), "Thickness":toFloat(row["Lining Thickness"]), "Offset":toFloat(row["Lining Offset"])}}
+
+                    ac["updated"] = datetime.datetime.utcnow()
+                    align = Alignment(self.db,ac)
+                    align.save()
+                    
     def import_reference_strata(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
             rows = []

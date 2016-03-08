@@ -56,5 +56,7 @@ for c in cr:
     d.import_strata("../data/stratigrafia.csv")
     # Import water folders inside the alignment: one-to-many relationship by embedding
     d.import_falda("../data/falda.csv")
+    # Import water folders inside the alignment: one-to-many relationship by embedding
+    d.import_sezioni("../data/sezioni_progetto.csv")
 # Import Buildings
 Building.ImportFromCSVFile("../data/buildings.csv", db)
