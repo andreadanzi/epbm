@@ -523,15 +523,17 @@ class Alignment(BaseSmtModel):
                 for ref_stratus in ref_strata:
                     fTempCOB = 0.0
                     retVal = ref_stratus.CODE
-                    # se la base dello starto è sotto allora 
+                    # se la base dello strato è sotto allora sono sulla base del tunnel
                     if ref_stratus.POINTS.base.coordinates[2] <= z_base:
                         sigma_v = cob_step_1(z_base,ref_stratus,sigma_v)
                         fTempCOB = cob_step_2(z_base,ref_stratus,sigma_v,z_wt, z_tun, gamma_muck)
                         self.logger.debug(u"\tstrato di riferimento per z_base %f è %s con base a %f. sigma_v = %f, fTempCOB = %f" % (z_base,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],sigma_v,fTempCOB))
+                    # se la base dello strato è sotto il top del tunnell allora sono negli strati intermedi
                     elif ref_stratus.POINTS.base.coordinates[2] <= z_top:
                         sigma_v = cob_step_1(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v)
                         fTempCOB = cob_step_2(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v,z_wt, z_tun, gamma_muck)
                         self.logger.debug(u"\tstrato intermedio sotto z_top (%f>) è %s con base a %f. sigma_v = %f, fTempCOB = %f" % (z_top,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],sigma_v,fTempCOB))
+                    # altrimenti sono sempre sopra
                     else:
                         sigma_v = cob_step_1(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v)
                         self.logger.debug(u"\tstrato sopra z_top (%f<) è %s con base a %f. sigma_v = %f, fTempCOB = %f" % (z_top,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],sigma_v,fTempCOB))
