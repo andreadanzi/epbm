@@ -2,7 +2,6 @@
 *.bkp
 *.png
 *.db-journal
-*.csv
 *.xls
 *.zip
 *.log*
@@ -10,3 +9,6 @@
 *.svg
 *.xlsx
 data/alignment_riferimento.js
+data/Stratigrafia_2.csv
+data/Stratigrafia_originale.csv
+data/alignment.csv
