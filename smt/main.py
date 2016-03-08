@@ -34,6 +34,7 @@ db = client[database]
 # DB authentication
 db.authenticate(username,password,source=source_database)
 # Search for project_code = "MFW001_0-010 Metro Paris-Ligne 15_T2A"
+Project.ImportFromCSVFile("../data/project.csv", db)
 pd = db.Project.find_one({"project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A"})
 p = None
 if not pd:

@@ -3,6 +3,7 @@ import logging, csv
 import datetime
 from pymongo import MongoClient
 from bson.objectid import ObjectId
+from utils import toFloat
 
 class BaseStruct(object):
     def __init__(self, d):
@@ -20,6 +21,8 @@ class BaseSmtModel:
             rows = []
             align_reader = csv.DictReader(csvfile, delimiter=';')
             for row in align_reader:
+                for key, value in row.iteritems():
+                    row[key] = toFloat(value)
                 row["created"] = datetime.datetime.utcnow()
                 row["updated"] = datetime.datetime.utcnow()
                 rows.append(row)

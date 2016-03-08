@@ -44,6 +44,7 @@ for dom in found_domains:
     als = Alignment.find(db,{"domain_id":d._id})
     for al in als:
         a = Alignment(db,al)
+        a.setProject(p.item)
         a.load()
         a.perform_calc("PG0123")
 

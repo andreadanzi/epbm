@@ -490,7 +490,14 @@ import datetime, math
 }
 """        
 class Alignment(BaseSmtModel):
+    
+    def _init_utils(self,**kwargs):
+        self.project = None
+        self.logger.debug('created an instance of %s' % self.__class__.__name__)
         
+    def setProject(self, projectItem):
+        self.project = BaseStruct(projectItem)    
+    
     def doit (self,parm):
         retVal = "XXX"
         # BaseStruct converte un dizionario in un oggetto la cui classe ha come attributi gli elementi del dizionario
@@ -543,6 +550,7 @@ class Alignment(BaseSmtModel):
                 # Assegno il valore COB alla PK
                 self.item["COB"] = fCob
                 ###### CONTINUA QUI
+                self.logger.debug("Project p_safe_blowup_kpa=%f e p_safe_cob_kpa=%f " % (self.project.p_safe_blowup_kpa,self.project.p_safe_cob_kpa))
         except AttributeError as ae:
             self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
         if "REFERENCE_STRATA" in self.item:
