@@ -84,7 +84,9 @@ class BaseSmtModel:
         return retVal
     
     def doit(self, parm):
+        out = ""
         self.logger.debug("doit with parm = %s and out = %s" % (parm,out) )
+        return out
 
 
         

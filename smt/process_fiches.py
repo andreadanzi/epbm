@@ -1,11 +1,23 @@
 # -*- coding: utf-8 -*-
 import glob,io
-import csv
+import csv, re
 import sys, getopt, os
 from minimongo import Model, Index
+import googlemaps
 # danzi.tn@20160229 - estrazione sensibilita
 # danzi.tn@20160301 - completamento estrazione tabelle
 # danzi.tn@20160303 - aggiunto il modello Mongo DB
+"""
+Adresse postale  6/8, Passage du Général Leclerc 
+
+commune  94081 Vitry-sur-Seine 
+
++ geocoding
+
+Geocoding Google MAP API Key AIzaSyCj9J4OqqSdI2EagLt7CqNgMS2LYBQruMs
+
+"""
+sGmapKey = 'AIzaSyCj9J4OqqSdI2EagLt7CqNgMS2LYBQruMs'
 t1 = u"Altitude du terrain naturel (NGF)  " #35 
 t2 = u"Altitude du toit du tunnel  " # 5 
 t3 = u"Profondeur du toit du tunnel/ terrain naturel (à ce PK)  " #30 
@@ -21,6 +33,13 @@ t12 = u"Nb d'ascenseurs  "
 t13 = u"Emprise au sol (Lxl)  " #12 X 10 
 t14 = u"Hauteur superstructure/ terrain naturel (m)  " #7 
 t15  = u"Commentaire éventuel"
+
+tstreet = u"Adresse postale "
+# Testo compreso tra 
+tcity = u"commune  "
+
+tstreet2 = u"Adresse "
+tcity2 = u"Commune "
 
 sStart = u"Sensibilité globale du bâti aux déformations"
 
@@ -41,14 +60,17 @@ def getValFromTemplate(temp,line):
         
 
 def processFiles(sPath):
+    gmaps = googlemaps.Client(key=sGmapKey)
+    # geocode_result = gmaps.geocode('10 Rue des Epinoches, 94140 Alfortville, Francia')
+    
     sWildcardPath = os.path.join(sPath,'*.pdf.txt' )
     sCsvPath = os.path.join(sPath,'processed_results.csv' )
     with open(sCsvPath, 'wb') as csvfile:
         spamwriter = csv.writer(csvfile, delimiter=';')
-        spamwriter.writerow(["Nome File", "Codice Edificio","Particella","No Edificio","Livello","Altitude du terrain","Altitude du toit","Profondeur du toit","Profondeur plancher", "Altitude du plancher","Profondeur du toit/planches","Distance bord","Angle entre","Nombre de sous-sols","Nombre etages","Nb de niveaux","Nb ascenseurs","Emprise", "Hauteur superstructure","Commentaire"])
+        spamwriter.writerow(["Nome File", "Codice Edificio","Particella","No Edificio","Livello","Altitude du terrain","Altitude du toit","Profondeur du toit","Profondeur plancher", "Altitude du plancher","Profondeur du toit/planches","Distance bord","Angle entre","Nombre de sous-sols","Nombre etages","Nb de niveaux","Nb ascenseurs","Emprise", "Hauteur superstructure","Commentaire","Addresse","Commune","City","Zip Code"])
         for name in glob.glob(sWildcardPath):
             #print "Processing %s " % name[:-4]
-            splittedname = name.split('_')
+            splittedname = os.path.basename(name).split('_')
             sParticella = splittedname[0]
             sEdificio = splittedname[1]
             sCodice = "%s_%s" % (sParticella,sEdificio)
@@ -68,6 +90,11 @@ def processFiles(sPath):
             emprise = "ND13"
             haut = "ND14"
             comment = "ND15"
+            street = "ND"
+            city = "ND"
+            sZip = "ND"
+            sCity = "ND"
+            bCopy = False
             with io.open(name,encoding='utf8') as f:
                 bFoundStart = False
                 iCountStart = 0
@@ -111,7 +138,43 @@ def processFiles(sPath):
                         haut = getValFromTemplate(t14,line)
                     if t15 in line:
                         comment = getValFromTemplate(t15,line)
-                spamwriter.writerow([name[:-4], sCodice,sParticella,sEdificio,sensLevel,altTerrain,altToit,profToit,profPlanches,altPlanches,profToitPlanches,distance,angle,nombreSousSol,nombreEtages,nbNiveaux,nbAscens,emprise,haut,comment])
+                    
+                    if tstreet == line[:len(tstreet)]:
+                        copy = True
+                    elif tcity == line[:len(tcity)]:
+                        copy = False
+                    elif copy:
+                        street += (line)
+                    
+                    if street == "ND" and tstreet in line:
+                        street = getValFromTemplate(tstreet,line)
+                    if street == "ND" and tstreet2 in line:
+                        street = getValFromTemplate(tstreet2,line)
+                    if city =="ND" and tcity == line[:len(tcity)]:
+                        city = getValFromTemplate(tcity,line)
+                        matches = re.findall(r"(\d{5})", city)
+                        if len(matches):
+                            sZip = matches[0]
+                            splittedCity = city.split(sZip)
+                            for sC in splittedCity:
+                                if len(sC.strip()) > 0:
+                                    sCity = sC.strip()
+                        else:
+                            sCity = city
+                    if city =="ND" and tcity2 == line[:len(tcity2)]:
+                        city = getValFromTemplate(tcity2,line)
+                        matches = re.findall(r"(\d{5})", city)
+                        if len(matches):
+                            sZip = matches[0]
+                            splittedCity = city.split(sZip)
+                            for sC in splittedCity:
+                                if len(sC.strip()) > 0:
+                                    sCity = sC.strip()
+                        else:
+                            sCity = city
+                if sZip=="ND":
+                    sZip = sCodice[:5]
+                spamwriter.writerow([name[:-4], sCodice,sParticella,sEdificio,sensLevel,altTerrain,altToit,profToit,profPlanches,altPlanches,profToitPlanches,distance,angle,nombreSousSol,nombreEtages,nbNiveaux,nbAscens,emprise,haut,comment,street,city, sCity,sZip])
                 
 def main(argv):
     sPath = "NONE"

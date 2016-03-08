@@ -9,7 +9,7 @@ from building import Building
 from domain import Domain
 from bson.objectid import ObjectId
 # create main logger
-logger = logging.getLogger('smt_examples')
+logger = logging.getLogger('smt_main')
 logger.setLevel(logging.DEBUG)
 # create a rotating file handler which logs even debug messages 
 fh = logging.handlers.RotatingFileHandler('examples.log',maxBytes=5000000, backupCount=5)
@@ -32,8 +32,8 @@ client = MongoClient()
 db = client[database]
 # DB authentication
 db.authenticate(username,password,source=source_database)
-# Search for project_name = "Progetto di Test"
-pd = db.Project.find_one({"project_name":"Progetto di Test"})
+# Search for project_code = "MFW001_0-010 Metro Paris-Ligne 15_T2A"
+pd = db.Project.find_one({"project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A"})
 p = Project(db, pd)
 p.load()
 found_domains = Domain.find(db, {"project_id": p._id})
