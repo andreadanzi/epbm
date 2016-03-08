@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 import logging
 from base import BaseSmtModel, BaseStruct
-from utils import cob_step_1, cob_step_2
+from utils import cob_step_1, cob_step_2, toFloat
 import datetime, math
+import csv
 """
 {
   "_id": ObjectId("56deab2e2a13da141c249612"),
@@ -511,10 +512,13 @@ class Alignment(BaseSmtModel):
                 self.logger.debug("on %f , copertuta = %f, tra zp = %f e z_dem = %f" % (align.PK, copertura, align.z, align.DEM.coordinates[2]))
                 ### Verifica strato di riferimento per le PK
                 ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > align.z >= strato.POINTS.base.coordinates[2]]
+                i=0
                 for ref_stratus in ref_strata:
-                    self.item["REFERENCE_STRATA"] = {"CODE":ref_stratus.CODE,"PARAMETERS": ref_stratus.PARAMETERS.__dict__ }
+                    pointsDict = self.item["STRATA"][i]["POINTS"]
+                    self.item["REFERENCE_STRATA"] = {"CODE":ref_stratus.CODE,"PARAMETERS": ref_stratus.PARAMETERS.__dict__ , "POINTS": pointsDict}
                     retVal = ref_stratus.CODE
                     self.logger.debug(u"\tstrato di riferimento è %s " % retVal)
+                    i += 1
                 ##### Verifica strato di riferimento per le sezioni di riferimento per pressione minima di stabilità
                 z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + align.TBM.excav_diameter/2.0
                 z_base = z_top - align.TBM.excav_diameter
@@ -595,3 +599,40 @@ class Alignment(BaseSmtModel):
                     }
                 ]
         return collection.aggregate(pipeline=pipe)
+
+        
+    @classmethod
+    def export_data_by_pk(cls, db, domain_id, csvPk, csvOut):
+        bDone = False
+        with open(csvPk, 'rb') as csvfile:
+            rows = []
+            csv_reader = csv.DictReader(csvfile, delimiter=';')
+            csv_list = list(csv_reader)
+            pkarray = []
+            for row in csv_list:
+                pkarray.append(toFloat(row["PK"]))
+            if len(pkarray):
+                pkOutArray = []
+                # PK;Z_TUN;Z_DEM;Z_WT;DESCR_STRATUS;STRATUS TOP;STRATUS BASE;STRATUS_PARAMS....
+                header = ["PK","Z_TUN","Z_DEM","Z_WT","DESCR_STRATUS","STRATUS_TOP","STRATUS_BASE"]
+                alignments = db[cls.__name__]
+                res = alignments.find({"PK":{"$in":pkarray}})
+                for re in res:
+                    bDone = True
+                    align = BaseStruct(re)
+                    z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + align.TBM.excav_diameter/2.0
+                    z_base = z_top - align.TBM.excav_diameter
+                    z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
+                    for strata in align.STRATA:
+                        item = [align.PK,z_tun,align.DEM.coordinates[2],align.FALDA.coordinates[2],strata.CODE,strata.POINTS.top.coordinates[2],strata.POINTS.base.coordinates[2]]
+                        dictParam = strata.PARAMETERS.__dict__
+                        for key, value in dictParam.iteritems():
+                            if key not in header:
+                                header.append(key)
+                            item.append(value)                    
+                        pkOutArray.append(item)
+                with open(csvOut, 'wb') as out_csvfile:
+                    writer = csv.writer(out_csvfile,delimiter=";")
+                    writer.writerow(header)
+                    writer.writerows(pkOutArray)
+        return bDone

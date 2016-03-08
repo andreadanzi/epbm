@@ -12,3 +12,5 @@ data/alignment_riferimento.js
 data/Stratigrafia_2.csv
 data/Stratigrafia_originale.csv
 data/alignment.csv
+data/out_pk.csv
+data/query_pk.csv

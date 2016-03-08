@@ -70,7 +70,12 @@ class BaseSmtModel:
     def delete(self):
         self.logger.debug('delete %s %s' % (self.__class__.__name__, self._id))
         self.collection.remove(self._id)
-        
+    
+    @classmethod
+    def delete_all(cls,db):
+        collection = db[cls.__name__]
+        collection.remove({})
+    
     def before_doit(self, parm):
         self.logger.debug("before_doit with parm = " + parm )
         return parm

@@ -33,6 +33,10 @@ client = MongoClient()
 db = client[database]
 # DB authentication
 db.authenticate(username,password,source=source_database)
+Building.delete_all(db)
+Alignment.delete_all(db)
+Domain.delete_all(db)
+Project.delete_all(db)
 # Search for project_code = "MFW001_0-010 Metro Paris-Ligne 15_T2A"
 Project.ImportFromCSVFile("../data/project.csv", db)
 pd = db.Project.find_one({"project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A"})
