@@ -55,7 +55,7 @@ class BaseSmtModel:
         
     
     def load(self, fields=None, **kwargs):
-        self.logger.debug('load %s %s' % (fields,self.__class__.__name__))
+        self.logger.debug('load %s object' % (self.__class__.__name__))
         self.item = self.collection.find_one({'_id': self._id}, fields=fields, **kwargs)
         return self
    
@@ -84,7 +84,9 @@ class BaseSmtModel:
         return retVal
     
     def doit(self, parm):
+        out = ""
         self.logger.debug("doit with parm = %s and out = %s" % (parm,out) )
+        return out
 
 
         

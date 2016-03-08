@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import logging
 import logging.handlers
 import ConfigParser, os
@@ -32,11 +33,12 @@ client = MongoClient()
 db = client[database]
 # DB authentication
 db.authenticate(username,password,source=source_database)
-# Search for project_name = "Progetto di Test"
-pd = db.Project.find_one({"project_name":"Progetto di Test"})
+# Search for project_code = "MFW001_0-010 Metro Paris-Ligne 15_T2A"
+pd = db.Project.find_one({"project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A"})
 p = None
 if not pd:
-    p = Project(db, {"project_name":"Progetto di Test","project_code":"123" })
+    p = Project(db, {"project_name":u"Société du Grand Paris Ligne 15 T2A","project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A" })
+    p.item["created"] = datetime.datetime.utcnow()
     p.save()
 else:
     p = Project(db, pd)
