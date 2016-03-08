@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 import logging
 from base import BaseSmtModel, BaseStruct
-import datetime
+import datetime, math
 """
 {
-  "_id": ObjectId("56dd5fab2a13da17ac12da86"),
-  "updated": ISODate("2016-03-07T11:02:05.766Z"),
+  "_id": ObjectId("56deab2e2a13da141c249612"),
+  "updated": ISODate("2016-03-08T10:36:40.288Z"),
   "z": 69.1,
-  "created": ISODate("2016-03-07T11:02:03.466Z"),
+  "created": ISODate("2016-03-08T10:36:30.53Z"),
   "STRATA": [
     {
       "CODE": "R",
@@ -15,32 +15,32 @@ import datetime
         "top": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            98.65
+            1653543.8,
+            8176671.63,
+            98.73
           ]
         },
         "base": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            97.2
+            1653543.8,
+            8176671.63,
+            97.15
           ]
         }
       },
       "PARAMETERS": {
         "imin": 12,
         "c_dr": 5,
-        "etounnel": 20,
+        "phi_dr": 30,
         "phi_un": 20,
-        "c_un": 15,
-        "phi_tr": 30,
-        "k0": 0.5,
         "c_tr": 5,
+        "c_un": 15,
+        "k0": 0.5,
+        "etounnel": 20,
         "imax": 22,
         "inom": 18,
-        "phi_dr": 30,
+        "phi_tr": 30,
         "n": 0.33,
         "esout": 30,
         "elt": 10
@@ -52,32 +52,32 @@ import datetime
         "top": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            97.2
+            1653543.8,
+            8176671.63,
+            97.15
           ]
         },
         "base": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            95.67
+            1653543.8,
+            8176671.63,
+            95.82
           ]
         }
       },
       "PARAMETERS": {
         "imin": 19,
         "c_dr": 0,
-        "etounnel": 120,
+        "phi_dr": 25,
         "phi_un": 15,
-        "c_un": 40,
-        "phi_tr": 25,
-        "k0": 0.5,
         "c_tr": 0,
+        "c_un": 40,
+        "k0": 0.5,
+        "etounnel": 120,
         "imax": 19,
         "inom": 19,
-        "phi_dr": 25,
+        "phi_tr": 25,
         "n": 0.33,
         "esout": 180,
         "elt": 60
@@ -89,32 +89,32 @@ import datetime
         "top": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            95.67
+            1653543.8,
+            8176671.63,
+            95.82
           ]
         },
         "base": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            90.47
+            1653543.8,
+            8176671.63,
+            90.21
           ]
         }
       },
       "PARAMETERS": {
         "imin": 0,
         "c_dr": 0,
-        "etounnel": 0,
+        "phi_dr": 0,
         "phi_un": 0,
-        "c_un": 0,
-        "phi_tr": 0,
-        "k0": 0,
         "c_tr": 0,
+        "c_un": 0,
+        "k0": 0,
+        "etounnel": 0,
         "imax": 0,
         "inom": 0,
-        "phi_dr": 0,
+        "phi_tr": 0,
         "n": 0,
         "esout": 0,
         "elt": 0
@@ -126,32 +126,32 @@ import datetime
         "top": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            90.47
+            1653543.8,
+            8176671.63,
+            90.21
           ]
         },
         "base": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            82.51
+            1653543.8,
+            8176671.63,
+            82.35
           ]
         }
       },
       "PARAMETERS": {
         "imin": 17,
         "c_dr": 20,
-        "etounnel": 54,
+        "phi_dr": 15,
         "phi_un": 0,
-        "c_un": 80,
-        "phi_tr": 0,
-        "k0": 0.8,
         "c_tr": 80,
+        "c_un": 80,
+        "k0": 0.8,
+        "etounnel": 54,
         "imax": 20,
         "inom": 19,
-        "phi_dr": 15,
+        "phi_tr": 0,
         "n": 0.35,
         "esout": 81,
         "elt": 27
@@ -163,32 +163,32 @@ import datetime
         "top": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            82.51
+            1653543.8,
+            8176671.63,
+            82.35
           ]
         },
         "base": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            77.19
+            1653543.8,
+            8176671.63,
+            77.12
           ]
         }
       },
       "PARAMETERS": {
         "imin": 19,
         "c_dr": 30,
-        "etounnel": 150,
+        "phi_dr": 25,
         "phi_un": 5,
-        "c_un": 190,
-        "phi_tr": 15,
-        "k0": 0.6,
         "c_tr": 110,
+        "c_un": 190,
+        "k0": 0.6,
+        "etounnel": 150,
         "imax": 21,
         "inom": 20,
-        "phi_dr": 25,
+        "phi_tr": 15,
         "n": 0.35,
         "esout": 225,
         "elt": 75
@@ -200,32 +200,32 @@ import datetime
         "top": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            77.19
+            1653543.8,
+            8176671.63,
+            77.12
           ]
         },
         "base": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            68.01
+            1653543.8,
+            8176671.63,
+            67.91
           ]
         }
       },
       "PARAMETERS": {
         "imin": 19,
         "c_dr": 25,
-        "etounnel": 150,
+        "phi_dr": 25,
         "phi_un": 25,
-        "c_un": 180,
-        "phi_tr": 25,
-        "k0": 0.6,
         "c_tr": 100,
+        "c_un": 180,
+        "k0": 0.6,
+        "etounnel": 150,
         "imax": 21,
         "inom": 20,
-        "phi_dr": 25,
+        "phi_tr": 25,
         "n": 0.35,
         "esout": 225,
         "elt": 75
@@ -237,32 +237,32 @@ import datetime
         "top": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            68.01
+            1653543.8,
+            8176671.63,
+            67.91
           ]
         },
         "base": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            39.01
+            1653543.8,
+            8176671.63,
+            38.91
           ]
         }
       },
       "PARAMETERS": {
         "imin": 17,
         "c_dr": 40,
-        "etounnel": 840,
+        "phi_dr": 30,
         "phi_un": 10,
-        "c_un": 150,
-        "phi_tr": 15,
-        "k0": 0.6,
         "c_tr": 80,
+        "c_un": 150,
+        "k0": 0.6,
+        "etounnel": 840,
         "imax": 21,
         "inom": 19,
-        "phi_dr": 30,
+        "phi_tr": 15,
         "n": 0.3,
         "esout": 1260,
         "elt": 420
@@ -274,32 +274,32 @@ import datetime
         "top": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            39.01
+            1653543.8,
+            8176671.63,
+            38.91
           ]
         },
         "base": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            37.72
+            1653543.8,
+            8176671.63,
+            37.65
           ]
         }
       },
       "PARAMETERS": {
         "imin": 16,
         "c_dr": 15,
-        "etounnel": 60,
+        "phi_dr": 35,
         "phi_un": 25,
-        "c_un": 45,
-        "phi_tr": 25,
-        "k0": 0.6,
         "c_tr": 30,
+        "c_un": 45,
+        "k0": 0.6,
+        "etounnel": 60,
         "imax": 19,
         "inom": 18,
-        "phi_dr": 35,
+        "phi_tr": 25,
         "n": 0.33,
         "esout": 90,
         "elt": 30
@@ -311,32 +311,32 @@ import datetime
         "top": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            37.72
+            1653543.8,
+            8176671.63,
+            37.65
           ]
         },
         "base": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            26.79
+            1653543.8,
+            8176671.63,
+            26.69
           ]
         }
       },
       "PARAMETERS": {
         "imin": 15,
         "c_dr": 30,
-        "etounnel": 1080,
+        "phi_dr": 30,
         "phi_un": 15,
-        "c_un": 150,
-        "phi_tr": 20,
-        "k0": 0.5,
         "c_tr": 75,
+        "c_un": 150,
+        "k0": 0.5,
+        "etounnel": 1080,
         "imax": 22,
         "inom": 19,
-        "phi_dr": 30,
+        "phi_tr": 20,
         "n": 0.35,
         "esout": 1620,
         "elt": 540
@@ -348,32 +348,32 @@ import datetime
         "top": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            26.79
+            1653543.8,
+            8176671.63,
+            26.69
           ]
         },
         "base": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            22.56
+            1653543.8,
+            8176671.63,
+            22.46
           ]
         }
       },
       "PARAMETERS": {
         "imin": 17,
         "c_dr": 25,
-        "etounnel": 128,
+        "phi_dr": 35,
         "phi_un": 25,
-        "c_un": 80,
-        "phi_tr": 30,
-        "k0": 0.5,
         "c_tr": 40,
+        "c_un": 80,
+        "k0": 0.5,
+        "etounnel": 128,
         "imax": 22,
         "inom": 21,
-        "phi_dr": 35,
+        "phi_tr": 30,
         "n": 0.3,
         "esout": 192,
         "elt": 64
@@ -385,35 +385,35 @@ import datetime
         "top": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            22.56
+            1653543.8,
+            8176671.63,
+            22.46
           ]
         },
         "base": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            9.64
+            1653543.8,
+            8176671.63,
+            9.54
           ]
         }
       },
       "PARAMETERS": {
-        "imin": 0,
-        "c_dr": 0,
-        "etounnel": 0,
-        "phi_un": 0,
-        "c_un": 0,
-        "phi_tr": 0,
-        "k0": 0,
-        "c_tr": 0,
-        "imax": 0,
-        "inom": 0,
-        "phi_dr": 0,
-        "n": 0,
-        "esout": 0,
-        "elt": 0
+        "imin": 14,
+        "c_dr": 40,
+        "phi_dr": 35,
+        "phi_un": 30,
+        "c_tr": 120,
+        "c_un": 180,
+        "k0": 0.5,
+        "etounnel": 680,
+        "imax": 24,
+        "inom": 19,
+        "phi_tr": 30,
+        "n": 0.35,
+        "esout": 1020,
+        "elt": 340
       }
     },
     {
@@ -422,32 +422,32 @@ import datetime
         "top": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            9.64
+            1653543.8,
+            8176671.63,
+            9.54
           ]
         },
         "base": {
           "type": "Point",
           "coordinates": [
-            1653523.8,
-            8176671.53,
-            -4.02
+            1653543.8,
+            8176671.63,
+            -4.1
           ]
         }
       },
       "PARAMETERS": {
         "imin": 17,
         "c_dr": 100,
-        "etounnel": 1200,
+        "phi_dr": 40,
         "phi_un": 40,
-        "c_un": 100,
-        "phi_tr": 40,
-        "k0": 0.5,
         "c_tr": 100,
+        "c_un": 100,
+        "k0": 0.5,
+        "etounnel": 1200,
         "imax": 27,
         "inom": 21,
-        "phi_dr": 40,
+        "phi_tr": 40,
         "n": 0.2,
         "esout": 1800,
         "elt": 600
@@ -455,27 +455,37 @@ import datetime
     }
   ],
   "Descrizione": "Profilo Progetto",
-  "ID": "Profilo Progetto",
+  "domain_id": ObjectId("56deab2e2a13da141c2492fc"),
   "DEM": {
     "type": "Point",
     "coordinates": [
-      1653523.8,
-      8176671.53,
-      98.65
+      1653543.8,
+      8176671.63,
+      98.73
     ]
   },
-  "PK": 2129988,
-  "y": 8176671.53,
-  "x": 1653523.8,
+  "x": 1653543.8,
+  "y": 8176671.63,
+  "PK": 2129968,
   "PH": {
     "type": "Point",
     "coordinates": [
-      1653523.8,
-      8176671.53,
+      1653543.8,
+      8176671.63,
       69.1
     ]
   },
-  "domain_id": ObjectId("56dd5fab2a13da17ac12d650")
+  "SECTIONS": {
+    "Excavation": {
+      "Radius": 4.9
+    },
+    "Lining": {
+      "Offset": 2.16,
+      "Thickness": 0.4,
+      "Internal_Radius": 4.35
+    }
+  },
+  "ID": "Profilo Progetto"
 }
 """        
 class Alignment(BaseSmtModel):
@@ -491,18 +501,74 @@ class Alignment(BaseSmtModel):
             if align.z == align.PH.coordinates[2]:
                 copertura = align.DEM.coordinates[2] - align.PH.coordinates[2]
                 self.logger.debug("on %f , copertuta = %f, tra zp = %f e z_dem = %f" % (align.PK, copertura, align.z, align.DEM.coordinates[2]))
+                ### Verifica strato di riferimento per le PK
                 ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > align.z >= strato.POINTS.base.coordinates[2]]
                 for ref_stratus in ref_strata:
                     self.item["REFERENCE_STRATA"] = {"CODE":ref_stratus.CODE,"PARAMETERS": ref_stratus.PARAMETERS.__dict__ }
                     retVal = ref_stratus.CODE
-                    self.logger.debug(u"\tstrato di riferimento è %s " % retVal)    
+                    self.logger.debug(u"\tstrato di riferimento è %s " % retVal)
+                ##### Verifica strato di riferimento per le sezioni di riferimento per pressione minima di stabilità
+                z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + align.TBM.excav_diameter/2.0
+                z_base = z_top - align.TBM.excav_diameter
+                z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
+                z_wt = align.FALDA.coordinates[2]
+                gamma_muck = align.TBM.gamma_muck
+                self.logger.debug("on %f , TBM.excav_diameter = %f, Lining.Internal_Radius = %f e Lining.Offset = %f. z_top = %f e z_base = %f" % (align.PK,align.TBM.excav_diameter, align.SECTIONS.Lining.Internal_Radius, align.SECTIONS.Lining.Offset,z_top,z_base))
+                # Seleziona solo gli strati che stanno sopra z_base
+                ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > z_base]
+                self.logger.debug(u"\tstrati sopra z_base = %f sono:" % z_base)
+                fCob = 0.0
+                sigma_v = 0.0
+                for ref_stratus in ref_strata:
+                    fTempCOB = 0.0
+                    retVal = ref_stratus.CODE
+                    # se la base dello starto è sotto allora 
+                    if ref_stratus.POINTS.base.coordinates[2] <= z_base:
+                        sigma_v = self.cob_step_1(z_base,ref_stratus,sigma_v)
+                        fTempCOB = self.cob_step_2(z_base,ref_stratus,sigma_v,z_wt, z_tun, gamma_muck)
+                        self.logger.debug(u"\tstrato di riferimento per z_base %f è %s con base a %f. sigma_v = %f, fTempCOB = %f" % (z_base,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],sigma_v,fTempCOB))
+                    elif ref_stratus.POINTS.base.coordinates[2] <= z_top:
+                        sigma_v = self.cob_step_1(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v)
+                        fTempCOB = self.cob_step_2(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v,z_wt, z_tun, gamma_muck)
+                        self.logger.debug(u"\tstrato intermedio sotto z_top (%f>) è %s con base a %f. sigma_v = %f, fTempCOB = %f" % (z_top,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],sigma_v,fTempCOB))
+                    else:
+                        sigma_v = self.cob_step_1(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v)
+                        self.logger.debug(u"\tstrato sopra z_top (%f<) è %s con base a %f. sigma_v = %f, fTempCOB = %f" % (z_top,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],sigma_v,fTempCOB))
+                    # Verifica del massimo
+                    if fTempCOB > fCob:
+                        fCob = fTempCOB
+                # Assegno il valore COB alla PK
+                self.item["COB"] = fCob
+                ###### CONTINUA QUI
         except AttributeError as ae:
-            self.logger.debug("Alignment %f , missing attribute [%s]" % (align.PK, ae))
+            self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
         if "REFERENCE_STRATA" in self.item:
             self.save()
         return retVal
     
+    # inom	imin	imax	elt	esout	etounnel	phi_dr	c_dr	phi_tr	c_tr	phi_un	c_un	k0	n
+    def cob_step_1(self,z_ref, ref_stratus, sigma_v ):
+        self.logger.debug("cob_step_1 arriva sigma_v %f " % sigma_v)
+        th = ref_stratus.POINTS.top.coordinates[2] - z_ref
+        sigma_v += th*ref_stratus.PARAMETERS.inom
+        self.logger.debug("cob_step_1 esce sigma_v %f " % sigma_v)
+        return sigma_v
     
+    # inom	imin	imax	elt	esout	etounnel	phi_dr	c_dr	phi_tr	c_tr	phi_un	c_un	k0	n
+    def cob_step_2(self,z_ref, ref_stratus,sigma_v,z_wt, z_tun, gamma_muck):
+        pCob = 0.0
+        # se non ho falda
+        p_wt  = max((0,(z_wt - z_ref)*9.81))
+        sigma_v_eff = sigma_v - p_wt
+        if sigma_v_eff <= 0:
+            self.logger.error(u"cob_step_2 sigma_v_eff %f = sigma_v %f - p_wt %f" % (sigma_v_eff,sigma_v,p_wt))
+        phi = math.radians(ref_stratus.PARAMETERS.phi_tr)
+        ci = ref_stratus.PARAMETERS.c_tr
+        ka = (1.- math.sin(phi))/(1+math.sin(phi))
+        sigma_ha_eff = sigma_v_eff * ka - 2.*ci*math.sqrt(ka)
+        pCob = sigma_ha_eff + p_wt + 20.0 + (z_tun-z_ref)*gamma_muck
+        return pCob
+ 
     
     @classmethod
     def aggregate_by_strata(cls, db, domain_id):

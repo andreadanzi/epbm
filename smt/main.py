@@ -2,7 +2,7 @@
 import logging
 import logging.handlers
 import ConfigParser, os
-from datetime import datetime
+import datetime
 from pymongo import MongoClient
 from alignment import Alignment
 from project import Project
@@ -56,7 +56,9 @@ for c in cr:
     d.import_strata("../data/stratigrafia.csv")
     # Import water folders inside the alignment: one-to-many relationship by embedding
     d.import_falda("../data/falda.csv")
-    # Import water folders inside the alignment: one-to-many relationship by embedding
+    # Import tunnel sections inside the alignment: one-to-many relationship by embedding
     d.import_sezioni("../data/sezioni_progetto.csv")
+    # Import TBM inside the alignment: one-to-many relationship by embedding
+    d.import_tbm("../data/tbm_progetto.csv")
 # Import Buildings
 Building.ImportFromCSVFile("../data/buildings.csv", db)

@@ -68,6 +68,10 @@ class Domain(BaseSmtModel):
                         ac["STRATA"].append( { "CODE": row["Descrizione"].upper(), "PARAMETERS": geoparameters ,"POINTS" : {"top":{ "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["top"])] },"base": { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["base"])] }}} )
                     else:
                         ac["STRATA"] = [ {"CODE": row["Descrizione"].upper(), "PARAMETERS":geoparameters , "POINTS" : {"top":{ "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["top"])] },"base": { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["base"])] }}}]
+            if ac:
+                ac["updated"] = datetime.datetime.utcnow()
+                align = Alignment(self.db,ac)
+                align.save()
 
     def import_falda(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
@@ -83,9 +87,11 @@ class Domain(BaseSmtModel):
                 ac = a_collection.find_one({"PK":pk,"domain_id":self._id})
                 if ac:
                     ac["FALDA"] = { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["z"])] }
-                    ac["updated"] = datetime.datetime.utcnow()
                     align = Alignment(self.db,ac)
                     align.save()
+                    self.logger.debug('import_falda - FALDA saved for pk=%f and domain %s' % (pk,self._id))
+                else:
+                    self.logger.debug('import_falda - nothing found for pk=%f and domain %s' % (pk,self._id))
 
     def import_sezioni(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
@@ -94,18 +100,35 @@ class Domain(BaseSmtModel):
             pk = -1.0
             a_collection = self.db["Alignment"]
             ac = None
-            falda_list = list(sezioni_reader)
-            self.logger.debug('import_sezioni - starting reading %d rows from %s' % (len(falda_list),csvFilePath))
-            for row in falda_list:
+            sezioni_list = list(sezioni_reader)
+            self.logger.debug('import_sezioni - starting reading %d rows from %s' % (len(sezioni_list),csvFilePath))
+            for row in sezioni_list:
                 pk = float(row["PK"])                                    
                 ac = a_collection.find_one({"PK":pk,"domain_id":self._id})
                 if ac:
-                    ac["SECTIONS"] = { "Excavation":{"Radius":toFloat(row["Excavation Radius"])}, "Lining":{"Internal Radius":toFloat(row["Lining Internal Radius"]), "Thickness":toFloat(row["Lining Thickness"]), "Offset":toFloat(row["Lining Offset"])}}
-
-                    ac["updated"] = datetime.datetime.utcnow()
+                    ac["SECTIONS"] = { "Excavation":{"Radius":toFloat(row["Excavation Radius"])}, "Lining":{"Internal_Radius":toFloat(row["Lining Internal Radius"]), "Thickness":toFloat(row["Lining Thickness"]), "Offset":toFloat(row["Lining Offset"])}}
                     align = Alignment(self.db,ac)
                     align.save()
-                    
+    
+    #tbm_progetto.csv
+    def import_tbm(self, csvFilePath):
+        with open(csvFilePath, 'rb') as csvfile:
+            rows = []
+            tbm_reader = csv.DictReader(csvfile, delimiter=';')
+            pk = -1.0
+            a_collection = self.db["Alignment"]
+            ac = None
+            tbm_list = list(tbm_reader)
+            self.logger.debug('import_tbm - starting reading %d rows from %s' % (len(tbm_list),csvFilePath))
+            for row in tbm_list:
+                pk = float(row["PK"])                                    
+                ac = a_collection.find_one({"PK":pk,"domain_id":self._id})
+                if ac:
+                    #excav_diameter	bead_thickness	taper	tail_skin_thickness	delta	gamma_muck shield_length
+                    ac["TBM"] = {"excav_diameter":toFloat(row["excav_diameter"]),"bead_thickness":toFloat(row["bead_thickness"]),"taper":toFloat(row["taper"]),"tail_skin_thickness":toFloat(row["tail_skin_thickness"]),"delta":toFloat(row["delta"]),"gamma_muck":toFloat(row["gamma_muck"]),"shield_length":toFloat(row["shield_length"])}
+                    align = Alignment(self.db,ac)
+                    align.save()    
+    
     def import_reference_strata(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
             rows = []

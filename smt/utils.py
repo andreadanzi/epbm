@@ -3,10 +3,13 @@
 
 def toFloat(s):
         try:
+            s = s.replace(",",".")
             s=float(s)
         except ValueError:
             pass 
         except TypeError:
+            pass     
+        except AttributeError:
             pass             
         return s
 
