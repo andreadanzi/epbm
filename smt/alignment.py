@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 from base import BaseSmtModel, BaseStruct
+from utils import cob_step_1, cob_step_2
 import datetime, math
 """
 {
@@ -524,15 +525,15 @@ class Alignment(BaseSmtModel):
                     retVal = ref_stratus.CODE
                     # se la base dello starto è sotto allora 
                     if ref_stratus.POINTS.base.coordinates[2] <= z_base:
-                        sigma_v = self.cob_step_1(z_base,ref_stratus,sigma_v)
-                        fTempCOB = self.cob_step_2(z_base,ref_stratus,sigma_v,z_wt, z_tun, gamma_muck)
+                        sigma_v = cob_step_1(z_base,ref_stratus,sigma_v)
+                        fTempCOB = cob_step_2(z_base,ref_stratus,sigma_v,z_wt, z_tun, gamma_muck)
                         self.logger.debug(u"\tstrato di riferimento per z_base %f è %s con base a %f. sigma_v = %f, fTempCOB = %f" % (z_base,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],sigma_v,fTempCOB))
                     elif ref_stratus.POINTS.base.coordinates[2] <= z_top:
-                        sigma_v = self.cob_step_1(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v)
-                        fTempCOB = self.cob_step_2(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v,z_wt, z_tun, gamma_muck)
+                        sigma_v = cob_step_1(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v)
+                        fTempCOB = cob_step_2(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v,z_wt, z_tun, gamma_muck)
                         self.logger.debug(u"\tstrato intermedio sotto z_top (%f>) è %s con base a %f. sigma_v = %f, fTempCOB = %f" % (z_top,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],sigma_v,fTempCOB))
                     else:
-                        sigma_v = self.cob_step_1(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v)
+                        sigma_v = cob_step_1(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v)
                         self.logger.debug(u"\tstrato sopra z_top (%f<) è %s con base a %f. sigma_v = %f, fTempCOB = %f" % (z_top,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],sigma_v,fTempCOB))
                     # Verifica del massimo
                     if fTempCOB > fCob:
@@ -546,28 +547,7 @@ class Alignment(BaseSmtModel):
             self.save()
         return retVal
     
-    # inom	imin	imax	elt	esout	etounnel	phi_dr	c_dr	phi_tr	c_tr	phi_un	c_un	k0	n
-    def cob_step_1(self,z_ref, ref_stratus, sigma_v ):
-        self.logger.debug("cob_step_1 arriva sigma_v %f " % sigma_v)
-        th = ref_stratus.POINTS.top.coordinates[2] - z_ref
-        sigma_v += th*ref_stratus.PARAMETERS.inom
-        self.logger.debug("cob_step_1 esce sigma_v %f " % sigma_v)
-        return sigma_v
-    
-    # inom	imin	imax	elt	esout	etounnel	phi_dr	c_dr	phi_tr	c_tr	phi_un	c_un	k0	n
-    def cob_step_2(self,z_ref, ref_stratus,sigma_v,z_wt, z_tun, gamma_muck):
-        pCob = 0.0
-        # se non ho falda
-        p_wt  = max((0,(z_wt - z_ref)*9.81))
-        sigma_v_eff = sigma_v - p_wt
-        if sigma_v_eff <= 0:
-            self.logger.error(u"cob_step_2 sigma_v_eff %f = sigma_v %f - p_wt %f" % (sigma_v_eff,sigma_v,p_wt))
-        phi = math.radians(ref_stratus.PARAMETERS.phi_tr)
-        ci = ref_stratus.PARAMETERS.c_tr
-        ka = (1.- math.sin(phi))/(1+math.sin(phi))
-        sigma_ha_eff = sigma_v_eff * ka - 2.*ci*math.sqrt(ka)
-        pCob = sigma_ha_eff + p_wt + 20.0 + (z_tun-z_ref)*gamma_muck
-        return pCob
+
  
     
     @classmethod
