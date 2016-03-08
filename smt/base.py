@@ -56,7 +56,7 @@ class BaseSmtModel:
     
     def load(self, fields=None, **kwargs):
         self.logger.debug('load %s %s' % (fields,self.__class__.__name__))
-        self.item = self.collection.find_one({'_id': self._id}, fields=fields, **kwargs)
+        self.item = self.collection.find_one({'_id': self._id}, **kwargs)
         return self
    
     def save(self, *args, **kwargs):

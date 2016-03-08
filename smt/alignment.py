@@ -538,5 +538,4 @@ class Alignment(BaseSmtModel):
                                     } 
                     }
                 ]
-        ret_aggr = collection.aggregate(pipeline=pipe)
-        return ret_aggr['result']
+        return collection.aggregate(pipeline=pipe)
