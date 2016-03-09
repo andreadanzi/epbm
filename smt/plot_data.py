@@ -14,6 +14,8 @@ import csv, re
 import sys, getopt
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.mlab import griddata
+from collections import defaultdict
 # create main logger
 logger = logging.getLogger('smt_main')
 logger.setLevel(logging.DEBUG)
@@ -33,7 +35,43 @@ database = smtConfig.get('MONGODB','database')
 source_database = smtConfig.get('MONGODB','source_database')
 username = smtConfig.get('MONGODB','username')
 password = smtConfig.get('MONGODB','password')
+main_colors = {
+                'MC':'#1f77b4',
+                'MCA':'#ff7f0e', 
+                'SO2':'#2ca02c',
+                'MFL5':'#d62728',  
+                'CG':'#9467bd',
+                'MIG':'#8c564b',  
+                'SB':'#e377c2', 
+                'MA':'#7f7f7f',
+                'SO4':'#bcbd22', 
+                'MFL4':'#dbdb8d', 
+                'SO':'#17becf', 
+                'MFL3':'#9edae5'}
 
+def fillBetweenStrata(a_list):
+    currentStrata = None
+    x=[]
+    y1=[]
+    y2=[]
+    facecolors=['orange','yellow']
+    for i, a_item in enumerate(a_list):
+        z_base = a_item['REFERENCE_STRATA']['POINTS']['base']['coordinates'][2]
+        z_top = a_item['REFERENCE_STRATA']['POINTS']['top']['coordinates'][2]  
+        code = a_item['REFERENCE_STRATA']['CODE']
+        if not currentStrata:
+            currentStrata = code        
+        elif currentStrata == code:
+            pass
+        else:
+            plt.fill_between(x, y1, y2,facecolor=main_colors[currentStrata], interpolate=True,label=currentStrata)
+            x=[]
+            y1=[]
+            y2=[]
+            currentStrata = code
+        x.append(a_item['PK'])
+        y1.append(z_base)
+        y2.append(z_top)        
 
 def plot_data(bAuthenticate, sPath):
     # connect to MongoDB
@@ -56,7 +94,7 @@ def plot_data(bAuthenticate, sPath):
                 d = Domain(db,dom)
                 d.load()
                 # Example of query
-                als = db.Alignment.find({"domain_id":d._id},{"PK":True,"COB":True,"BLOWUP":True, "PH":True, "DEM":True}).sort("PK", 1)
+                als = db.Alignment.find({"domain_id":d._id},{"PK":True,"COB":True,"BLOWUP":True, "PH":True, "DEM":True, "REFERENCE_STRATA":True}).sort("PK", 1)
                 a_list = list(als)
                 pks =[d['PK'] for d in a_list]
                 # scalo di fattore 100
@@ -65,7 +103,11 @@ def plot_data(bAuthenticate, sPath):
                 blowups =[d['BLOWUP']/100 for d in a_list]
                 phs =[d['PH']['coordinates'][2] for d in a_list]
                 dems =[d['DEM']['coordinates'][2] for d in a_list]
+                pkys =[d['PH']['coordinates'][1] for d in a_list]
+                pkxs =[d['PH']['coordinates'][0] for d in a_list]                
+                # plot
                 plt.title("Profilo")
+                fillBetweenStrata(a_list)
                 plt.plot(pks,phs, linewidth=2,label='Tracciato')
                 plt.plot(pks,dems,  linewidth=2,label='DEM' )
                 plt.plot(pks,cobs, label='COB / 100')
@@ -73,6 +115,13 @@ def plot_data(bAuthenticate, sPath):
                 plt.axis([min(pks),max(pks),min(phs)-10,max(dems)+10])
                 plt.legend()
                 plt.show()
+                # stampa planimetria
+                plt.title("Planimetria") 
+                plt.plot(pkxs,pkys, linewidth=2,label='Tracciato')
+                plt.axis("equal")
+                plt.legend()
+                plt.show()
+                
                 logger.info("Found %d PKs" % len( a_list ) )
     else:
         logger.error("Authentication failed")
