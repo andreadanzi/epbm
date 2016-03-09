@@ -34,6 +34,18 @@ def cob_step_2(z_ref, ref_stratus,sigma_v,z_wt, z_tun, gamma_muck):
     pCob = sigma_ha_eff + p_wt + 20.0 + (z_tun-z_ref)*gamma_muck
     return pCob
 
+# 20160309@Gabriele Aggiunta valutazione blowup - inizio
+# valore pressione di blow up
+# blowup = s_v + R_excav * gamma_muck - p_safety_blowup
+# s_v = pressione geostatica totale in calotta al tunnel
+# R_excav = raggio di scavo
+# gamma_muck = densita' del fluido al fronte
+# p_safety_blowup costante in kPa di sicurezza per blowup
+def blowup(s_v, R_excav, gamma_muck, p_safety_blowup):
+    pBlowUp = s_v+R_excav*gamma_muck-p_safety_blowup
+    return pBlowUp
+# 20160309@Gabriele Aggiunta valutazione blowup - fine
+
 # cedimento a profondita' z dalla superficie secondo laganathan 2011
 # eps0 = volume perso (adimensionale)
 # R = raggio di scavo in metri

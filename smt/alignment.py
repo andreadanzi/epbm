@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 from base import BaseSmtModel, BaseStruct
-from utils import cob_step_1, cob_step_2, toFloat
+from utils import cob_step_1, cob_step_2, toFloat, blowup
 import datetime, math
 import csv
 """
@@ -553,8 +553,28 @@ class Alignment(BaseSmtModel):
                         fCob = fTempCOB
                 # Assegno il valore COB alla PK
                 self.item["COB"] = fCob
+                
+                # 20160309@Gabriele Aggiunta valutazione blowup - inizio
+                fBlowUp=0.0
+                sigma_v = 0.0
+                for ref_stratus in ref_strata:
+                    # se la base dello strato e' sopra il top del tunnel aggiorno la sigma_v
+                    if ref_stratus.POINTS.base.coordinates[2] >= z_top:
+                        zRef = ref_stratus.POINTS.base.coordinates[2]
+                        sigma_v = cob_step_1(zRef,ref_stratus,sigma_v)
+                        self.logger.debug(u"\tstrato di riferimento per z_top %f è %s con base a %f. zRef = %f, sigma_v = %f" % (z_top,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],zRef,sigma_v))
+                    # se la base dello strato e' sotto il top del tunnel e il top dello strato sta sopra il tunnel aggiorno la sigmav
+                    elif ref_stratus.POINTS.top.coordinates[2] > z_top:
+                        zRef = z_top
+                        sigma_v = cob_step_1(zRef,ref_stratus,sigma_v)
+                        self.logger.debug(u"\tstrato di riferimento per z_top %f è %s con base a %f. zRef = %f, sigma_v = %f" % (z_top,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],zRef,sigma_v))
+                # calcolo il valore complessivo di BLOWUP
+                fBlowUp = blowup(sigma_v, align.TBM.excav_diameter/2.0, gamma_muck, self.project.p_safe_blowup_kpa)
+                # Assegno il valore BLOWUP alla PK
+                self.item["BLOWUP"] = fBlowUp
+                self.logger.debug("Valore di COB =%f, Valore di Blowup =%f" % (fCob, fBlowUp))
+                # 20160309@Gabriele Aggiunta valutazione blowup - fine
                 ###### CONTINUA QUI
-                self.logger.debug("Project p_safe_blowup_kpa=%f e p_safe_cob_kpa=%f " % (self.project.p_safe_blowup_kpa,self.project.p_safe_cob_kpa))
         except AttributeError as ae:
             self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
         if "REFERENCE_STRATA" in self.item:
