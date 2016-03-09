@@ -511,14 +511,13 @@ class Alignment(BaseSmtModel):
                 copertura = align.DEM.coordinates[2] - align.PH.coordinates[2]
                 self.logger.debug("on %f , copertuta = %f, tra zp = %f e z_dem = %f" % (align.PK, copertura, align.z, align.DEM.coordinates[2]))
                 ### Verifica strato di riferimento per le PK
-                ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > align.z >= strato.POINTS.base.coordinates[2]]
-                i=0
-                for ref_stratus in ref_strata:
-                    pointsDict = self.item["STRATA"][i]["POINTS"]
+                indexes = [idx for idx, strato in enumerate(align.STRATA) if strato.POINTS.top.coordinates[2] > align.z >= strato.POINTS.base.coordinates[2]]
+                for idx in indexes:
+                    ref_stratus = align.STRATA[idx]
+                    pointsDict = self.item["STRATA"][idx]["POINTS"]
                     self.item["REFERENCE_STRATA"] = {"CODE":ref_stratus.CODE,"PARAMETERS": ref_stratus.PARAMETERS.__dict__ , "POINTS": pointsDict}
                     retVal = ref_stratus.CODE
-                    self.logger.debug(u"\tstrato di riferimento è %s " % retVal)
-                    i += 1
+                    self.logger.debug(u"\tstrato di riferimento per %f è %s: %f > %f >= %f " % (align.PK, retVal,ref_stratus.POINTS.top.coordinates[2],align.z,strato.POINTS.base.coordinates[2]))
                 ##### Verifica strato di riferimento per le sezioni di riferimento per pressione minima di stabilità
                 z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + align.TBM.excav_diameter/2.0
                 z_base = z_top - align.TBM.excav_diameter
