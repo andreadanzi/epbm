@@ -5,6 +5,7 @@ import ConfigParser, os
 from datetime import datetime
 from pymongo import MongoClient
 from alignment import Alignment
+from alignment_set import AlignmentSet
 from project import Project
 from building import Building
 from domain import Domain
@@ -53,12 +54,17 @@ def process_calc(bAuthenticate):
             for dom in found_domains:
                 d = Domain(db,dom)
                 d.load()
-                als = Alignment.find(db,{"domain_id":d._id})
-                for al in als:
-                    a = Alignment(db,al)
-                    a.setProject(p.item)
-                    a.load()
-                    a.perform_calc(str(datetime.now()))
+                asets = db.AlignmentSet.find({"domain_id": d._id})
+                for aset in asets:
+                    a_set = AlignmentSet(db,aset)
+                    a_set.load()
+                    sCode = a_set.item["code"]
+                    als = Alignment.find(db,{"alignment_set_id":a_set._id})
+                    for al in als:
+                        a = Alignment(db,al)
+                        a.setProject(p.item)
+                        a.load()
+                        a.perform_calc(str(datetime.now()))
     else:
         logger.error("Authentication failed")
         
