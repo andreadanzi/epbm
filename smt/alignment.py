@@ -711,18 +711,18 @@ class Alignment(BaseSmtModel):
                 
                 
                 ###### CONTINUA QUI
-                s_calc = 0
+                s_calc = 0.
                 sett_list=[]
                 # qui inizializzo con il SETTLEMENT_MAX
-                sett_list.append({"code":0, "value":s_max})
-                for fstep in [20, 40, 60]:
-                    # qui il calcolo dello step desiderato
+                sett_list.append({"code":0., "value":s_max})
+                for fstep in [20., 40., 60.]:
+                    # qui il calcolo del SETTLEMENT per lo step corrente
                     s_calc = s_calc
                     sett_list.append({"code":fstep,"value": s_calc  })
                 self.item["SETTLEMENTS"] = sett_list
         except AttributeError as ae:
             self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
-        if "SETTLEMENT_MAX" in self.item:
+        if "SETTLEMENTS" in self.item:
             self.save()
         return retVal
     
