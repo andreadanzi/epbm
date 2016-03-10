@@ -40,18 +40,7 @@ found_domains = Domain.find(db, {"project_id": p._id})
 for dom in found_domains:
     d = Domain(db,dom)
     d.load()
-    # Example of calculation
-    als = Alignment.find(db,{"domain_id":d._id})
-    for al in als:
-        a = Alignment(db,al)
-        a.setProject(p.item)
-        a.load()
-        a.perform_calc("PG0123")
-
-    # Example of find
-    alist = Alignment.find(db,{"REFERENCE_STRATA.CODE":"MCA"})
-    print len(list(alist))
-
+ 
     # Example of aggregation
     aggrList = Alignment.aggregate_by_strata(db, d._id)
     for ii in aggrList:

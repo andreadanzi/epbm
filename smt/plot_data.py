@@ -5,6 +5,7 @@ import ConfigParser, os
 from datetime import datetime
 from pymongo import MongoClient
 from alignment import Alignment
+from alignment_set import AlignmentSet
 from project import Project
 from building import Building
 from domain import Domain
@@ -14,9 +15,10 @@ import csv, re
 import sys, getopt
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.mlab import griddata
+from scipy.interpolate import griddata
 from collections import defaultdict
 from shapely.geometry import LineString
+# danzi.tn@20160310 plot secondo distanze dinamiche
 # create main logger
 logger = logging.getLogger('smt_main')
 logger.setLevel(logging.DEBUG)
@@ -49,33 +51,44 @@ main_colors = {
                 'SO4':'#bcbd22', 
                 'MFL4':'#dbdb8d', 
                 'SO':'#17becf', 
-                'MFL3':'#9edae5'}
+                'MFL3':'#9edae5',
+                'R':'#7f7f7f',
+                'AA':'#bcbd22',}
 
 def mid_point(p1,p2):
     x = (p1[0] + p2[0])/2.
     y = (p1[1] + p2[1])/2.
     return x,y
-
+    
+                
 def asse2p(p1,p2,x):
-    coef = np.polyfit(p1,p2,1)    
-    m = mid_point(p1,p2)
-    fm = -1/coef[0]
-    fb = m[0]/coef[0]+m[1]
-    return fm*x+fb
+    mid = mid_point(p1,p2)
+    if p2[0]==p1[0]:
+        return mid[1]
+    if p2[1]==p1[1]:
+        return None
+    m = (p2[1]-p1[1])/(p2[0]-p1[0])
+    m_asse = -1/m
+    return m_asse*(x-mid[0]) + mid[1]
 
 def pfromdistance(p1,p2,d):
-    coef = np.polyfit(p1,p2,1)    
-    m = mid_point(p1,p2)
-    fb = m[0]/coef[0]+m[1]
-    fm = -1/coef[0]
-    a= 1+fm**2
-    b=-2*fm*fb-2*fm*m[1]-2*m[0]
-    c=m[0]**2+m[1]**2+fb**2-2*fb*m[1]-d**2
+    mid = mid_point(p1,p2)
+    if p2[0]==p1[0]:
+        return (p1[0] - d,mid[1]) , (p1[0]+d,mid[1])
+    if p2[1]==p1[1]:
+        return (mid[0],p1[1]+d) , (mid[0],p1[1] - d)
+    m = (p2[1]-p1[1])/(p2[0]-p1[0])
+    mx = mid[0]
+    a = 1.
+    b = -2.*mx
+    c = mx**2-d**2*m**2/(m**2+1)
     coeff = [a, b, c]
     res_x = np.roots(coeff)
-    res_y = asse2p(p1,p2,res_x)
-    return (res_x[0],res_y[0]),(res_x[1],res_y[1])
+    res_y0 = asse2p(p1,p2,res_x[0])
+    res_y1 = asse2p(p1,p2,res_x[1])
+    return (res_x[0],res_y0),(res_x[1],res_y1)
         
+                
 def plot_line( ob, color="green"):
     parts = hasattr(ob, 'geoms') and ob or [ob]
     for part in parts:
@@ -94,6 +107,15 @@ def outputFigure(sDiagramsFolderPath, sFilename, format="svg"):
         os.remove(imagefname)
     plt.savefig(imagefname,format=format, bbox_inches='tight', pad_inches=0)
 
+def processSettlements(a_list):
+    distanceIndex = defaultdict(list)
+    for i, a_item in enumerate(a_list):
+        for item in a_item["SETTLEMENTS"]:
+            distanceIndex[item["code"]].append(item["value"])
+    distanceKeys = distanceIndex.keys()
+    distanceKeys.sort()
+    return distanceKeys, distanceIndex
+    
 def fillBetweenStrata(a_list):
     currentStrata = None
     x=[]
@@ -139,50 +161,97 @@ def plot_data(bAuthenticate, sPath):
                 d = Domain(db,dom)
                 d.load()
                 # Example of query
-                als = db.Alignment.find({"domain_id":d._id},{"PK":True,"COB":True,"BLOWUP":True, "PH":True, "DEM":True, "REFERENCE_STRATA":True}).sort("PK", 1)
-                a_list = list(als)
-                pks =[d['PK'] for d in a_list]
-                # scalo di fattore 100
-                cobs =[d['COB']/100 for d in a_list]
-                # scalo di fattore 100
-                blowups =[d['BLOWUP']/100 for d in a_list]
-                phs =[d['PH']['coordinates'][2] for d in a_list]
-                dems =[d['DEM']['coordinates'][2] for d in a_list]
-                pkys =[d['PH']['coordinates'][1] for d in a_list]
-                pkxs =[d['PH']['coordinates'][0] for d in a_list]                
-                # plot
-                fig = plt.figure()
-                plt.title("Profilo")
-                fillBetweenStrata(a_list)
-                plt.plot(pks,phs, linewidth=2,label='Tracciato')
-                plt.plot(pks,dems,  linewidth=2,label='DEM' )
-                plt.plot(pks,cobs, label='COB / 100')
-                plt.plot(pks,blowups, label='BLOWUP / 100')
-                plt.axis([min(pks),max(pks),min(phs)-10,max(dems)+10])
-                plt.legend()
-                outputFigure(sPath, "profilo.svg")
-                logger.info("profilo.svg plotted in %s" % sPath)
-                plt.show()
-                # stampa planimetria
-                plt.title("Planimetria") 
-                # plt.plot(pkxs,pkys, linewidth=2,label='Tracciato')
-                line_points = [(x,pkys[i]) for i,x in enumerate(pkxs) ]
-                line = LineString(line_points)
-                print "line ha %d coords" % len(line.coords)
-                offset_left = line.parallel_offset(20, 'left', join_style=2, mitre_limit=20)
-                offset_center = offset_left.parallel_offset(20, 'right', join_style=2, mitre_limit=20)
-                print "offset_left ha %d coords" % len(offset_left.coords)
-                offset_right = line.parallel_offset(20, 'right', join_style=2, mitre_limit=20)
-                print "offset_right ha %d coords" % len(offset_right.coords)
-                plot_line(offset_center)
-                plot_line(offset_left, color="blue")
-                plot_line(offset_right, color="red")
-                x, y = list(line.coords)[0]
-                plot_coords(x, y)
-                plt.axis("equal")
-                plt.legend()
-                plt.show()
-                logger.info("plot_data terminated!")
+                asets = db.AlignmentSet.find({"domain_id": d._id})
+                for aset in asets:
+                    a_set = AlignmentSet(db,aset)
+                    a_set.load()
+                    sCode = a_set.item["code"]
+                    als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"COB":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, "VOLUME_LOSS":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True}).sort("PK", 1)
+                    a_list = list(als)
+                    pks =[d['PK'] for d in a_list]
+                    # scalo di fattore 100
+                    cobs =[d['COB']/100 for d in a_list]
+                    # scalo di fattore 100
+                    blowups =[d['BLOWUP']/100 for d in a_list]
+                    # amplifico di fattore 100
+                    max_settlements =[d['SETTLEMENT_MAX']*100 for d in a_list]
+                    phs =[d['PH']['coordinates'][2] for d in a_list]
+                    dems =[d['DEM']['coordinates'][2] for d in a_list]
+                    pkys =[d['PH']['coordinates'][1] for d in a_list]
+                    pkxs =[d['PH']['coordinates'][0] for d in a_list]   
+                    # punti medi
+                    pmidx = []
+                    pmidy = []
+                    # punti a distanza 20 e 40
+                    keys, dictValues = processSettlements(a_list)
+                    pkxs_d_1 = defaultdict(list)
+                    pkys_d_1 = defaultdict(list)
+                    pkzs_d_1 = defaultdict(list)
+                    pkxs_d_2 = defaultdict(list)
+                    pkys_d_2 = defaultdict(list)
+                    pkzs_d_2 = defaultdict(list)
+                    mypoints = np.zeros((0,2))
+                    myvalues = np.zeros(0,'f')
+                    for i,x in enumerate(pkxs):
+                        if i==0:
+                            pass
+                        else:
+                            p1 = (pkxs[i-1],pkys[i-1])
+                            p2 = (pkxs[i],pkys[i])
+                            pm = mid_point(p1,p2)
+                            pmidx.append(pm[0])
+                            pmidy.append(pm[1])
+                            for key in keys:
+                                val = (dictValues[key][i-1] + dictValues[key][i]) * 0.5
+                                ret_d = pfromdistance(p1,p2,key)
+                                x1 = ret_d[0][0]
+                                x2 = ret_d[1][0]
+                                y1 = ret_d[0][1]
+                                y2 = ret_d[1][1]
+                                pkxs_d_1[key].append(x1)
+                                pkxs_d_2[key].append(x2)
+                                pkys_d_1[key].append(y1)
+                                pkys_d_2[key].append(y2) 
+                                mypoints = np.append(mypoints,[[x1,y1]],axis=0)
+                                myvalues = np.append(myvalues,[val],axis=0)
+                                mypoints = np.append(mypoints,[[x2,y2]],axis=0)
+                                myvalues = np.append(myvalues,[val],axis=0)
+                    gx, gy =  np.mgrid[min(pkxs):max(pkxs),min(pkys):max(pkys)]
+                    m_interp_cubic = griddata(mypoints, myvalues, (gx, gy),method='cubic')
+                    # plot
+                    fig = plt.figure()
+                    plt.title("Profilo %s" % sCode)
+                    ### visualizza gli strati di riferimento
+                    # fillBetweenStrata(a_list)
+                    
+                    ################################################
+                    plt.plot(pks,phs, linewidth=2,label='Tracciato')
+                    plt.plot(pks,dems,  linewidth=2,label='DEM' )
+                    plt.plot(pks,cobs, label='COB / 100')
+                    plt.plot(pks,blowups, label='BLOWUP / 100')
+                    plt.plot(pks,max_settlements, label='SETTLEMENT_MAX * 100')
+                    plt.axis([min(pks),max(pks),min(phs)-10,max(dems)+10])
+                    plt.legend()
+                    outputFigure(sPath, "profilo.svg")
+                    logger.info("profilo.svg plotted in %s" % sPath)
+                    plt.show()
+                    # stampa planimetria
+                    plt.title("Planimetria") 
+                    plt.plot(pkxs,pkys, "bo")
+                    plt.plot(pkxs,pkys, "r-",label='Tracciato %s' % a_set.item["code"])
+                    # Punti medi
+                    plt.plot(pmidx,pmidy, "gx")
+  
+                    for key in keys:
+                        pkzs_d_1[key] = dictValues[key]
+                        pkzs_d_2[key] = dictValues[key]
+                        plt.plot(pkxs_d_1[key],pkys_d_1[key], "ro")
+                        plt.plot(pkxs_d_2[key],pkys_d_2[key], "yo")
+                    
+                    plt.axis("equal")
+                    plt.legend()
+                    plt.show()
+                    logger.info("plot_data terminated!")
     else:
         logger.error("Authentication failed")
         
