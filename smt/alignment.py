@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 from base import BaseSmtModel, BaseStruct
-from utils import cob_step_1, cob_step_2, toFloat, blowup
+from utils import *
 import datetime, math
 import csv
 """
@@ -536,12 +536,12 @@ class Alignment(BaseSmtModel):
                     # se la base dello strato è sotto allora sono sulla base del tunnel
                     if ref_stratus.POINTS.base.coordinates[2] <= z_base:
                         sigma_v = cob_step_1(z_base,ref_stratus,sigma_v)
-                        fTempCOB = cob_step_2(z_base,ref_stratus,sigma_v,z_wt, z_tun, gamma_muck)
+                        fTempCOB = cob_step_2(z_base,ref_stratus,sigma_v,z_wt, z_tun, gamma_muck, self.project.p_safe_cob_kpa)
                         self.logger.debug(u"\tstrato di riferimento per z_base %f è %s con base a %f. sigma_v = %f, fTempCOB = %f" % (z_base,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],sigma_v,fTempCOB))
                     # se la base dello strato è sotto il top del tunnell allora sono negli strati intermedi
                     elif ref_stratus.POINTS.base.coordinates[2] <= z_top:
                         sigma_v = cob_step_1(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v)
-                        fTempCOB = cob_step_2(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v,z_wt, z_tun, gamma_muck)
+                        fTempCOB = cob_step_2(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v,z_wt, z_tun, gamma_muck, self.project.p_safe_cob_kpa)
                         self.logger.debug(u"\tstrato intermedio sotto z_top (%f>) è %s con base a %f. sigma_v = %f, fTempCOB = %f" % (z_top,ref_stratus.CODE, ref_stratus.POINTS.base.coordinates[2],sigma_v,fTempCOB))
                     # altrimenti sono sempre sopra
                     else:
@@ -573,6 +573,71 @@ class Alignment(BaseSmtModel):
                 self.item["BLOWUP"] = fBlowUp
                 self.logger.debug("Valore di COB =%f, Valore di Blowup =%f" % (fCob, fBlowUp))
                 # 20160309@Gabriele Aggiunta valutazione blowup - fine
+                
+                # calcolo parametri per volume perso
+                # tensione totale come media pesata sullo spessore tra superficie e asse tunnel
+                sigma_v=0.
+                for ref_stratus in ref_strata:
+                    if ref_stratus.POINTS.base.coordinates[2] >= z_tun:
+                        zRef = ref_stratus.POINTS.base.coordinates[2]
+                        sigma_v = cob_step_1(zRef,ref_stratus,sigma_v)
+                    elif ref_stratus.POINTS.top.coordinates[2] > z_tun:
+                        zRef = z_tun
+                        sigma_v = cob_step_1(zRef,ref_stratus,sigma_v)
+                # k0 e modulo di young come media sull'altezza del fronte
+                k0_th = 0.
+                young_th = 0.
+                ci_th = 0.
+                phi_th = 0.
+                nu_th = 0.
+                th = 0.
+# inom	imin	imax	elt	esout	etounnel	phi_dr	c_dr	phi_tr	c_tr	phi_un	c_un	k0	n
+                for ref_stratus in ref_strata:
+                    if ref_stratus.POINTS.base.coordinates[2] < z_top:
+                        z_max = min(z_top, ref_stratus.POINTS.top.coordinates[2])
+                        z_min = max(z_base, ref_stratus.POINTS.base.coordinates[2] )
+                        tmp_th = z_max - z_min
+                        th += tmp_th
+                        k0_th += tmp_th * ref_stratus.PARAMETERS.k0
+                        young_th += tmp_th * ref_stratus.PARAMETERS.etounnel
+                        ci_th += tmp_th * ref_stratus.PARAMETERS.c_tr
+                        phi_th += tmp_th * ref_stratus.PARAMETERS.phi_tr
+                        nu_th += tmp_th * ref_stratus.PARAMETERS.n
+                k0_face = k0_th/th
+                young_face = young_th/th
+                ci_face = ci_th/th
+                phi_face = phi_th/th
+                nu_face = nu_th/th
+                p_wt = max(0., (z_wt-z_tun)*9.81)
+                s_v = sigma_v
+                r_excav = align.TBM.excav_diameter/2.
+                gf=gap_front(fCob, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
+                shield_taper = align.TBM.taper
+                cutter_bead_thickness = align.TBM.bead_thickness
+                gs=gap_shield(fCob, p_wt, s_v, nu_face, young_face, r_excav, shield_taper, cutter_bead_thickness)
+                tail_skin_thickness=align.TBM.tail_skin_thickness
+                delta=align.TBM.delta
+                gt=gap_tail(tail_skin_thickness, delta)
+                gap=gf+gs+gt
+                eps0=volume_loss(gap, r_excav)
+                self.item["VOLUME_LOSS"] = eps0
+                
+                # calcolo parametri per cedimenti
+                # nu, phi sono calcolati come media pesata sullo spessore e sulla distanza dello strato dall'asse della galleria
+                # il peso e' dato dallo spessore * coeff_d
+                # coeff_d = 3.*r_excav/(max(3.*r_excav, dist) [vale 1 fino a distanze di 3 raggi di scavo e poi va a diminuire
+                # dist = distanza tra il baricentro dello strato considerato e l'asse del tunnel
+                ###### CONTINUA QUI
+                for ref_stratus in ref_strata:
+                    if ref_stratus.POINTS.base.coordinates[2] >= z_tun:
+                        zRef = ref_stratus.POINTS.base.coordinates[2]
+                        sigma_v = cob_step_1(zRef,ref_stratus,sigma_v)
+                    elif ref_stratus.POINTS.top.coordinates[2] > z_tun:
+                        zRef = z_tun
+                        sigma_v = cob_step_1(zRef,ref_stratus,sigma_v)
+                
+                
+                
                 ###### CONTINUA QUI
         except AttributeError as ae:
             self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
