@@ -685,10 +685,10 @@ class Alignment(BaseSmtModel):
                 #gap_tail(p_tbm, nu, young, r_excav, tail_skin_thickness, delta)
                 gt=gap_tail(p_tbm,nu_tun, young_tun, r_excav, tail_skin_thickness, delta)
                 gap=gf+gs+gt
-                gap_inst=gf+gs
+                #gap_inst=gf+gs
                 # calcolo del volume perso
                 eps0=volume_loss(gap, r_excav)
-                eps0_inst=volume_loss(gap_inst, r_excav)
+                # eps0_inst=volume_loss(gap_inst, r_excav)
                 self.item["VOLUME_LOSS"] = eps0
                 self.logger.debug("\tAnalisi di volume perso")
                 self.logger.debug("\tParametri geomeccanici mediati:")
@@ -702,11 +702,11 @@ class Alignment(BaseSmtModel):
                 # calcolo cedimento massimo in asse
                 beta = math.radians(45.+phi_tun/2.)
                 s_max = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta, 0., 0.)
-                s_inst = uz_laganathan(eps0_inst, r_excav, depth_tun, nu_tun, beta, 0., 0.)
+                #s_inst = uz_laganathan(eps0_inst, r_excav, depth_tun, nu_tun, beta, 0., 0.)
                 self.item["SETTLEMENT_MAX"] = s_max
                 self.logger.debug("\tAnalisi cedimenti")
                 self.logger.debug("\t\tCedimento massimo in asse, s_max =%f mm" % (s_max*1000))
-                self.logger.debug("\t\tCedimento istantaneo in asse, s_inst =%f mm" % (s_inst*1000))
+                #self.logger.debug("\t\tCedimento istantaneo in asse, s_inst =%f mm" % (s_inst*1000))
                 
                 
                 
@@ -715,9 +715,10 @@ class Alignment(BaseSmtModel):
                 sett_list=[]
                 # qui inizializzo con il SETTLEMENT_MAX
                 sett_list.append({"code":0., "value":s_max})
-                for fstep in [20., 40., 60.]:
+                for fstep in [2., 4., 6., 8., 10., 12., 15., 20., 25., 30., 35., 40., 45., 50., 75.]:
                     # qui il calcolo del SETTLEMENT per lo step corrente
-                    s_calc = s_calc
+                    # uz_laganathan(eps0, R, H, nu, beta, x, z)
+                    s_calc = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta, fstep, 0.)
                     sett_list.append({"code":fstep,"value": s_calc  })
                 self.item["SETTLEMENTS"] = sett_list
         except AttributeError as ae:
