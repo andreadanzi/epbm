@@ -52,6 +52,8 @@ else:
 # Import domain inside the project: one-to-many relationship by references
 p.import_domains("../data/domain.csv")
 cr = Domain.find(db, {"project_id": p._id})
+# Import Buildings
+Building.ImportFromCSVFile("../data/buildings.csv", db)
 for c in cr:
     d = Domain(db,c)
     d.load()
@@ -78,6 +80,5 @@ for c in cr:
             a = Alignment(db,al)
             a.setProject(p.item)
             a.load()
+            a.assign_buildings()
             a.assign_reference_strata()
-# Import Buildings
-Building.ImportFromCSVFile("../data/buildings.csv", db)
