@@ -126,7 +126,9 @@ class AlignmentSet(BaseSmtModel):
                 ac = a_collection.find_one({"PK":pk,"alignment_set_id":self._id})
                 if ac:
                     #excav_diameter	bead_thickness	taper	tail_skin_thickness	delta	gamma_muck shield_length
-                    ac["TBM"] = {"excav_diameter":toFloat(row["excav_diameter"]),"bead_thickness":toFloat(row["bead_thickness"]),"taper":toFloat(row["taper"]),"tail_skin_thickness":toFloat(row["tail_skin_thickness"]),"delta":toFloat(row["delta"]),"gamma_muck":toFloat(row["gamma_muck"]),"shield_length":toFloat(row["shield_length"])}
+                    ac["TBM"] = {"excav_diameter":toFloat(row["excav_diameter"]),"bead_thickness":toFloat(row["bead_thickness"]),"taper":toFloat(row["taper"]),\
+                    "tail_skin_thickness":toFloat(row["tail_skin_thickness"]),"delta":toFloat(row["delta"]),"gamma_muck":toFloat(row["gamma_muck"]),\
+                    "shield_length":toFloat(row["shield_length"]), "pressure_max":toFloat(row["pressure_max"])}
                     align = Alignment(self.db,ac)
                     align.save()    
     
