@@ -5,6 +5,7 @@ import ConfigParser, os
 import datetime
 from pymongo import MongoClient
 from alignment import Alignment
+from alignment_set import AlignmentSet
 from project import Project
 from building import Building
 from domain import Domain
@@ -35,6 +36,7 @@ db = client[database]
 db.authenticate(username,password,source=source_database)
 Building.delete_all(db)
 Alignment.delete_all(db)
+AlignmentSet.delete_all(db)
 Domain.delete_all(db)
 Project.delete_all(db)
 # Search for project_code = "MFW001_0-010 Metro Paris-Ligne 15_T2A"
@@ -53,17 +55,29 @@ cr = Domain.find(db, {"project_id": p._id})
 for c in cr:
     d = Domain(db,c)
     d.load()
-    # Import reference strata inside the domain: one-to-one relationship by embedding
-    d.import_reference_strata("../data/reference_strata.csv")
-    # Import alignment inside the domain: one-to-many relationship by references
-    d.import_alignment("../data/profilo_progetto.csv")
-    # Import stratigraphy inside the alignment: one-to-many relationship by embedding
-    d.import_strata("../data/stratigrafia.csv")
-    # Import water folders inside the alignment: one-to-many relationship by embedding
-    d.import_falda("../data/falda.csv")
-    # Import tunnel sections inside the alignment: one-to-many relationship by embedding
-    d.import_sezioni("../data/sezioni_progetto.csv")
-    # Import TBM inside the alignment: one-to-many relationship by embedding
-    d.import_tbm("../data/tbm_progetto.csv")
+    d.import_alignment_set("../data/alignment_set.csv")
+    asets = db.AlignmentSet.find({"domain_id": d._id})
+    for aset in asets:
+        a_set = AlignmentSet(db,aset)
+        a_set.load()
+        sCode = a_set.item["code"]
+        # Import reference strata inside the alignment set: one-to-one relationship by embedding
+        a_set.import_reference_strata("../data/reference_strata.csv" )
+        # Import alignment inside the alignment set: one-to-many relationship by references
+        a_set.import_alignment("../data/profilo_progetto-%s.csv" % sCode)
+        # Import stratigraphy inside the alignment: one-to-many relationship by embedding
+        a_set.import_strata("../data/stratigrafia-%s.csv" % sCode)
+        # Import water folders inside the alignment: one-to-many relationship by embedding
+        a_set.import_falda("../data/falda-%s.csv" % sCode)
+        # Import tunnel sections inside the alignment: one-to-many relationship by embedding
+        a_set.import_sezioni("../data/sezioni_progetto-%s.csv" % sCode)
+        # Import TBM inside the alignment: one-to-many relationship by embedding
+        a_set.import_tbm("../data/tbm_progetto-%s.csv" % sCode)
+        als = Alignment.find(db,{"alignment_set_id":a_set._id})
+        for al in als:
+            a = Alignment(db,al)
+            a.setProject(p.item)
+            a.load()
+            a.assign_reference_strata()
 # Import Buildings
 Building.ImportFromCSVFile("../data/buildings.csv", db)

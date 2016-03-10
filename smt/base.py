@@ -19,8 +19,8 @@ class BaseSmtModel:
     def ImportFromCSVFile(cls,csvFilePath, db, delete_existing=True):
         with open(csvFilePath, 'rb') as csvfile:
             rows = []
-            align_reader = csv.DictReader(csvfile, delimiter=';')
-            for row in align_reader:
+            csv_reader = csv.DictReader(csvfile, delimiter=';')
+            for row in csv_reader:
                 for key, value in row.iteritems():
                     row[key] = toFloat(value)
                 row["created"] = datetime.datetime.utcnow()

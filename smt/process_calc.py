@@ -12,7 +12,6 @@ from bson.objectid import ObjectId
 import glob,io
 import csv, re
 import sys, getopt
-from minimongo import Model, Index
 import googlemaps
 # create main logger
 logger = logging.getLogger('smt_main')
@@ -34,13 +33,15 @@ source_database = smtConfig.get('MONGODB','source_database')
 username = smtConfig.get('MONGODB','username')
 password = smtConfig.get('MONGODB','password')
 
-
-def process_calc(path):
+def process_calc(bAuthenticate):
     # connect to MongoDB
     client = MongoClient()
     db = client[database]
-    # DB authentication
-    bLoggedIn = db.authenticate(username,password,source=source_database)
+    # DB authentication if required
+    if bAuthenticate:
+        bLoggedIn = db.authenticate(username,password,source=source_database)
+    else:
+        bLoggedIn = True
     if bLoggedIn:
         logger.info("Authenticated")
         pd = db.Project.find_one({"project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A"})
@@ -52,37 +53,37 @@ def process_calc(path):
             for dom in found_domains:
                 d = Domain(db,dom)
                 d.load()
-                # Example of calculation
                 als = Alignment.find(db,{"domain_id":d._id})
-                logger.info("Found %d PKs" % len( list(als) ) )
+                for al in als:
+                    a = Alignment(db,al)
+                    a.setProject(p.item)
+                    a.load()
+                    a.perform_calc(str(datetime.now()))
     else:
         logger.error("Authentication failed")
         
                 
 def main(argv):
-    sPath = "NONE"
-    sSyntax = os.path.basename(__file__) +" -p <folder path>"
+    bAuthenticate = False
+    sSyntax = os.path.basename(__file__) +" [-a for authentication]"
     try:
-        opts, args = getopt.getopt(argv,"hp:",["path="])
+        opts, args = getopt.getopt(argv,"ha")
     except getopt.GetoptError:
         print sSyntax
         sys.exit(1)
+    """
     if len(opts) < 1:
         print sSyntax
         sys.exit(2)
+    """
     for opt, arg in opts:
         if opt == '-h':
             print sSyntax
             sys.exit()
-        elif opt in ("-p", "--path"):
-            sPath = arg
-            if os.path.isdir(sPath):
-                process_calc(sPath)
-            else:
-                print sSyntax
-                print "Directory %s does not exists!" % sPath
-                sys.exit(3)
-    
+        elif opt == '-a':
+            bAuthenticate = True
+        
+    process_calc(bAuthenticate)
     
     
 if __name__ == "__main__":

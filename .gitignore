@@ -14,3 +14,6 @@ data/Stratigrafia_originale.csv
 data/alignment.csv
 data/out_pk.csv
 data/query_pk.csv
+data/falda_raccordo.csv
+data/profilo_progetto_raccordo.csv
+data/stratigrafia_raccordo.csv

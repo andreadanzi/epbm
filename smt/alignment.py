@@ -4,6 +4,7 @@ from base import BaseSmtModel, BaseStruct
 from utils import *
 import datetime, math
 import csv
+# danzi.tn@20160310 refactoring per separare calc da setup
 """
 {
   "_id": ObjectId("56deab2e2a13da141c249612"),
@@ -499,7 +500,8 @@ class Alignment(BaseSmtModel):
     def setProject(self, projectItem):
         self.project = BaseStruct(projectItem)    
     
-    def doit (self,parm):
+    
+    def assign_reference_strata(self):
         retVal = "XXX"
         # BaseStruct converte un dizionario in un oggetto la cui classe ha come attributi gli elementi del dizionario
         # per cui se ho d={"a":2,"c":3} con o=BaseStruct(d) => d.a == 2 e d.c == 3
@@ -516,6 +518,22 @@ class Alignment(BaseSmtModel):
                     self.item["REFERENCE_STRATA"] = {"CODE":ref_stratus.CODE,"PARAMETERS": ref_stratus.PARAMETERS.__dict__ , "POINTS": pointsDict}
                     retVal = ref_stratus.CODE
                     self.logger.debug(u"\tstrato di riferimento per %f è %s: %f > %f >= %f " % (align.PK, retVal,ref_stratus.POINTS.top.coordinates[2],align.z,strato.POINTS.base.coordinates[2]))
+                ###### CONTINUA QUI
+        except AttributeError as ae:
+            self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
+        if "REFERENCE_STRATA" in self.item:
+            self.save()
+        return retVal
+    
+    def doit (self,parm):
+        retVal = "XXX"
+        # BaseStruct converte un dizionario in un oggetto la cui classe ha come attributi gli elementi del dizionario
+        # per cui se ho d={"a":2,"c":3} con o=BaseStruct(d) => d.a == 2 e d.c == 3
+        # a volte ci sono elementi che durante import non hanno recuperato DEM e Stratigrafia, per questo bisogna mettere try
+        align = BaseStruct(self.item)
+        self.logger.debug("Analisi alla PK %f" % (align.PK) )
+        try:
+            if align.z == align.PH.coordinates[2]:
                 ##### Verifica strato di riferimento per le sezioni di riferimento per pressione minima di stabilità
                 z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + align.TBM.excav_diameter/2.0
                 z_base = z_top - align.TBM.excav_diameter
@@ -695,7 +713,7 @@ class Alignment(BaseSmtModel):
                 ###### CONTINUA QUI
         except AttributeError as ae:
             self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
-        if "REFERENCE_STRATA" in self.item:
+        if "SETTLEMENT_MAX" in self.item:
             self.save()
         return retVal
     

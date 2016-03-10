@@ -1,0 +1,3 @@
+code;name;domain_code;xmin;ymin;xmax;ymax;zmin;nx;ny;n_xyzsup;n_strata;nx_strata;ny_strata
+main_01;Main Parigi Fr;paris01;0;0;1000;1000;-50;;;;;;
+bow_01;Bow Parigi;paris01;0;0;1000;1000;-50;;;;;;

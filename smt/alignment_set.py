@@ -6,35 +6,18 @@ from alignment import Alignment
 from utils import toFloat
 import datetime
 
-class Domain(BaseSmtModel):
+class AlignmentSet(BaseSmtModel):
     def _init_utils(self,**kwargs):
         self.logger.debug('created an instance of %s' % self.__class__.__name__)
     
     def delete_referencing(self):
         a_collection = self.db["Alignment"]
-        a_collection.remove({"domain_id":self._id})
+        a_collection.remove({"alignment_set_id":self._id})
     
     def delete(self):
         super(Domain,self).delete()
         self.delete_referencing()
-    
-    def import_alignment_set(self, csvFilePath):
-        with open(csvFilePath, 'rb') as csvfile:
-            rows = []
-            align_reader = csv.DictReader(csvfile, delimiter=';')
-            for row in align_reader:
-                if row["domain_code"] == self.item["code"]:
-                    for key, value in row.iteritems():
-                        row[key] = toFloat(value)
-                    row["created"] = datetime.datetime.utcnow()
-                    row["updated"] = datetime.datetime.utcnow()
-                    row["domain_id"] = self._id
-                    rows.append(row)
-            #db.Alignment.insert(rows)
-            collection = self.db["AlignmentSet"]
-            collection.remove({"domain_id":self._id})
-            collection.insert(rows)
-    
+        
     def import_alignment(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
             rows = []
@@ -42,7 +25,8 @@ class Domain(BaseSmtModel):
             align_list = list(align_reader)
             self.logger.debug('import_alignment - starting reading %d rows from %s' % (len(align_list),csvFilePath))
             for row in align_list:
-                row["domain_id"] = self._id
+                row["alignment_set_id"] = self._id
+                row["domain_id"] = self.item["domain_id"]
                 for key, value in row.iteritems():
                     row[key] = toFloat(value)
                 row["PH"] = { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["z"])] }
@@ -76,7 +60,7 @@ class Domain(BaseSmtModel):
                         align.save()
                         ac = None
                     pk = cur_pk
-                    ac = a_collection.find_one({"PK":pk, "domain_id":self._id})
+                    ac = a_collection.find_one({"PK":pk, "alignment_set_id":self._id})
                 if row["Descrizione"] == "DEM":
                     ac["DEM"] = { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["top"])] }
                 else:
@@ -101,14 +85,14 @@ class Domain(BaseSmtModel):
             self.logger.debug('import_falda - starting reading %d rows from %s' % (len(falda_list),csvFilePath))
             for row in falda_list:
                 pk = float(row["PK"])                                    
-                ac = a_collection.find_one({"PK":pk,"domain_id":self._id})
+                ac = a_collection.find_one({"PK":pk,"alignment_set_id":self._id})
                 if ac:
                     ac["FALDA"] = { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["z"])] }
                     align = Alignment(self.db,ac)
                     align.save()
-                    self.logger.debug('import_falda - FALDA saved for pk=%f and domain %s' % (pk,self._id))
+                    self.logger.debug('import_falda - FALDA saved for pk=%f and alignment_set %s' % (pk,self._id))
                 else:
-                    self.logger.debug('import_falda - nothing found for pk=%f and domain %s' % (pk,self._id))
+                    self.logger.debug('import_falda - nothing found for pk=%f and alignment_set %s' % (pk,self._id))
 
     def import_sezioni(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
@@ -121,7 +105,7 @@ class Domain(BaseSmtModel):
             self.logger.debug('import_sezioni - starting reading %d rows from %s' % (len(sezioni_list),csvFilePath))
             for row in sezioni_list:
                 pk = float(row["PK"])                                    
-                ac = a_collection.find_one({"PK":pk,"domain_id":self._id})
+                ac = a_collection.find_one({"PK":pk,"alignment_set_id":self._id})
                 if ac:
                     ac["SECTIONS"] = { "Excavation":{"Radius":toFloat(row["Excavation Radius"])}, "Lining":{"Internal_Radius":toFloat(row["Lining Internal Radius"]), "Thickness":toFloat(row["Lining Thickness"]), "Offset":toFloat(row["Lining Offset"])}}
                     align = Alignment(self.db,ac)
@@ -139,7 +123,7 @@ class Domain(BaseSmtModel):
             self.logger.debug('import_tbm - starting reading %d rows from %s' % (len(tbm_list),csvFilePath))
             for row in tbm_list:
                 pk = float(row["PK"])                                    
-                ac = a_collection.find_one({"PK":pk,"domain_id":self._id})
+                ac = a_collection.find_one({"PK":pk,"alignment_set_id":self._id})
                 if ac:
                     #excav_diameter	bead_thickness	taper	tail_skin_thickness	delta	gamma_muck shield_length
                     ac["TBM"] = {"excav_diameter":toFloat(row["excav_diameter"]),"bead_thickness":toFloat(row["bead_thickness"]),"taper":toFloat(row["taper"]),"tail_skin_thickness":toFloat(row["tail_skin_thickness"]),"delta":toFloat(row["delta"]),"gamma_muck":toFloat(row["gamma_muck"]),"shield_length":toFloat(row["shield_length"])}
