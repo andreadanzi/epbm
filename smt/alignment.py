@@ -664,7 +664,8 @@ class Alignment(BaseSmtModel):
                 # todo modificare il valore della pressione al fronte entro i limiti per soddisfare la classe di danno degli edifici
                 gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
                 gs=gap_shield(p_tbm, p_wt, s_v, nu_tun, young_tun, r_excav, shield_taper, cutter_bead_thickness)
-                gt=gap_tail(tail_skin_thickness, delta)
+                #gap_tail(p_tbm, nu, young, r_excav, tail_skin_thickness, delta)
+                gt=gap_tail(p_tbm,nu_tun, young_tun, r_excav, tail_skin_thickness, delta)
                 gap=gf+gs+gt
                 gap_inst=gf+gs
                 # calcolo del volume perso

@@ -120,9 +120,13 @@ def volume_loss(gap, r_excav):
 # tail_skin_thickness = spessore scudo EPB
 # delta gap per il posizionamento, valutato sul diametro e dato dat diametro terminale interno dell'EPB - diametro esterno del concio
 # da esperienza il gap residuo varia dal 7% al 10% del gap complessivo
+# per considerare la bonta' del materiale in coda applico lo stesso principio usato per calcolare il gap sullo shield, ui, considerando come dalta sigma p_tbm
 # todo fare variare statisticamente tale %
-def gap_tail(tail_skin_thickness, delta):
-    g_t = .1*(2.*tail_skin_thickness+delta)
+def gap_tail(p_tbm, nu, young, r_excav, tail_skin_thickness, delta):
+    g_max = .1*(2.*tail_skin_thickness+delta)
+    # considero solo mezza p_tbm residua e un gap complessivo su tutto il diametro
+    ui = .67*2.*r_excav*(1.+nu)*p_tbm/young
+    g_t = min(g_max, ui)
     return g_t
 
 # definizione gap di perdita lungo lo scudo secondo Laganathan 2011
