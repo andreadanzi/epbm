@@ -61,8 +61,6 @@ bldgs = Building.find(db, {})
 for bl in bldgs:
     b = Building(db, bl)
     b.assign_class()
-    print b.item["file_name"]
-
 
 for c in cr:
     d = Domain(db,c)

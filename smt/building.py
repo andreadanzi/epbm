@@ -11,7 +11,7 @@ class Building(BaseSmtModel):
     def assign_class(self):
         retVal="XXX"
         sensibility = self.item["sc_lev"]
-        ccurr = self.db.BuildingClass.find({"sc_lev":sensibility})
+        ccurr = self.db.BuildingClass.find({"sc_lev":sensibility}).sort("dc_lev")
         class_array = []
         for c in ccurr:
             class_array.append(c)

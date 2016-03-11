@@ -533,8 +533,9 @@ class Alignment(BaseSmtModel):
         building_array = []
         for b in bcurr:
             building_array.append(b)
-        self.item["BUILDINGS"] = building_array
-        self.save()
+        if len(building_array)>0:
+            self.item["BUILDINGS"] = building_array
+            self.save()
         return retVal
     
     def doit (self,parm):
@@ -626,20 +627,6 @@ class Alignment(BaseSmtModel):
                 # pressione falda in asse tunnel
                 p_wt = max(0., (z_wt-z_tun)*9.81)
                 
-                # pressione al fronte
-                if align.PK == 2128748:
-                    p_tbm=400.
-                elif align.PK == 2123208:
-                    p_tbm=300.
-                elif align.PK == 2127608:
-                    p_tbm=300.
-                elif align.PK == 2124508:
-                    p_tbm=400.
-                elif align.PK == 2123868:
-                    p_tbm=400.
-                else:
-                    p_tbm=fCob
-                
                 # parametri relativi all'estrusione del fronte (k0, modulo di young, coesione e attrito)
                 # come media sull'altezza del fronte piu' mezzo raggio sopra e sotto
                 k0_th = 0.
@@ -690,18 +677,92 @@ class Alignment(BaseSmtModel):
                 young_tun = 1000.*young_wg/wg_tot
                 nu_tun = nu_wg/wg_tot
                 phi_tun = phi_wg/wg_tot
+                beta_tun = math.radians(45.+phi_tun/2.)
+
+                # pressione al fronte
+                p_tbm=0.
+                if align.PK == 2128748:
+                    p_tbm=400.
+                elif align.PK == 2123208:
+                    p_tbm=300.
+                elif align.PK == 2127608:
+                    p_tbm=300.
+                elif align.PK == 2124508:
+                    p_tbm=400.
+                elif align.PK == 2123868:
+                    p_tbm=400.
+                else:
+                    p_tbm=round(fCob/10.)*10.
+
                 # calcolo gap
-                # todo modificare il valore della pressione al fronte entro i limiti per soddisfare la classe di danno degli edifici
                 gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
                 gs=gap_shield(p_tbm, p_wt, s_v, nu_tun, young_tun, r_excav, shield_taper, cutter_bead_thickness)
-                #gap_tail(p_tbm, nu, young, r_excav, tail_skin_thickness, delta)
                 gt=gap_tail(p_tbm,nu_tun, young_tun, r_excav, tail_skin_thickness, delta)
                 gap=gf+gs+gt
-                #gap_inst=gf+gs
                 # calcolo del volume perso
                 eps0=volume_loss(gap, r_excav)
-                # eps0_inst=volume_loss(gap_inst, r_excav)
+                
+                if "BUILDINGS" in self.item:
+                    p_max = align.TBM.pressure_max
+                    for b in align.BUILDINGS:
+                        # leggo l'impronta dell'edificio alla pk analizzata
+                        x_min = b.d_min
+                        x_max = b.d_max
+                        z = b.depth_fondation
+                        
+                        # leggo limiti cedimenti e distorsione
+                        damage_limits = b.DAMAGE_LIMITS
+                        
+                        self.logger.debug("\tAnalisi edificio %s" % (b.bldg_code))
+                        self.logger.debug("\t\tda %fm a %fm e a una profondita' di %fm dal piano di campagna" % (x_min, x_max, z))
+                        while 1==1:
+                            # calcolo gap e volume perso
+                            gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
+                            gs=gap_shield(p_tbm, p_wt, s_v, nu_tun, young_tun, r_excav, shield_taper, cutter_bead_thickness)
+                            gt=gap_tail(p_tbm,nu_tun, young_tun, r_excav, tail_skin_thickness, delta)
+                            gap=gf+gs+gt
+                            eps0=volume_loss(gap, r_excav)
+                            # trovo i valori massimi di cedimento, inclinazione e espilon orizzontale
+                            step = (x_max-x_min)/1000.
+                            s_max_ab = abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
+                            beta_max_ab = abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
+                            esp_h_max_ab = abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
+                            for i in range(1, 1000):
+                                s_max_ab = max(s_max_ab, abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+                                beta_max_ab = max(beta_max_ab, abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+                                esp_h_max_ab = max(esp_h_max_ab, abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+                            
+                            for dl in b.DAMAGE_LIMITS:
+                                if s_max_ab<=dl.uz and beta_max_ab<=dl.d_uz_dx and esp_h_max_ab<=dl.d_ux_dx:
+                                    vulnerability_class = dl.vc_lev
+                                    break
+                               
+                            self.logger.debug("\t\ts_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f" % (s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class))
+                            
+                            break
+                            
+                            if p_tbm >= p_max:
+                                break
+                            else:
+                                p_tbm += 10.
+
+                # calcolo cedimento massimo in asse
+                s_max = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
+                s_calc = 0.
+                sett_list=[]
+                # qui inizializzo con il SETTLEMENT_MAX
+                sett_list.append({"code":0., "value":s_max})
+                for fstep in [2., 4., 6., 8., 10., 12., 15., 20., 25., 30., 35., 40., 45., 50., 75.]:
+                    # qui il calcolo del SETTLEMENT per lo step corrente
+                    # uz_laganathan(eps0, R, H, nu, beta, x, z)
+                    s_calc = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, fstep, 0.)
+                    sett_list.append({"code":fstep,"value": s_calc  })
+
+                self.item["P_EPB"] = p_tbm
                 self.item["VOLUME_LOSS"] = eps0
+                self.item["SETTLEMENT_MAX"] = s_max
+                self.item["SETTLEMENTS"] = sett_list
+
                 self.logger.debug("\tAnalisi di volume perso")
                 self.logger.debug("\tParametri geomeccanici mediati:")
                 self.logger.debug("\t\tTensione totale verticale =%f kPa e pressione falda =%f kPa" % (s_v, p_wt))
@@ -710,37 +771,13 @@ class Alignment(BaseSmtModel):
                 self.logger.debug("\tValore di gap totale, gap = %f cm" % (gap*100))
                 self.logger.debug("\t\t gap al fronte, gf =%f cm; gap sullo scudo, gs= %f cm; gap in coda,gt = %f cm" % (gf*100, gs*100, gt*100))
                 self.logger.debug("\tValore di volume perso, VL = %f percent" % (eps0*100))
-                
-                # calcolo cedimento massimo in asse
-                beta = math.radians(45.+phi_tun/2.)
-                s_max = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta, 0., 0.)
-                #s_inst = uz_laganathan(eps0_inst, r_excav, depth_tun, nu_tun, beta, 0., 0.)
-                self.item["SETTLEMENT_MAX"] = s_max
                 self.logger.debug("\tAnalisi cedimenti")
                 self.logger.debug("\t\tCedimento massimo in asse, s_max =%f mm" % (s_max*1000))
-                #self.logger.debug("\t\tCedimento istantaneo in asse, s_inst =%f mm" % (s_inst*1000))
                 
-                
-                
-                ###### CONTINUA QUI
-                s_calc = 0.
-                sett_list=[]
-                # qui inizializzo con il SETTLEMENT_MAX
-                sett_list.append({"code":0., "value":s_max})
-                for fstep in [2., 4., 6., 8., 10., 12., 15., 20., 25., 30., 35., 40., 45., 50., 75.]:
-                    # qui il calcolo del SETTLEMENT per lo step corrente
-                    # uz_laganathan(eps0, R, H, nu, beta, x, z)
-                    s_calc = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta, fstep, 0.)
-                    sett_list.append({"code":fstep,"value": s_calc  })
-                self.item["SETTLEMENTS"] = sett_list
         except AttributeError as ae:
             self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
         if "SETTLEMENTS" in self.item:
             self.save()
-        
-        #### CONTINUARE DA QUI DOPO HELP ANDREA
-        a_list = self.item["BUILDINGS"]
-        self.logger.debug("\tNumero edifici trovati %f" % (a_list.count))
         
         return retVal
     
