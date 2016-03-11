@@ -524,7 +524,7 @@ class Alignment(BaseSmtModel):
         if "REFERENCE_STRATA" in self.item:
             self.save()
         return retVal
-    
+
     def assign_buildings(self):
         retVal="XXX"
         pk = self.item["PK"]
@@ -737,6 +737,11 @@ class Alignment(BaseSmtModel):
             self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
         if "SETTLEMENTS" in self.item:
             self.save()
+        
+        #### CONTINUARE DA QUI DOPO HELP ANDREA
+        a_list = self.item["BUILDINGS"]
+        self.logger.debug("\tNumero edifici trovati %f" % (a_list.count))
+        
         return retVal
     
 
