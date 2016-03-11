@@ -3,6 +3,7 @@ import logging
 import csv
 from base import BaseSmtModel
 from alignment import Alignment
+
 from utils import toFloat
 import datetime
 

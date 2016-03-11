@@ -8,6 +8,7 @@ from alignment import Alignment
 from alignment_set import AlignmentSet
 from project import Project
 from building import Building
+from building_class import BuildingClass
 from domain import Domain
 from bson.objectid import ObjectId
 # create main logger
@@ -35,6 +36,7 @@ db = client[database]
 # DB authentication
 db.authenticate(username,password,source=source_database)
 Building.delete_all(db)
+BuildingClass.delete_all(db)
 Alignment.delete_all(db)
 AlignmentSet.delete_all(db)
 Domain.delete_all(db)
@@ -52,6 +54,16 @@ else:
 # Import domain inside the project: one-to-many relationship by references
 p.import_domains("../data/domain.csv")
 cr = Domain.find(db, {"project_id": p._id})
+# Import Buildings
+Building.ImportFromCSVFile("../data/buildings.csv", db)
+BuildingClass.ImportFromCSVFile("../data/building_class.csv", db)
+bldgs = Building.find(db, {})
+for bl in bldgs:
+    b = Building(db, bl)
+    b.assign_class()
+    print b.item["file_name"]
+
+
 for c in cr:
     d = Domain(db,c)
     d.load()
@@ -78,6 +90,5 @@ for c in cr:
             a = Alignment(db,al)
             a.setProject(p.item)
             a.load()
+            a.assign_buildings()
             a.assign_reference_strata()
-# Import Buildings
-Building.ImportFromCSVFile("../data/buildings.csv", db)
