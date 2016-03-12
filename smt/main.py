@@ -55,7 +55,9 @@ else:
 p.import_domains("../data/domain.csv")
 cr = Domain.find(db, {"project_id": p._id})
 # Import Buildings
-Building.ImportFromCSVFile("../data/buildings.csv", db)
+Building.ImportFromCSVFile("../data/buildings_orig.csv", db)
+# danzi.tn@20160312 import delle PK di riferimento sui building
+Building.import_building_pks(db,"../data/Edifici_Analizzati_Attributi.csv")
 BuildingClass.ImportFromCSVFile("../data/building_class.csv", db)
 bldgs = Building.find(db, {})
 for bl in bldgs:
