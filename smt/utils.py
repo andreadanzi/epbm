@@ -116,17 +116,26 @@ def volume_loss(gap, r_excav):
     v_loss = (4.*gap*r_excav+gap**2)/(4.*r_excav**2)
     return v_loss
 
+# definizione cedimento del cavo secondo Laganathan 2011
+# p_tbm = pressione tbm riferita all'asse geometrico dello scavo
+# p_wt = pressione dell'acqua all'asse gemetrico dello scavo
+# s_v = tensione verticale totale all'asse geometrico dello scavo
+# nu, young sono coefficiente di poisson e modulo di young rappresentativi del cavo
+# r_excav = raggio di scavo
+def u_tun(p_tbm, p_wt, s_v, nu, young, r_excav):
+    ui = max(0., r_excav*(1.+nu)*(s_v+p_wt-p_tbm)/young)
+    return ui
+
+
 # definizione di gap in coda per shrinkage e per errori di intasamento (Lee et Al. 1992)
 # tail_skin_thickness = spessore scudo EPB
 # delta gap per il posizionamento, valutato sul diametro e dato dat diametro terminale interno dell'EPB - diametro esterno del concio
 # da esperienza il gap residuo varia dal 7% al 10% del gap complessivo
 # per considerare la bonta' del materiale in coda applico lo stesso principio usato per calcolare il gap sullo shield, ui, considerando come dalta sigma p_tbm
 # todo fare variare statisticamente tale %
-def gap_tail(p_tbm, nu, young, r_excav, tail_skin_thickness, delta):
+def gap_tail(ui, gs,  tail_skin_thickness, delta):
     g_max = .1*(2.*tail_skin_thickness+delta)
-    # considero solo mezza p_tbm residua e un gap complessivo su tutto il diametro
-    ui = .67*2.*r_excav*(1.+nu)*p_tbm/young
-    g_t = min(g_max, ui)
+    g_t = min(g_max, (ui-gs))
     return g_t
 
 # definizione gap di perdita lungo lo scudo secondo Laganathan 2011
@@ -137,8 +146,7 @@ def gap_tail(p_tbm, nu, young, r_excav, tail_skin_thickness, delta):
 # r_excav = raggio di scavo
 # shield_taper = conicita' dello scudo 
 # cutter_bead_thickness = spessore del sovrascavo
-def gap_shield(p_tbm, p_wt, s_v, nu, young, r_excav, shield_taper, cutter_bead_thickness):
-    ui = r_excav*(1.+nu)*(s_v+p_wt-p_tbm)/young
+def gap_shield(ui, shield_taper, cutter_bead_thickness):
     g_s = .5*min(ui, shield_taper+cutter_bead_thickness)
     return g_s
 
@@ -169,7 +177,7 @@ def gap_front(p_tbm, p_wt, s_v, k0, young, ci, phi, r_excav):
         om=.63*nr-.77
     else:
         om=1.07*nr-2.55
-    p0=k0*(s_v-p_wt)+p_wt-p_tbm
+    p0=max(0., k0*(s_v-p_wt)+p_wt-p_tbm)
     g_f=.5*k*om*r_excav*p0/young
     return g_f
     

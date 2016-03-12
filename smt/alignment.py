@@ -694,57 +694,65 @@ class Alignment(BaseSmtModel):
                 else:
                     p_tbm=round(fCob/10.)*10.
 
-                # calcolo gap
-                gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
-                gs=gap_shield(p_tbm, p_wt, s_v, nu_tun, young_tun, r_excav, shield_taper, cutter_bead_thickness)
-                gt=gap_tail(p_tbm,nu_tun, young_tun, r_excav, tail_skin_thickness, delta)
-                gap=gf+gs+gt
-                # calcolo del volume perso
-                eps0=volume_loss(gap, r_excav)
                 
-                if "BUILDINGS" in self.item:
-                    p_max = align.TBM.pressure_max
-                    for b in align.BUILDINGS:
-                        # leggo l'impronta dell'edificio alla pk analizzata
-                        x_min = b.d_min
-                        x_max = b.d_max
-                        z = b.depth_fondation
-                        
-                        # leggo limiti cedimenti e distorsione
-                        damage_limits = b.DAMAGE_LIMITS
-                        
-                        self.logger.debug("\tAnalisi edificio %s" % (b.bldg_code))
-                        self.logger.debug("\t\tda %fm a %fm e a una profondita' di %fm dal piano di campagna" % (x_min, x_max, z))
-                        while 1==1:
-                            # calcolo gap e volume perso
-                            gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
-                            gs=gap_shield(p_tbm, p_wt, s_v, nu_tun, young_tun, r_excav, shield_taper, cutter_bead_thickness)
-                            gt=gap_tail(p_tbm,nu_tun, young_tun, r_excav, tail_skin_thickness, delta)
-                            gap=gf+gs+gt
-                            eps0=volume_loss(gap, r_excav)
-                            # trovo i valori massimi di cedimento, inclinazione e espilon orizzontale
-                            step = (x_max-x_min)/1000.
-                            s_max_ab = abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
-                            beta_max_ab = abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
-                            esp_h_max_ab = abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
-                            for i in range(1, 1000):
-                                s_max_ab = max(s_max_ab, abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
-                                beta_max_ab = max(beta_max_ab, abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
-                                esp_h_max_ab = max(esp_h_max_ab, abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
-                            
-                            for dl in b.DAMAGE_LIMITS:
-                                if s_max_ab<=dl.uz and beta_max_ab<=dl.d_uz_dx and esp_h_max_ab<=dl.d_ux_dx:
-                                    vulnerability_class = dl.vc_lev
-                                    break
-                               
-                            self.logger.debug("\t\ts_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f" % (s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class))
-                            
-                            break
-                            
-                            if p_tbm >= p_max:
-                                break
-                            else:
-                                p_tbm += 10.
+#                if "BUILDINGS" in self.item:
+#                    p_max = align.TBM.pressure_max
+#                    for b in align.BUILDINGS:
+#                        try:
+#                            # leggo l'impronta dell'edificio alla pk analizzata
+#                            x_min = b.d_min
+#                            x_max = b.d_max
+#                            z = b.depth_fondation
+#                            
+#                            self.logger.debug("\tAnalisi edificio %s" % (b.bldg_code))
+#                            self.logger.debug("\t\tda %fm a %fm e a una profondita' di %fm dal piano di campagna" % (x_min, x_max, z))
+#                            while 1==1:
+#                                # calcolo gap e volume perso
+#                                gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
+#                                ui_shield = u_tun(p_tbm, p_wt, s_v, nu_tun, young_tun, r_excav)
+#                                # gap_shield(ui, shield_taper, cutter_bead_thickness)
+#                                gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
+#                                ui_tail = u_tun(0., p_wt, s_v, nu_tun, young_tun, r_excav)
+#                                # gap_tail(ui, gs,  tail_skin_thickness, delta)
+#                                gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
+#                                gap=gf+gs+gt
+#                                eps0=volume_loss(gap, r_excav)
+#                                # trovo i valori massimi di cedimento, inclinazione e espilon orizzontale
+#                                step = (x_max-x_min)/1000.
+#                                s_max_ab = abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
+#                                beta_max_ab = abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
+#                                esp_h_max_ab = abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
+#                                for i in range(1, 1000):
+#                                    s_max_ab = max(s_max_ab, abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+#                                    beta_max_ab = max(beta_max_ab, abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+#                                    esp_h_max_ab = max(esp_h_max_ab, abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+#                                
+#                                for dl in b.DAMAGE_LIMITS:
+#                                    if s_max_ab<=dl.uz and beta_max_ab<=dl.d_uz_dx and esp_h_max_ab<=dl.d_ux_dx:
+#                                        vulnerability_class = dl.vc_lev
+#                                        break
+#                                   
+#                                self.logger.debug("\t\ts_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f" % (s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class))
+#                                
+#                                break
+#                                
+#                                if p_tbm >= p_max:
+#                                    break
+#                                else:
+#                                    p_tbm += 10.
+#                        except AttributeError as ae:
+#                            self.logger.error("Alignment %f , missing building info [%s]" % (align.PK, ae))
+
+                # calcolo finale per greenfield
+                gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
+                ui_shield = u_tun(p_tbm, p_wt, s_v, nu_tun, young_tun, r_excav)
+                # gap_shield(ui, shield_taper, cutter_bead_thickness)
+                gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
+                ui_tail = u_tun(0., p_wt, s_v, nu_tun, young_tun, r_excav)
+                # gap_tail(ui, gs,  tail_skin_thickness, delta)
+                gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
+                gap=gf+gs+gt
+                eps0=volume_loss(gap, r_excav)
 
                 # calcolo cedimento massimo in asse
                 s_max = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
