@@ -180,8 +180,35 @@ def gap_front(p_tbm, p_wt, s_v, k0, young, ci, phi, r_excav):
     p0=max(0., k0*(s_v-p_wt)+p_wt-p_tbm)
     g_f=.5*k*om*r_excav*p0/young
     return g_f
-    
-    
+
+# Curva caratteristica con c' e phi'
+# per congruenza con i risulati di loganathan, utilizzo: 
+# p0 come tensione totale e dovro' depurare la pi con la pressione dell'acqua
+def ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav):
+    p0 = sigma_v-p_wt
+    pi = max(p_tbm-p_wt, 0.)
+    rad_phi = math.radians(phi)
+    rad_phi_res = math.radians(phi_res)
+    rad_psi = math.radians(psi)
+    pcr = p0*(1.-math.sin(rad_phi))-ci*math.cos(rad_phi)
+    pocp = p0+ci/math.tan(rad_phi)
+    pocr = p0+ci_res/math.tan(rad_phi_res)
+    Nfir = (1.+math.sin(rad_phi_res))/(1.-math.sin(rad_phi_res))
+    uremax = (1.0+nu)/young*(p0-pi)*r_excav
+    if pcr < p0:
+        Ki = (1.0+math.sin(rad_psi))/(1.0-math.sin(rad_psi))
+        pi_cr_tan = pi + ci_res / math.tan(rad_phi_res)
+        Rpl = (((pocr-pocp*math.sin(rad_phi))/pi_cr_tan)**(1.0/(Nfir-1.0)))*r_excav
+        RplK_1rK = Rpl**(Ki+1.0)/r_excav**Ki
+        RplK_KrK = Rpl**(Nfir+Ki)/r_excav**Ki-r_excav**Nfir
+        primaparte = RplK_1rK*pocp*math.sin(rad_phi)+pocr*(1.0-2.0*nu)*(RplK_1rK-r_excav)
+        secondaparte = (1.0+Nfir*Ki-nu*(Ki+1)*(Nfir+1.0))*pi_cr_tan
+        terzaparte = 1.0/((Nfir+Ki)*r_excav**(Nfir-1.0))*RplK_KrK
+        urplmax = ((1.0+nu)/young)*(primaparte-secondaparte*terzaparte)
+    else:
+        urplmax = 0.0
+    return max(urplmax, uremax)
+  
 
 """        
 def latLonToProjection(lat, lon, epsg):
