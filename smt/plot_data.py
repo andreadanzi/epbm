@@ -22,7 +22,6 @@ from scipy.interpolate import griddata
 from collections import defaultdict
 from shapely.geometry import LineString
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
-from mpl_toolkits.basemap import Basemap, cm
 import osgeo.ogr as ogr
 import osgeo.osr as osr
 import osgeo.gdal as gdal
@@ -67,13 +66,45 @@ def mid_point(p1,p2):
     x = (p1[0] + p2[0])/2.
     y = (p1[1] + p2[1])/2.
     return x,y
+
+
+
+def asse2p_p1(p1,p2,x):
+    if p2[0]==p1[0]:
+        return p1[1]
+    if p2[1]==p1[1]:
+        return None
+    m = (p2[1]-p1[1])/(p2[0]-p1[0])
+    m_asse = -1/m
+    return m_asse*(x-p1[0]) + p1[1]
     
+
+def pfromdistance_p1(p1,p2,d):
+    if abs(p2[0]-p1[0])<=0.1:
+        return (p1[0] - d,p1[1]) , (p1[0]+d,p1[1])
+    if abs(p2[1]-p1[1])<=0.1:
+        return (p1[0],p1[1]+d) , (p1[0],p1[1] - d)
+    m = (p2[1]-p1[1])/(p2[0]-p1[0])
+    mx = p1[0]
+    a = 1.
+    b = -2.*mx
+    c = mx**2-d**2*m**2/(m**2+1)
+    coeff = [a, b, c]
+    res_x = np.roots(coeff)
+    if isinstance(res_x[0], complex):
+        print '%s=x is complex for %s %s %f' % (str(res_x[0]),p1,p2,d)
+        print "p2[0]-p1[0] = %f" % (p2[0]-p1[0])
+        print "p2[1]-p1[1] = %f" % (p2[1]-p1[1])
+    res_y0 = asse2p_p1(p1,p2,res_x[0])
+    res_y1 = asse2p_p1(p1,p2,res_x[1])
+    return (res_x[0],res_y0),(res_x[1],res_y1)
+                
                 
 def asse2p(p1,p2,x):
     mid = mid_point(p1,p2)
-    if p2[0]==p1[0]:
+    if abs(p2[0]-p1[0])<=0.1:
         return mid[1]
-    if p2[1]==p1[1]:
+    if abs(p2[1]-p1[1])<=0.1:
         return None
     m = (p2[1]-p1[1])/(p2[0]-p1[0])
     m_asse = -1/m
@@ -123,8 +154,8 @@ def processSettlements(a_list):
     distanceIndex = defaultdict(list)
     for i, a_item in enumerate(a_list):
         for item in a_item["SETTLEMENTS"]:
-            if item["code"] > 0:
-                distanceIndex[item["code"]].append(item["value"])
+            #if item["code"] > 0:
+            distanceIndex[item["code"]].append(item["value"])
     distanceKeys = distanceIndex.keys()
     distanceKeys.sort()
     return distanceKeys, distanceIndex
@@ -248,31 +279,7 @@ def plot_data(bAuthenticate, sPath):
                     pcalc_z = []
                    
                     for i,x in enumerate(pkxs):
-                        # GIS 1.1
-                        feature = ogr.Feature(layer.GetLayerDefn())
-                        feature.SetField("Name", "PK %f %d" % (pks[i],0))
-                        feature.SetField("Type", "Central")
-                        feature.SetField("Alignment", str(sCode))
-                        feature.SetField("Distance",0)
-                        feature.SetField("PK", int(pks[i]))
-                        feature.SetField("Latitude", pkys[i])
-                        feature.SetField("Longitude", x)
-                        feature.SetField("Elevation", phs[i])
-                        feature.SetField("COB", cobs[i])
-                        feature.SetField("SETTLEMENT", max_settlements[i])
-                        feature.SetField("BLOWUP", blowups[i])
-                        wkt = "POINT(%f %f)" %  (float(x) , float(pkys[i]))
-                        
-                        # Create the point from the Well Known Txt
-                        point = ogr.CreateGeometryFromWkt(wkt)
 
-                        # Set the feature geometry using the point
-                        feature.SetGeometry(point)
-                        # Create the feature in the layer (shapefile)
-                        layer.CreateFeature(feature)
-                        # Destroy the feature to free resources
-                        feature.Destroy()
-                        # GIS 1.1 end
                         if i==0:
                             pass
                         else:
@@ -283,76 +290,106 @@ def plot_data(bAuthenticate, sPath):
                             pmidy.append(pm[1])
                             for key in keys:
                                 val = dictValues[key][i-1]
-                                ret_d = pfromdistance(p1,p2,key)
-                                x1 = ret_d[0][0]
-                                x2 = ret_d[1][0]
-                                y1 = ret_d[0][1]
-                                y2 = ret_d[1][1]
-                                pkxs_d_1[key].append(x1)
-                                pkxs_d_2[key].append(x2)
-                                pkys_d_1[key].append(y1)
-                                pkys_d_2[key].append(y2) 
-                                mypoints = np.append(mypoints,[[x1,y1]],axis=0)
-                                pcalc_x.append(x1)
-                                pcalc_y.append(y1)
-                                pcalc_z.append(val)
-                                myvalues = np.append(myvalues,[val],axis=0)
-                                mypoints = np.append(mypoints,[[x2,y2]],axis=0)
-                                pcalc_x.append(x2)
-                                pcalc_y.append(y2)
-                                pcalc_z.append(val)
-                                myvalues = np.append(myvalues,[val],axis=0)
+                                if key == 0.0:
                                 
-                                # GIS 1.1
-                                feature = ogr.Feature(layer.GetLayerDefn())
-                                feature.SetField("Name", "PK %f +%d" % (pks[i],int(key)))
-                                feature.SetField("Type", "Distance")
-                                feature.SetField("Alignment", str(sCode))
-                                feature.SetField("Distance",int(key))
-                                feature.SetField("PK", int(pks[i]))
-                                feature.SetField("Latitude", y1)
-                                feature.SetField("Longitude", x1)
-                                feature.SetField("Elevation", phs[i])
-                                feature.SetField("COB", cobs[i])
-                                feature.SetField("SETTLEMENT", val)
-                                feature.SetField("BLOWUP", blowups[i])
-                                wkt = "POINT(%f %f)" %  (float(x1) , float(y1))
-                                
-                                # Create the point from the Well Known Txt
-                                point = ogr.CreateGeometryFromWkt(wkt)
+                                    mypoints = np.append(mypoints,[[pkxs[i-1],pkys[i-1]]],axis=0)
+                                    myvalues = np.append(myvalues,[val],axis=0)
+                                    # GIS 1.1
+                                    feature = ogr.Feature(layer.GetLayerDefn())
+                                    feature.SetField("Name", "PK %f %d" % (pks[i-1],0))
+                                    feature.SetField("Type", "Central")
+                                    feature.SetField("Alignment", str(sCode))
+                                    feature.SetField("Distance",0)
+                                    feature.SetField("PK", int(pks[i-1]))
+                                    feature.SetField("Latitude", pkys[i-1])
+                                    feature.SetField("Longitude", pkxs[i-1])
+                                    feature.SetField("Elevation", phs[i-1])
+                                    feature.SetField("COB", cobs[i-1])
+                                    feature.SetField("SETTLEMENT", val)
+                                    feature.SetField("BLOWUP", blowups[i-1])
+                                    wkt = "POINT(%f %f)" %  (float(pkxs[i-1]) , float(pkys[i-1]))
+                                    
+                                    # Create the point from the Well Known Txt
+                                    point = ogr.CreateGeometryFromWkt(wkt)
 
-                                # Set the feature geometry using the point
-                                feature.SetGeometry(point)
-                                # Create the feature in the layer (shapefile)
-                                layer.CreateFeature(feature)
-                                # Destroy the feature to free resources
-                                feature.Destroy()
-                                
-                                feature = ogr.Feature(layer.GetLayerDefn())
-                                feature.SetField("Name", "PK %f -%d" % (pks[i],int(key)))
-                                feature.SetField("Type", "Distance")           
-                                feature.SetField("Alignment", str(sCode))
-                                feature.SetField("Distance",int(key))
-                                feature.SetField("PK", int(pks[i]))
-                                feature.SetField("Latitude", y2)
-                                feature.SetField("Longitude", x2)
-                                feature.SetField("Elevation", dems[i])
-                                feature.SetField("COB", cobs[i])
-                                feature.SetField("SETTLEMENT", val)
-                                feature.SetField("BLOWUP", blowups[i])
-                                wkt = "POINT(%f %f)" %  (float(x2) , float(y2))
-                                
-                                # Create the point from the Well Known Txt
-                                point = ogr.CreateGeometryFromWkt(wkt)
+                                    # Set the feature geometry using the point
+                                    feature.SetGeometry(point)
+                                    # Create the feature in the layer (shapefile)
+                                    layer.CreateFeature(feature)
+                                    # Destroy the feature to free resources
+                                    feature.Destroy()
+                                    # GIS 1.1 end
+                                else:    
+                                    ret_d = pfromdistance_p1(p1,p2,key)
+                                    x1 = ret_d[0][0]
+                                    x2 = ret_d[1][0]
+                                    y1 = ret_d[0][1]
+                                    y2 = ret_d[1][1]
+                                    pkxs_d_1[key].append(x1)
+                                    pkxs_d_2[key].append(x2)
+                                    pkys_d_1[key].append(y1)
+                                    pkys_d_2[key].append(y2) 
+                                    mypoints = np.append(mypoints,[[x1,y1]],axis=0)
+                                    pcalc_x.append(x1)
+                                    pcalc_y.append(y1)
+                                    pcalc_z.append(val)
+                                    myvalues = np.append(myvalues,[val],axis=0)
+                                    mypoints = np.append(mypoints,[[x2,y2]],axis=0)
+                                    pcalc_x.append(x2)
+                                    pcalc_y.append(y2)
+                                    pcalc_z.append(val)
+                                    myvalues = np.append(myvalues,[val],axis=0)
+                                    
+                                    # GIS 1.1
+                                    feature = ogr.Feature(layer.GetLayerDefn())
+                                    feature.SetField("Name", "PK %f +%d" % (pks[i-1],int(key)))
+                                    feature.SetField("Type", "Distance")
+                                    feature.SetField("Alignment", str(sCode))
+                                    feature.SetField("Distance",int(key))
+                                    feature.SetField("PK", int(pks[i-1]))
+                                    feature.SetField("Latitude", y1)
+                                    feature.SetField("Longitude", x1)
+                                    feature.SetField("Elevation", phs[i])
+                                    feature.SetField("COB", cobs[i])
+                                    feature.SetField("SETTLEMENT", val)
+                                    feature.SetField("BLOWUP", blowups[i])
+                                    wkt = "POINT(%f %f)" %  (float(x1) , float(y1))
+                                    
+                                    # Create the point from the Well Known Txt
+                                    point = ogr.CreateGeometryFromWkt(wkt)
 
-                                # Set the feature geometry using the point
-                                feature.SetGeometry(point)
-                                # Create the feature in the layer (shapefile)
-                                layer.CreateFeature(feature)
-                                # Destroy the feature to free resources
-                                feature.Destroy()
-                                
-                                # GIS 1.1 end
+                                    # Set the feature geometry using the point
+                                    feature.SetGeometry(point)
+                                    # Create the feature in the layer (shapefile)
+                                    layer.CreateFeature(feature)
+                                    # Destroy the feature to free resources
+                                    feature.Destroy()
+                                    
+                                    feature = ogr.Feature(layer.GetLayerDefn())
+                                    feature.SetField("Name", "PK %f -%d" % (pks[i],int(key)))
+                                    feature.SetField("Type", "Distance")           
+                                    feature.SetField("Alignment", str(sCode))
+                                    feature.SetField("Distance",int(key))
+                                    feature.SetField("PK", int(pks[i]))
+                                    feature.SetField("Latitude", y2)
+                                    feature.SetField("Longitude", x2)
+                                    feature.SetField("Elevation", dems[i])
+                                    feature.SetField("COB", cobs[i])
+                                    feature.SetField("SETTLEMENT", val)
+                                    feature.SetField("BLOWUP", blowups[i])
+                                    wkt = "POINT(%f %f)" %  (float(x2) , float(y2))
+                                    
+                                    # Create the point from the Well Known Txt
+                                    point = ogr.CreateGeometryFromWkt(wkt)
+
+                                    # Set the feature geometry using the point
+                                    feature.SetGeometry(point)
+                                    # Create the feature in the layer (shapefile)
+                                    layer.CreateFeature(feature)
+                                    # Destroy the feature to free resources
+                                    feature.Destroy()
+                                    
+                                    # GIS 1.1 end
                     
                     x_min, x_max, y_min, y_max = layer.GetExtent()
                     
@@ -363,7 +400,9 @@ def plot_data(bAuthenticate, sPath):
                     max_x = max(pcalc_x)
                     max_y = max(pcalc_y)
                     # Interpolazione ...forse non è la cosa giusta da fare
-                    gx, gy =  np.mgrid[min_x:max_x,min_y:max_y]
+                    logger.info("x range %d" % (max_x - min_x) )
+                    logger.info("y range %d" % (max_y - min_y) )
+                    gx, gy =  np.mgrid[min_x:max_x:1500j,min_y:max_y:1500j]
                     m_interp_cubic = griddata(mypoints, myvalues, (gx, gy),method='cubic')
                     # plot
                     fig = plt.figure()
@@ -379,18 +418,19 @@ def plot_data(bAuthenticate, sPath):
                     plt.plot(pks,max_settlements, label='SETTLEMENT_MAX * 100')
                     plt.axis([min(pks),max(pks),min(phs)-10,max(dems)+10])
                     plt.legend()
-                    outputFigure(sPath, "profilo.svg")
-                    logger.info("profilo.svg plotted in %s" % sPath)
-                    plt.show()
+                    outputFigure(sPath, "profilo_%s.svg" % a_set.item["code"])            
+                    logger.info("profilo_%s.png plotted in %s" % (a_set.item["code"], sPath))
+                    plt.close(fig)
+                    fig = plt.figure()
                     # stampa planimetria
                     plt.title("Planimetria") 
 
                     # filtro a zero tutto qeullo che sta sotto
-                    m_interp_cubic[ m_interp_cubic < 0.0] = 0.0
+                    # m_interp_cubic[ m_interp_cubic < 0.0] = 0.0
                         
                     
-                    #cp = plt.contour(gx, gy, m_interp_cubic,linewidths=0.5,colors='k')
-                    cmap = LinearSegmentedColormap.from_list(name="Custom CMap", colors =["white", "blue", "red"], N=16)
+                    cp = plt.contour(gx, gy, m_interp_cubic,linewidths=0.5,colors='k')
+                    cmap = LinearSegmentedColormap.from_list(name="Custom CMap", colors =["white", "blue", "red"], N=11)
                     contours = plt.contourf(gx, gy, m_interp_cubic,cmap = cmap)
                     
                     
@@ -443,8 +483,7 @@ def plot_data(bAuthenticate, sPath):
 
                               
                             feat_out.Destroy()  
-                    #m = Basemap(epsg='3949',llcrnrlon=-5.0000, llcrnrlat=48.0000, urcrnrlon=8.2700, urcrnrlat=50.0000)
-                    #cs = m.contourf(gx, gy, m_interp_cubic,cmap=cmap)
+
 
                     """
                     # Create the destination tiff data source
@@ -471,8 +510,8 @@ def plot_data(bAuthenticate, sPath):
                     
                     
                     plt.colorbar()
-                    plt.plot(pkxs,pkys, "wo")
-                    plt.plot(pkxs,pkys, "r-",label='Tracciato %s' % a_set.item["code"])
+                    plt.plot(pkxs,pkys, "g-",label='Tracciato %s' % a_set.item["code"])
+                    plt.plot(pkxs,pkys, "g.")
 
                     # Punti medi
                     plt.plot(pmidx,pmidy, "gx")
@@ -487,7 +526,10 @@ def plot_data(bAuthenticate, sPath):
                     array_y = np.asarray(pcalc_y)
                     array_z = np.asarray(pcalc_z)
                     plt.axis("equal")
-                    plt.show()
+                    outputFigure(sPath, "tracciato_%s.svg" % a_set.item["code"], format="svg")
+                    logger.info("tracciato_%s.png plotted in %s" % (a_set.item["code"], sPath))
+                    #plt.show()
+                    plt.close(fig)
                     logger.info("plot_data terminated!")
     else:
         logger.error("Authentication failed")
