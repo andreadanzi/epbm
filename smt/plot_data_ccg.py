@@ -166,7 +166,7 @@ def plot_data(bAuthenticate, sPath):
                     a_set = AlignmentSet(db,aset)
                     a_set.load()
                     sCode = a_set.item["code"]
-                    als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"COB":True, "P_EPB":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, "VOLUME_LOSS":True, "K_PECK":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True}).sort("PK", 1)
+                    als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"COB":True,"P_EPB":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, "VOLUME_LOSS":True, "K_PECK":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True}).sort("PK", 1)
                     a_list = list(als)
                     pks =[d['PK'] for d in a_list]
                     # scalo di fattore 100

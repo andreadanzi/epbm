@@ -706,7 +706,7 @@ class Alignment(BaseSmtModel):
                 else:
                     p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
                 
-                p_tbm_shield = p_tbm/2.
+                p_tbm_shield = p_tbm*.75
 
                 
                 if "BUILDINGS" in self.item:
@@ -738,9 +738,9 @@ class Alignment(BaseSmtModel):
                             s_v_bldg = s_v+extra_load
                             # calcolo gap e volume perso
                             gf=gap_front(p_tbm, p_wt, s_v_bldg, k0_face, young_face, ci_face, phi_face, r_excav)
-                            ui_shield = .85*2.*ur_max(s_v_bldg, p_wt, p_tbm, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                            ui_shield = .75*2.*ur_max(s_v_bldg, p_wt, p_tbm, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
                             gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
-                            ui_tail = .85*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs
+                            ui_tail = .75*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs
                             gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
                             gap=gf+gs+gt
                             eps0=volume_loss(gap, r_excav)
@@ -771,11 +771,11 @@ class Alignment(BaseSmtModel):
                 # calcolo finale per greenfield
                 gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
                 # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
-                ui_shield = .85*2.*ur_max(s_v, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                ui_shield = .75*2.*ur_max(s_v, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
                 #ui_shield = u_tun(p_tbm, p_wt, s_v, nu_tun, young_tun, r_excav)
                 # gap_shield(ui, shield_taper, cutter_bead_thickness)
                 gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
-                ui_tail = .85*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs
+                ui_tail = .75*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs
                 #ui_tail = u_tun(0., p_wt, s_v, nu_tun, young_tun, r_excav)
                 # gap_tail(ui, gs,  tail_skin_thickness, delta)
                 gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
