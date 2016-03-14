@@ -61,14 +61,15 @@ class AlignmentSet(BaseSmtModel):
                         ac = None
                     pk = cur_pk
                     ac = a_collection.find_one({"PK":pk, "alignment_set_id":self._id})
-                if row["Descrizione"] == "DEM":
-                    ac["DEM"] = { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["top"])] }
-                else:
-                    geoparameters = self.item["REFERENCE_STRATA"][row["Descrizione"].upper()]
-                    if "STRATA" in ac:
-                        ac["STRATA"].append( { "CODE": row["Descrizione"].upper(), "PARAMETERS": geoparameters ,"POINTS" : {"top":{ "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["top"])] },"base": { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["base"])] }}} )
+                if ac:
+                    if row["Descrizione"] == "DEM":
+                        ac["DEM"] = { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["top"])] }
                     else:
-                        ac["STRATA"] = [ {"CODE": row["Descrizione"].upper(), "PARAMETERS":geoparameters , "POINTS" : {"top":{ "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["top"])] },"base": { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["base"])] }}}]
+                        geoparameters = self.item["REFERENCE_STRATA"][row["Descrizione"].upper()]
+                        if "STRATA" in ac:
+                            ac["STRATA"].append( { "CODE": row["Descrizione"].upper(), "PARAMETERS": geoparameters ,"POINTS" : {"top":{ "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["top"])] },"base": { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["base"])] }}} )
+                        else:
+                            ac["STRATA"] = [ {"CODE": row["Descrizione"].upper(), "PARAMETERS":geoparameters , "POINTS" : {"top":{ "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["top"])] },"base": { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["base"])] }}}]
             if ac:
                 ac["updated"] = datetime.datetime.utcnow()
                 align = Alignment(self.db,ac)
