@@ -544,13 +544,14 @@ class Alignment(BaseSmtModel):
         # per cui se ho d={"a":2,"c":3} con o=BaseStruct(d) => d.a == 2 e d.c == 3
         # a volte ci sono elementi che durante import non hanno recuperato DEM e Stratigrafia, per questo bisogna mettere try
         align = BaseStruct(self.item)
+        z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + align.TBM.excav_diameter/2.0
+        z_base = z_top - align.TBM.excav_diameter
+        z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
+        z_dem = align.DEM.coordinates[2]
         self.logger.debug("Analisi alla PK %f" % (align.PK) )
         try:
-            if align.z == align.PH.coordinates[2]:
+            if align.z == align.PH.coordinates[2] and z_dem>z_top:
                 ##### Verifica strato di riferimento per le sezioni di riferimento per pressione minima di stabilità
-                z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + align.TBM.excav_diameter/2.0
-                z_base = z_top - align.TBM.excav_diameter
-                z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
                 z_wt = align.FALDA.coordinates[2]
                 copertura = align.DEM.coordinates[2] - z_top
                 r_excav = align.TBM.excav_diameter/2.
@@ -582,25 +583,27 @@ class Alignment(BaseSmtModel):
                     # Verifica del massimo
                     if fTempCOB > fCob:
                         fCob = fTempCOB
-                # Assegno il valore COB alla PK
-                self.item["COB"] = fCob
                 
                 # 20160309@Gabriele Aggiunta valutazione blowup - inizio
                 fBlowUp=0.0
                 sigma_v = 0.0
                 for ref_stratus in ref_strata:
-                    # se la base dello strato e' sopra il top del tunnel aggiorno la sigma_v
-                    if ref_stratus.POINTS.base.coordinates[2] >= z_top:
-                        zRef = ref_stratus.POINTS.base.coordinates[2]
-                        sigma_v = cob_step_1(zRef,ref_stratus,sigma_v)
-                    # se la base dello strato e' sotto il top del tunnel e il top dello strato sta sopra il tunnel aggiorno la sigmav
-                    elif ref_stratus.POINTS.top.coordinates[2] > z_top:
-                        zRef = z_top
-                        sigma_v = cob_step_1(zRef,ref_stratus,sigma_v)
+                    if ref_stratus.POINTS.top.coordinates[2] > z_top:
+                        z_max = ref_stratus.POINTS.top.coordinates[2]
+                        z_min = max(z_top, ref_stratus.POINTS.base.coordinates[2])
+                        sigma_v += (z_max-z_min)*ref_stratus.PARAMETERS.inom
+#
+#                for ref_stratus in ref_strata:
+#                    # se la base dello strato e' sopra il top del tunnel aggiorno la sigma_v
+#                    if ref_stratus.POINTS.base.coordinates[2] >= z_top:
+#                        zRef = ref_stratus.POINTS.base.coordinates[2]
+#                        sigma_v = cob_step_1(zRef,ref_stratus,sigma_v)
+#                    # se la base dello strato e' sotto il top del tunnel e il top dello strato sta sopra il tunnel aggiorno la sigmav
+#                    elif ref_stratus.POINTS.top.coordinates[2] > z_top:
+#                        zRef = z_top
+#                        sigma_v = cob_step_1(zRef,ref_stratus,sigma_v)
                 # calcolo il valore complessivo di BLOWUP
-                fBlowUp = blowup(sigma_v, align.TBM.excav_diameter/2.0, gamma_muck, self.project.p_safe_blowup_kpa)
-                # Assegno il valore BLOWUP alla PK
-                self.item["BLOWUP"] = fBlowUp
+                fBlowUp = blowup(sigma_v, r_excav, gamma_muck, self.project.p_safe_blowup_kpa)
                 self.logger.debug("\tValore di COB (riferito all'asse) =%f e valore di Blowup (riferito all'asse) =%f" % (fCob, fBlowUp))
                 # 20160309@Gabriele Aggiunta valutazione blowup - fine
                 
@@ -680,11 +683,11 @@ class Alignment(BaseSmtModel):
                 nu_tun = nu_wg/wg_tot
                 phi_tun = phi_wg/wg_tot
                 ci_tun = ci_wg/wg_tot
-                beta_tun = math.radians(45.+phi_tun/2.)
+                beta_tun = 45.+phi_tun/2.
 
                 # pressione al fronte
                 z_dem = align.DEM.coordinates[2]
-                p_max = align.TBM.pressure_max
+                p_max = min(align.TBM.pressure_max, fBlowUp)
                 p_tbm=0.
                 if align.PK == 2128748:
                     p_tbm=400.
@@ -701,7 +704,7 @@ class Alignment(BaseSmtModel):
                 elif align.PK == 2126398:
                     p_tbm=300.
                 else:
-                    p_tbm=min(p_max, round(fCob/10.)*10.)
+                    p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
 
                 
                 if "BUILDINGS" in self.item:
@@ -712,7 +715,6 @@ class Alignment(BaseSmtModel):
                         x_max = b.d_max
                         z = b.depth_fondation
                         h_bldg = b.height_overground
-                        z_dem = align.DEM.coordinates[2]
                         try:
                             self.logger.debug("\t\timpronta da %fm a %fm e a una profondita' di %fm dal piano di campagna e con un altezza fuori terra di %fm" % (x_min, x_max, z, h_bldg))
                         except TypeError:
@@ -777,6 +779,7 @@ class Alignment(BaseSmtModel):
                 gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
                 gap=gf+gs+gt
                 eps0=volume_loss(gap, r_excav)
+                k_peck = k_eq(r_excav, depth_tun, beta_tun)
 
                 # calcolo cedimento massimo in asse
                 s_max = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
@@ -790,8 +793,13 @@ class Alignment(BaseSmtModel):
                     s_calc = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, fstep, 0.)
                     sett_list.append({"code":fstep,"value": s_calc  })
 
+                # Assegno il valore COB alla PK
+                self.item["COB"] = fCob
+                # Assegno il valore BLOWUP alla PK
+                self.item["BLOWUP"] = fBlowUp
                 self.item["P_EPB"] = p_tbm
                 self.item["VOLUME_LOSS"] = eps0
+                self.item["K_PECK"] = k_peck
                 self.item["SETTLEMENT_MAX"] = s_max
                 self.item["SETTLEMENTS"] = sett_list
 
@@ -802,7 +810,7 @@ class Alignment(BaseSmtModel):
                 self.logger.debug("\t\tsul cavo: E =%f MPa, nu = %f, phi' = %f °" % (young_tun/1000., nu_tun, phi_tun))
                 self.logger.debug("\tValore di gap totale, gap = %f cm" % (gap*100))
                 self.logger.debug("\t\t gap al fronte, gf =%f cm; gap sullo scudo, gs= %f cm; gap in coda,gt = %f cm" % (gf*100, gs*100, gt*100))
-                self.logger.debug("\tValore di volume perso, VL = %f percent" % (eps0*100))
+                self.logger.debug("\tValore di volume perso, VL = %f percent con k di peck = %f" % (eps0*100, k_peck))
                 self.logger.debug("\tAnalisi cedimenti")
                 self.logger.debug("\t\tCedimento massimo in asse, s_max =%f mm" % (s_max*1000))
                 

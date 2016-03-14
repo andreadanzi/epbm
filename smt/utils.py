@@ -54,7 +54,8 @@ def blowup(s_v, R_excav, gamma_muck, p_safety_blowup):
 # beta = 45° + coeff. di attrito/2 mediato dall'asse alla superficie. Per argille coeff attrito = 0
 # x distanza planimetrica ortogonale del punto di misura dall'asse
 # z profondita' del punto di misura dalla superficie
-def uz_laganathan(eps0, R, H, nu, beta, x, z):
+def uz_laganathan(eps0, R, H, nu, beta_deg, x, z):
+    beta = math.radians(beta_deg)
     uz = eps0*R**2*((H - z)/(x**2 + (-H + z)**2) - (2*z*(x**2 - (H + z)**2))/(x**2 + (H + z)**2)**2 + \
     ((3. - 4.*nu)*(H + z))/(x**2 + (H + z)**2))*math.exp((-0.69*z**2)/H**2 - (1.38*x**2)/(R + H*math.atan(beta))**2)
     return uz
@@ -67,7 +68,8 @@ def uz_laganathan(eps0, R, H, nu, beta, x, z):
 # beta = 45° + coeff. di attrito/2 mediato dall'asse alla superficie. Per argille coeff attrito = 0
 # x distanza planimetrica ortogonale del punto di misura dall'asse
 # z profondita' del punto di misura dalla superficie
-def ux_laganathan(eps0, R, H, nu, beta, x, z):
+def ux_laganathan(eps0, R, H, nu, beta_deg, x, z):
+    beta = math.radians(beta_deg)
     ux = -(eps0*R**2*x*(1./(x**2 + (H - z)**2) - (4.*z*(H + z))/(x**2 + (H + z)**2)**2 + \
     (3. - 4.*nu)/(x**2 + (H + z)**2))*math.exp((-0.69*z**2)/H**2 - (1.38*x**2)/(R + H*math.atan(beta))**2))
     return ux
@@ -81,7 +83,8 @@ def ux_laganathan(eps0, R, H, nu, beta, x, z):
 # beta = 45° + coeff. di attrito/2 mediato dall'asse alla superficie. Per argille coeff attrito = 0
 # x distanza planimetrica ortogonale del punto di misura dall'asse
 # z profondita' del punto di misura dalla superficie
-def d_uz_dx_laganathan(eps0, R, H, nu, beta, x, z):
+def d_uz_dx_laganathan(eps0, R, H, nu, beta_deg, x, z):
+    beta = math.radians(beta_deg)
     duz=eps0*R**2*((-2.*x*(H - z))/(x**2 + (-H + z)**2)**2 + (8.*x*z*(x**2 - (H + z)**2))/(x**2 + (H + z)**2)**3 - \
     (4.*x*z)/(x**2 + (H + z)**2)**2 - (2*(3. - 4.*nu)*x*(H + z))/(x**2 + (H + z)**2)**2)*math.exp((-0.69*z**2)/H**2 - \
     (1.38*x**2)/(R + H*math.atan(beta))**2) - (2.76*eps0*R**2*x*((H - z)/(x**2 + (-H + z)**2) - (2.*z*(x**2 - \
@@ -98,7 +101,8 @@ def d_uz_dx_laganathan(eps0, R, H, nu, beta, x, z):
 # beta = 45° + coeff. di attrito/2 mediato dall'asse alla superficie. Per argille coeff attrito = 0
 # x distanza planimetrica ortogonale del punto di misura dall'asse
 # z profondita' del punto di misura dalla superficie
-def d_ux_dx_laganathan(eps0, R, H, nu, beta, x, z):
+def d_ux_dx_laganathan(eps0, R, H, nu, beta_deg, x, z):
+    beta = math.radians(beta_deg)
     dux = -(eps0*R**2*x*((-2*x)/(x**2 + (H - z)**2)**2 + (16*x*z*(H + z))/(x**2 + (H + z)**2)**3 - (2*(3 - 4*nu)*x)/(x**2 + \
     (H + z)**2)**2)*math.exp((-0.69*z**2)/H**2 - (1.38*x**2)/(R + H*math.atan(beta))**2)) - eps0*R**2*(1/(x**2 + (H - z)**2) - \
     (4*z*(H + z))/(x**2 + (H + z)**2)**2 + (3 - 4*nu)/(x**2 + (H + z)**2))*math.exp((-0.69*z**2)/H**2 - \
@@ -106,8 +110,18 @@ def d_ux_dx_laganathan(eps0, R, H, nu, beta, x, z):
     (3 - 4*nu)/(x**2 + (H + z)**2))*math.exp((-0.69*z**2)/H**2 - (1.38*x**2)/(R + H*math.atan(beta))**2))/(R + H*math.atan(beta))**2
     return dux
 
-# definizione del gap al fronte secondo Laganathan 2011
-
+# coefficiente k equivalente della curva di laganthan
+# R = raggio di scavo in metri
+# H = profondita' asse tunnel dalla superficie
+# beta = 45° + coeff. di attrito/2 mediato dall'asse alla superficie. Per argille coeff attrito = 0 (in gradi)
+def k_eq(R, H, beta_deg):
+    k=0.
+    beta = math.radians(beta_deg)
+    tan_35 = math.pow(math.tan(beta), .35)
+    tan_23 = math.pow(math.tan(beta), .23)
+    k=R/H*1.15/tan_35*math.pow(H/(2.*R), .9/tan_23)
+    return k
+    
 # definizione di Volume loss a partire dal gap (Laganathan Paulos 1998)
 # coincide con eps0 della trattazione sulla subsidenza
 # gap = gap sul raggio totale
