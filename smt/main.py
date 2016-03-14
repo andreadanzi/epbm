@@ -73,18 +73,19 @@ for c in cr:
         a_set = AlignmentSet(db,aset)
         a_set.load()
         sCode = a_set.item["code"]
+        sRelCsvCode = a_set.item["rel_csv_code"]
         # Import reference strata inside the alignment set: one-to-one relationship by embedding
         a_set.import_reference_strata("../data/reference_strata.csv" )
         # Import alignment inside the alignment set: one-to-many relationship by references
         a_set.import_alignment("../data/profilo_progetto-%s.csv" % sCode)
         # Import stratigraphy inside the alignment: one-to-many relationship by embedding
-        a_set.import_strata("../data/stratigrafia-%s.csv" % sCode)
+        a_set.import_strata("../data/stratigrafia-%s.csv" % sRelCsvCode)
         # Import water folders inside the alignment: one-to-many relationship by embedding
-        a_set.import_falda("../data/falda-%s.csv" % sCode)
+        a_set.import_falda("../data/falda-%s.csv" % sRelCsvCode)
         # Import tunnel sections inside the alignment: one-to-many relationship by embedding
-        a_set.import_sezioni("../data/sezioni_progetto-%s.csv" % sCode)
+        a_set.import_sezioni("../data/sezioni_progetto-%s.csv" % sRelCsvCode)
         # Import TBM inside the alignment: one-to-many relationship by embedding
-        a_set.import_tbm("../data/tbm_progetto-%s.csv" % sCode)
+        a_set.import_tbm("../data/tbm_progetto-%s.csv" % sRelCsvCode)
         als = Alignment.find(db,{"alignment_set_id":a_set._id})
         for al in als:
             a = Alignment(db,al)
