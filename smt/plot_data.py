@@ -15,9 +15,17 @@ import csv, re
 import sys, getopt
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib.tri as tri
+from mpl_toolkits.mplot3d.axes3d import *
 from scipy.interpolate import griddata
 from collections import defaultdict
 from shapely.geometry import LineString
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap
+from mpl_toolkits.basemap import Basemap, cm
+import osgeo.ogr as ogr
+import osgeo.osr as osr
+import osgeo.gdal as gdal
 # danzi.tn@20160310 plot secondo distanze dinamiche
 # create main logger
 logger = logging.getLogger('smt_main')
@@ -73,9 +81,9 @@ def asse2p(p1,p2,x):
 
 def pfromdistance(p1,p2,d):
     mid = mid_point(p1,p2)
-    if p2[0]==p1[0]:
+    if abs(p2[0]-p1[0])<=0.1:
         return (p1[0] - d,mid[1]) , (p1[0]+d,mid[1])
-    if p2[1]==p1[1]:
+    if abs(p2[1]-p1[1])<=0.1:
         return (mid[0],p1[1]+d) , (mid[0],p1[1] - d)
     m = (p2[1]-p1[1])/(p2[0]-p1[0])
     mx = mid[0]
@@ -84,6 +92,10 @@ def pfromdistance(p1,p2,d):
     c = mx**2-d**2*m**2/(m**2+1)
     coeff = [a, b, c]
     res_x = np.roots(coeff)
+    if isinstance(res_x[0], complex):
+        print '%s=x is complex for %s %s %f' % (str(res_x[0]),p1,p2,d)
+        print "p2[0]-p1[0] = %f" % (p2[0]-p1[0])
+        print "p2[1]-p1[1] = %f" % (p2[1]-p1[1])
     res_y0 = asse2p(p1,p2,res_x[0])
     res_y1 = asse2p(p1,p2,res_x[1])
     return (res_x[0],res_y0),(res_x[1],res_y1)
@@ -111,7 +123,8 @@ def processSettlements(a_list):
     distanceIndex = defaultdict(list)
     for i, a_item in enumerate(a_list):
         for item in a_item["SETTLEMENTS"]:
-            distanceIndex[item["code"]].append(item["value"])
+            if item["code"] > 0:
+                distanceIndex[item["code"]].append(item["value"])
     distanceKeys = distanceIndex.keys()
     distanceKeys.sort()
     return distanceKeys, distanceIndex
@@ -144,6 +157,14 @@ def plot_data(bAuthenticate, sPath):
     # connect to MongoDB
     client = MongoClient()
     db = client[database]
+    ##################################################### GIS SETUP
+    driver = ogr.GetDriverByName("ESRI Shapefile")
+    # create the spatial reference, EPSG3949 RGF93 / CC49 - http://spatialreference.org/ref/epsg/3949/
+    # xMin,yMin 1653513.80,8175914.21 : xMax,yMax 1659996.62,8177877.58
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(3949)
+    
+    
     # DB authentication if required
     if bAuthenticate:
         bLoggedIn = db.authenticate(username,password,source=source_database)
@@ -161,11 +182,41 @@ def plot_data(bAuthenticate, sPath):
                 d = Domain(db,dom)
                 d.load()
                 # Example of query
-                asets = db.AlignmentSet.find({"domain_id": d._id})
+                # asets = db.AlignmentSet.find({"$and":[{"domain_id": d._id},{"code": "main_01"}]})
+                asets = db.AlignmentSet.find({"$and":[{"domain_id": d._id}]})
                 for aset in asets:
                     a_set = AlignmentSet(db,aset)
                     a_set.load()
                     sCode = a_set.item["code"]
+                    
+                    # GIS create the data source
+                    shpfname=os.path.join(sPath,"smt_%s.shp" % sCode)
+                    if os.path.exists(shpfname):
+                        os.remove(shpfname)
+                    data_source = driver.CreateDataSource(shpfname)
+                    layer = data_source.CreateLayer("subsidence", srs, ogr.wkbPoint)     
+                    # Add the GIS fields we're interested in
+                    field_name = ogr.FieldDefn("Name", ogr.OFTString)
+                    field_name.SetWidth(24)
+                    layer.CreateField(field_name)
+                    field_type = ogr.FieldDefn("Type", ogr.OFTString)
+                    field_type.SetWidth(24)
+                    layer.CreateField(field_type)
+                    field_align = ogr.FieldDefn("Alignment", ogr.OFTString)
+                    field_align.SetWidth(24)
+                    layer.CreateField(field_align)
+                    layer.CreateField(ogr.FieldDefn("PK", ogr.OFTInteger))
+                    layer.CreateField(ogr.FieldDefn("Distance", ogr.OFTInteger))
+                    layer.CreateField(ogr.FieldDefn("Latitude", ogr.OFTReal))
+                    layer.CreateField(ogr.FieldDefn("Longitude", ogr.OFTReal))
+                    layer.CreateField(ogr.FieldDefn("Elevation", ogr.OFTInteger))
+                    layer.CreateField(ogr.FieldDefn("COB", ogr.OFTReal))
+                    layer.CreateField(ogr.FieldDefn("BLOWUP", ogr.OFTReal))
+                    layer.CreateField(ogr.FieldDefn("SETTLEMENT", ogr.OFTReal))
+                    # GIS end 
+                    
+                    
+                    #als = db.Alignment.find({"$and":[{"alignment_set_id":a_set._id},{"PK":{"$gt":2128568}},{"PK":{"$lt":2129768}}]},{"PK":True,"COB":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, "VOLUME_LOSS":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True}).sort("PK", 1)
                     als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"COB":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, "VOLUME_LOSS":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True}).sort("PK", 1)
                     a_list = list(als)
                     pks =[d['PK'] for d in a_list]
@@ -192,7 +243,36 @@ def plot_data(bAuthenticate, sPath):
                     pkzs_d_2 = defaultdict(list)
                     mypoints = np.zeros((0,2))
                     myvalues = np.zeros(0,'f')
+                    pcalc_x = []
+                    pcalc_y = []
+                    pcalc_z = []
+                   
                     for i,x in enumerate(pkxs):
+                        # GIS 1.1
+                        feature = ogr.Feature(layer.GetLayerDefn())
+                        feature.SetField("Name", "PK %f %d" % (pks[i],0))
+                        feature.SetField("Type", "Central")
+                        feature.SetField("Alignment", str(sCode))
+                        feature.SetField("Distance",0)
+                        feature.SetField("PK", int(pks[i]))
+                        feature.SetField("Latitude", pkys[i])
+                        feature.SetField("Longitude", x)
+                        feature.SetField("Elevation", phs[i])
+                        feature.SetField("COB", cobs[i])
+                        feature.SetField("SETTLEMENT", max_settlements[i])
+                        feature.SetField("BLOWUP", blowups[i])
+                        wkt = "POINT(%f %f)" %  (float(x) , float(pkys[i]))
+                        
+                        # Create the point from the Well Known Txt
+                        point = ogr.CreateGeometryFromWkt(wkt)
+
+                        # Set the feature geometry using the point
+                        feature.SetGeometry(point)
+                        # Create the feature in the layer (shapefile)
+                        layer.CreateFeature(feature)
+                        # Destroy the feature to free resources
+                        feature.Destroy()
+                        # GIS 1.1 end
                         if i==0:
                             pass
                         else:
@@ -202,7 +282,7 @@ def plot_data(bAuthenticate, sPath):
                             pmidx.append(pm[0])
                             pmidy.append(pm[1])
                             for key in keys:
-                                val = (dictValues[key][i-1] + dictValues[key][i]) * 0.5
+                                val = dictValues[key][i-1]
                                 ret_d = pfromdistance(p1,p2,key)
                                 x1 = ret_d[0][0]
                                 x2 = ret_d[1][0]
@@ -213,10 +293,77 @@ def plot_data(bAuthenticate, sPath):
                                 pkys_d_1[key].append(y1)
                                 pkys_d_2[key].append(y2) 
                                 mypoints = np.append(mypoints,[[x1,y1]],axis=0)
+                                pcalc_x.append(x1)
+                                pcalc_y.append(y1)
+                                pcalc_z.append(val)
                                 myvalues = np.append(myvalues,[val],axis=0)
                                 mypoints = np.append(mypoints,[[x2,y2]],axis=0)
+                                pcalc_x.append(x2)
+                                pcalc_y.append(y2)
+                                pcalc_z.append(val)
                                 myvalues = np.append(myvalues,[val],axis=0)
-                    gx, gy =  np.mgrid[min(pkxs):max(pkxs),min(pkys):max(pkys)]
+                                
+                                # GIS 1.1
+                                feature = ogr.Feature(layer.GetLayerDefn())
+                                feature.SetField("Name", "PK %f +%d" % (pks[i],int(key)))
+                                feature.SetField("Type", "Distance")
+                                feature.SetField("Alignment", str(sCode))
+                                feature.SetField("Distance",int(key))
+                                feature.SetField("PK", int(pks[i]))
+                                feature.SetField("Latitude", y1)
+                                feature.SetField("Longitude", x1)
+                                feature.SetField("Elevation", phs[i])
+                                feature.SetField("COB", cobs[i])
+                                feature.SetField("SETTLEMENT", val)
+                                feature.SetField("BLOWUP", blowups[i])
+                                wkt = "POINT(%f %f)" %  (float(x1) , float(y1))
+                                
+                                # Create the point from the Well Known Txt
+                                point = ogr.CreateGeometryFromWkt(wkt)
+
+                                # Set the feature geometry using the point
+                                feature.SetGeometry(point)
+                                # Create the feature in the layer (shapefile)
+                                layer.CreateFeature(feature)
+                                # Destroy the feature to free resources
+                                feature.Destroy()
+                                
+                                feature = ogr.Feature(layer.GetLayerDefn())
+                                feature.SetField("Name", "PK %f -%d" % (pks[i],int(key)))
+                                feature.SetField("Type", "Distance")           
+                                feature.SetField("Alignment", str(sCode))
+                                feature.SetField("Distance",int(key))
+                                feature.SetField("PK", int(pks[i]))
+                                feature.SetField("Latitude", y2)
+                                feature.SetField("Longitude", x2)
+                                feature.SetField("Elevation", dems[i])
+                                feature.SetField("COB", cobs[i])
+                                feature.SetField("SETTLEMENT", val)
+                                feature.SetField("BLOWUP", blowups[i])
+                                wkt = "POINT(%f %f)" %  (float(x2) , float(y2))
+                                
+                                # Create the point from the Well Known Txt
+                                point = ogr.CreateGeometryFromWkt(wkt)
+
+                                # Set the feature geometry using the point
+                                feature.SetGeometry(point)
+                                # Create the feature in the layer (shapefile)
+                                layer.CreateFeature(feature)
+                                # Destroy the feature to free resources
+                                feature.Destroy()
+                                
+                                # GIS 1.1 end
+                    
+                    x_min, x_max, y_min, y_max = layer.GetExtent()
+                    
+                    data_source.Destroy()
+                    ############### END GIS
+                    min_x = min(pcalc_x)
+                    min_y = min(pcalc_y)
+                    max_x = max(pcalc_x)
+                    max_y = max(pcalc_y)
+                    # Interpolazione ...forse non è la cosa giusta da fare
+                    gx, gy =  np.mgrid[min_x:max_x,min_y:max_y]
                     m_interp_cubic = griddata(mypoints, myvalues, (gx, gy),method='cubic')
                     # plot
                     fig = plt.figure()
@@ -237,19 +384,109 @@ def plot_data(bAuthenticate, sPath):
                     plt.show()
                     # stampa planimetria
                     plt.title("Planimetria") 
-                    plt.plot(pkxs,pkys, "bo")
+
+                    # filtro a zero tutto qeullo che sta sotto
+                    m_interp_cubic[ m_interp_cubic < 0.0] = 0.0
+                        
+                    
+                    #cp = plt.contour(gx, gy, m_interp_cubic,linewidths=0.5,colors='k')
+                    cmap = LinearSegmentedColormap.from_list(name="Custom CMap", colors =["white", "blue", "red"], N=16)
+                    contours = plt.contourf(gx, gy, m_interp_cubic,cmap = cmap)
+                    
+                    
+                    # GIS create the data source
+                    attr_name = "SETTLEMENT"
+                    shpfname=os.path.join(sPath,"contour_%s.shp" % sCode)
+                    if os.path.exists(shpfname):
+                        os.remove(shpfname)
+                    dst_ds = driver.CreateDataSource(shpfname)
+                    dst_layer = dst_ds.CreateLayer("contour_subsidence", srs, ogr.wkbPolygon)     
+                    # Add the GIS fields we're interested in
+                    dst_layer.CreateField(ogr.FieldDefn(attr_name, ogr.OFTReal))
+                    field_align = ogr.FieldDefn("Alignment", ogr.OFTString)
+                    field_align.SetWidth(24)
+                    dst_layer.CreateField(field_align)
+                    field_level = ogr.FieldDefn("LevelID", ogr.OFTString)
+                    field_level.SetWidth(24)
+                    dst_layer.CreateField(field_level)
+                    # GIS end 
+                    
+                    for level in range(len(contours.collections)): 
+                        paths = contours.collections[level].get_paths()  
+                        for path in paths:  
+
+                            feat_out = ogr.Feature( dst_layer.GetLayerDefn())  
+                            feat_out.SetField( attr_name, contours.levels[level] )  
+                            feat_out.SetField("Alignment", str(sCode))
+                            feat_out.SetField("LevelID", str(level))
+                            pol = ogr.Geometry(ogr.wkbPolygon)  
+
+
+                            ring = None              
+                              
+                            for i in range(len(path.vertices)):  
+                                point = path.vertices[i]  
+                                if path.codes[i] == 1:  
+                                    if ring != None:  
+                                        pol.AddGeometry(ring)  
+                                    ring = ogr.Geometry(ogr.wkbLinearRing)  
+                                      
+                                ring.AddPoint_2D(point[0], point[1])  
+                              
+
+                            pol.AddGeometry(ring)  
+                              
+                            feat_out.SetGeometry(pol)  
+                            if dst_layer.CreateFeature(feat_out) != 0:  
+                                print "Failed to create feature in shapefile.\n"  
+                                exit( 1 )  
+
+                              
+                            feat_out.Destroy()  
+                    #m = Basemap(epsg='3949',llcrnrlon=-5.0000, llcrnrlat=48.0000, urcrnrlon=8.2700, urcrnrlat=50.0000)
+                    #cs = m.contourf(gx, gy, m_interp_cubic,cmap=cmap)
+
+                    """
+                    # Create the destination tiff data source
+                    raster_fn=os.path.join(sPath,"smt_%s.tif" % sCode)
+                    if os.path.exists(raster_fn):
+                        os.remove(raster_fn)
+                    
+                    # Define pixel_size and NoData value of new raster
+
+                    pixel_size = 1
+                    NoData_value = -9999
+                    x_res = int((max_x - min_x) / pixel_size)
+                    y_res = int((max_y - min_y) / pixel_size)
+                    target_ds = gdal.GetDriverByName('GTiff').Create(raster_fn, x_res, y_res, 1, gdal.GDT_Float32)
+                    target_ds.SetGeoTransform((x_min, pixel_size, 0, y_max, 0, -pixel_size))
+                    band = target_ds.GetRasterBand(1)
+                    band.WriteArray(m_interp_cubic)
+                    outRasterSRS = osr.SpatialReference()
+                    outRasterSRS.ImportFromEPSG(3949)
+                    outRaster.SetProjection(outRasterSRS.ExportToWkt())
+                    outband.FlushCache()
+                    """
+                    
+                    
+                    
+                    plt.colorbar()
+                    plt.plot(pkxs,pkys, "wo")
                     plt.plot(pkxs,pkys, "r-",label='Tracciato %s' % a_set.item["code"])
+
                     # Punti medi
                     plt.plot(pmidx,pmidy, "gx")
-  
+                    
                     for key in keys:
                         pkzs_d_1[key] = dictValues[key]
                         pkzs_d_2[key] = dictValues[key]
-                        plt.plot(pkxs_d_1[key],pkys_d_1[key], "ro")
-                        plt.plot(pkxs_d_2[key],pkys_d_2[key], "yo")
+                        plt.plot(pkxs_d_1[key],pkys_d_1[key], "w.", ms=1)
+                        plt.plot(pkxs_d_2[key],pkys_d_2[key], "w.", ms=1)
                     
+                    array_x = np.asarray(pcalc_x)
+                    array_y = np.asarray(pcalc_y)
+                    array_z = np.asarray(pcalc_z)
                     plt.axis("equal")
-                    plt.legend()
                     plt.show()
                     logger.info("plot_data terminated!")
     else:
