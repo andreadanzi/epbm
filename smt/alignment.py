@@ -690,23 +690,23 @@ class Alignment(BaseSmtModel):
                 z_dem = align.DEM.coordinates[2]
                 p_max = min(align.TBM.pressure_max, fBlowUp)
                 p_tbm=0.
-                if align.PK == 2128748:
-                    p_tbm=400.
-                elif align.PK == 2123208:
-                    p_tbm=300.
-                elif align.PK == 2127608:
-                    p_tbm=300.
-                elif align.PK == 2124508:
-                    p_tbm=400.
-                elif align.PK == 2123868:
-                    p_tbm=400.
-                elif align.PK == 2129098:
-                    p_tbm=300.
-                elif align.PK == 2126398:
-                    p_tbm=300.
-                else:
-                    p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
-                
+#                if align.PK == 2128748:
+#                    p_tbm=400.
+#                elif align.PK == 2123208:
+#                    p_tbm=300.
+#                elif align.PK == 2127608:
+#                    p_tbm=300.
+#                elif align.PK == 2124508:
+#                    p_tbm=400.
+#                elif align.PK == 2123868:
+#                    p_tbm=400.
+#                elif align.PK == 2129098:
+#                    p_tbm=300.
+#                elif align.PK == 2126398:
+#                    p_tbm=300.
+#                else:
+#                    p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
+                p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
                 p_tbm_shield = p_tbm*.75
 
                 

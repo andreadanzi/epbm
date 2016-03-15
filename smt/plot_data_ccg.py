@@ -179,13 +179,17 @@ def plot_data(bAuthenticate, sPath):
                         if hundreds%100 == 0:
                             pkxticks.append(pk_value)
                             pklabel.append("%d+%03d" % (int(pk_value/1000.),hundreds ))
-                        
+                    if sCode=='smi':
+                        d_press = 0.5 # bar tra calotta e asse
+                    else:
+                        d_press = 0.7 # bar tra calotta e asse
+                    
                     # scalo di fattore 100
-                    p_epms =[d['P_EPB']/100 for d in a_list]
+                    p_epms =[d['P_EPB']/100 - d_press for d in a_list]
                     # scalo di fattore 100
-                    cobs =[d['COB']/100 for d in a_list]
+                    cobs =[d['COB']/100 - d_press for d in a_list]
                     # scalo di fattore 100
-                    blowups =[d['BLOWUP']/100 for d in a_list]
+                    blowups =[d['BLOWUP']/100 - d_press for d in a_list]
                     # amplifico di fattore 100
                     volume_losss =[d['VOLUME_LOSS']*100 for d in a_list]
                     k_pecks =[d['K_PECK'] for d in a_list]
@@ -206,8 +210,9 @@ def plot_data(bAuthenticate, sPath):
                     start, stop = ax.get_ylim()
                     ticks = np.arange(start, stop + .5, .5)
                     ax.set_yticks(ticks)
-                    ax.grid(True)
+                    #ax.grid(True)
                     #plt.legend()
+                    #fig.set_dpi(1600)
                     outputFigure(sPath, ("profilo_pressioni_%s.svg" % sCode))
                     logger.info("profilo_pressioni.svg plotted in %s" % sPath)
                     plt.show()
@@ -216,33 +221,35 @@ def plot_data(bAuthenticate, sPath):
                     plt.plot(pks,k_pecks, label='k peck')
                     y_min = math.floor(min(min(volume_losss), min(k_pecks))/.05)*.05-.05 
                     y_max = math.ceil(max(max(volume_losss), max(k_pecks))/.05)*.05+.05 
-                    plt.axis([min(pks),max(pks),y_min,y_max])
+                    plt.axis([max(pks),min(pks),y_min,y_max])
                     plt.xticks(pkxticks, pklabel, rotation='vertical')
                     ax = plt.gca()
-                    my_aspect = 50./(abs(y_max-y_min)/9.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    my_aspect = 50./(abs(y_max-y_min)/9.0) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
                     ax.set_aspect(my_aspect)
                     start, stop = ax.get_ylim()
                     ticks = np.arange(start, stop + .05, .05)
                     ax.set_yticks(ticks)
-                    ax.grid(True)
+                    #ax.grid(True)
                     #plt.legend()
+                    #fig.set_dpi(1600)
                     outputFigure(sPath, ("profilo_peck_%s.svg" % sCode))
                     logger.info("profilo_peck.svg plotted in %s" % sPath)
                     plt.show()
 
                     plt.plot(pks,max_settlements, label='SETTLEMENT_MAX (mm)')
-                    y_min = math.floor(min(max_settlements))-1. 
-                    y_max = math.ceil(max(max_settlements))+1. 
-                    plt.axis([min(pks),max(pks),y_min,y_max])
+                    y_min = 0. # math.floor(min(max_settlements))-1. 
+                    y_max = 30. # math.ceil(max(max_settlements))+1. 
+                    plt.axis([max(pks),min(pks),y_min,y_max])
                     plt.xticks(pkxticks, pklabel, rotation='vertical')
                     ax = plt.gca()
                     my_aspect = 50./(abs(y_max-y_min)/9.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
                     ax.set_aspect(my_aspect)
                     start, stop = ax.get_ylim()
-                    ticks = np.arange(start, stop + 1., 1.)
+                    ticks = np.arange(start, stop + 5., 5.)
                     ax.set_yticks(ticks)
-                    ax.grid(True)
+                    #ax.grid(True)
                     #plt.legend()
+                    #fig.set_dpi(1600)
                     outputFigure(sPath, ("profilo_cedimenti_%s.svg" % sCode))
                     logger.info("profilo_cedimenti.svg plotted in %s" % sPath)
                     plt.show()
