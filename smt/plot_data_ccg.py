@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import math
 import logging
 import logging.handlers
 import ConfigParser, os
@@ -158,17 +159,27 @@ def plot_data(bAuthenticate, sPath):
             p.load()
             found_domains = Domain.find(db, {"project_id": p._id})
             for dom in found_domains:
-                d = Domain(db,dom)
-                d.load()
+                dm = Domain(db,dom)
+                dm.load()
                 # Example of query
-                asets = db.AlignmentSet.find({"domain_id": d._id})
+                asets = db.AlignmentSet.find({"domain_id": dm._id})
                 for aset in asets:
                     a_set = AlignmentSet(db,aset)
                     a_set.load()
                     sCode = a_set.item["code"]
                     als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"COB":True,"P_EPB":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, "VOLUME_LOSS":True, "K_PECK":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True}).sort("PK", 1)
                     a_list = list(als)
-                    pks =[d['PK'] for d in a_list]
+                    pks = []
+                    pklabel = []
+                    pkxticks = []
+                    for d in a_list:
+                        pk_value = round(d['PK']/10., 0) *10.
+                        pks.append(pk_value)
+                        hundreds = int(pk_value-int(pk_value/1000.)*1000)
+                        if hundreds%100 == 0:
+                            pkxticks.append(pk_value)
+                            pklabel.append("%d+%03d" % (int(pk_value/1000.),hundreds ))
+                        
                     # scalo di fattore 100
                     p_epms =[d['P_EPB']/100 for d in a_list]
                     # scalo di fattore 100
@@ -180,112 +191,61 @@ def plot_data(bAuthenticate, sPath):
                     k_pecks =[d['K_PECK'] for d in a_list]
                     # amplifico di fattore 1000
                     max_settlements =[d['SETTLEMENT_MAX']*1000 for d in a_list]
-                    phs =[d['PH']['coordinates'][2] for d in a_list]
-                    dems =[d['DEM']['coordinates'][2] for d in a_list]
-                    pkys =[d['PH']['coordinates'][1] for d in a_list]
-                    pkxs =[d['PH']['coordinates'][0] for d in a_list]   
-                    # punti medi
-                    pmidx = []
-                    pmidy = []
-                    # punti a distanza 20 e 40
-                    keys, dictValues = processSettlements(a_list)
-                    pkxs_d_1 = defaultdict(list)
-                    pkys_d_1 = defaultdict(list)
-                    pkzs_d_1 = defaultdict(list)
-                    pkxs_d_2 = defaultdict(list)
-                    pkys_d_2 = defaultdict(list)
-                    pkzs_d_2 = defaultdict(list)
-                    mypoints = np.zeros((0,2))
-                    myvalues = np.zeros(0,'f')
-                    for i,x in enumerate(pkxs):
-                        if i==0:
-                            pass
-                        else:
-                            p1 = (pkxs[i-1],pkys[i-1])
-                            p2 = (pkxs[i],pkys[i])
-                            pm = mid_point(p1,p2)
-                            pmidx.append(pm[0])
-                            pmidy.append(pm[1])
-                            for key in keys:
-                                val = (dictValues[key][i-1] + dictValues[key][i]) * 0.5
-                                ret_d = pfromdistance(p1,p2,key)
-                                x1 = ret_d[0][0]
-                                x2 = ret_d[1][0]
-                                y1 = ret_d[0][1]
-                                y2 = ret_d[1][1]
-                                pkxs_d_1[key].append(x1)
-                                pkxs_d_2[key].append(x2)
-                                pkys_d_1[key].append(y1)
-                                pkys_d_2[key].append(y2) 
-                                mypoints = np.append(mypoints,[[x1,y1]],axis=0)
-                                myvalues = np.append(myvalues,[val],axis=0)
-                                mypoints = np.append(mypoints,[[x2,y2]],axis=0)
-                                myvalues = np.append(myvalues,[val],axis=0)
-                    gx, gy =  np.mgrid[min(pkxs):max(pkxs),min(pkys):max(pkys)]
-                    m_interp_cubic = griddata(mypoints, myvalues, (gx, gy),method='cubic')
                     # plot
                     fig = plt.figure()
-                    plt.title("Profilo pressioni %s" % sCode)
-                    ### visualizza gli strati di riferimento
-                    # fillBetweenStrata(a_list)
-                    
-                    ################################################
-                    plt.plot(pks,phs, linewidth=2,label='Tracciato')
-                    plt.plot(pks,dems,  linewidth=2,label='DEM' )
                     plt.plot(pks,cobs, label='COB - bar')
                     plt.plot(pks,p_epms, label='P_EPB - bar')
                     plt.plot(pks,blowups, label='BLOWUP - bar')
-                    plt.axis([min(pks),max(pks),min(phs)-10,max(dems)+10])
-                    plt.legend()
-                    outputFigure(sPath, "profilo_pressioni.svg")
+                    y_min = math.floor(min(min(cobs), min(p_epms), min(blowups))/.5)*.5-.5 
+                    y_max = math.ceil(max(max(cobs), max(p_epms), max(blowups))/.5)*.5+.5 
+                    my_aspect = 50./(abs(y_max-y_min)/9.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    ax.set_aspect(my_aspect)
+                    start, stop = ax.get_ylim()
+                    ticks = np.arange(start, stop + .5, .5)
+                    ax.set_yticks(ticks)
+                    ax.grid(True)
+                    #plt.legend()
+                    outputFigure(sPath, ("profilo_pressioni_%s.svg" % sCode))
                     logger.info("profilo_pressioni.svg plotted in %s" % sPath)
                     plt.show()
 
-                    plt.title("Profilo cedimenti %s" % sCode)
-                    plt.plot(pks,phs, linewidth=2,label='Tracciato')
-                    plt.plot(pks,dems,  linewidth=2,label='DEM' )
                     plt.plot(pks,volume_losss, label='VL percent')
                     plt.plot(pks,k_pecks, label='k peck')
-                    plt.plot(pks,max_settlements, label='SETTLEMENT_MAX (mm)')
-                    plt.axis([min(pks),max(pks),min(phs)-10,max(dems)+10])
-                    plt.legend()
-                    outputFigure(sPath, "profilo_cedimenti.svg")
-                    logger.info("profilo_cedimenti.svg plotted in %s" % sPath)
-                    plt.show()
-                    # stampa planimetria
-                    plt.title("Planimetria") 
-                    plt.plot(pkxs,pkys, "bo")
-                    plt.plot(pkxs,pkys, "r-",label='Tracciato %s' % a_set.item["code"])
-                    # Punti medi
-                    plt.plot(pmidx,pmidy, "gx")
-
-                    plt.title("Profilo peck %s" % sCode)
-                    plt.plot(pks,phs, linewidth=2,label='Tracciato')
-                    plt.plot(pks,dems,  linewidth=2,label='DEM' )
-                    plt.plot(pks,volume_losss, label='VL percent')
-                    plt.plot(pks,k_pecks, label='k peck')
-                    plt.axis([min(pks),max(pks),min(phs)-10,max(dems)+10])
-                    plt.legend()
-                    outputFigure(sPath, "profilo_peck.svg")
+                    y_min = math.floor(min(min(volume_losss), min(k_pecks))/.05)*.05-.05 
+                    y_max = math.ceil(max(max(volume_losss), max(k_pecks))/.05)*.05+.05 
+                    plt.axis([min(pks),max(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    my_aspect = 50./(abs(y_max-y_min)/9.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    ax.set_aspect(my_aspect)
+                    start, stop = ax.get_ylim()
+                    ticks = np.arange(start, stop + .05, .05)
+                    ax.set_yticks(ticks)
+                    ax.grid(True)
+                    #plt.legend()
+                    outputFigure(sPath, ("profilo_peck_%s.svg" % sCode))
                     logger.info("profilo_peck.svg plotted in %s" % sPath)
                     plt.show()
-#                    # stampa planimetria
-#                    plt.title("Planimetria") 
-#                    plt.plot(pkxs,pkys, "bo")
-#                    plt.plot(pkxs,pkys, "r-",label='Tracciato %s' % a_set.item["code"])
-#                    # Punti medi
-#                    plt.plot(pmidx,pmidy, "gx")
-#
-#  
-#                    for key in keys:
-#                        pkzs_d_1[key] = dictValues[key]
-#                        pkzs_d_2[key] = dictValues[key]
-#                        plt.plot(pkxs_d_1[key],pkys_d_1[key], "ro")
-#                        plt.plot(pkxs_d_2[key],pkys_d_2[key], "yo")
-#                    
-#                    plt.axis("equal")
-#                    plt.legend()
-#                    plt.show()
+
+                    plt.plot(pks,max_settlements, label='SETTLEMENT_MAX (mm)')
+                    y_min = math.floor(min(max_settlements))-1. 
+                    y_max = math.ceil(max(max_settlements))+1. 
+                    plt.axis([min(pks),max(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    my_aspect = 50./(abs(y_max-y_min)/9.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    ax.set_aspect(my_aspect)
+                    start, stop = ax.get_ylim()
+                    ticks = np.arange(start, stop + 1., 1.)
+                    ax.set_yticks(ticks)
+                    ax.grid(True)
+                    #plt.legend()
+                    outputFigure(sPath, ("profilo_cedimenti_%s.svg" % sCode))
+                    logger.info("profilo_cedimenti.svg plotted in %s" % sPath)
+                    plt.show()
                     logger.info("plot_data terminated!")
     else:
         logger.error("Authentication failed")
