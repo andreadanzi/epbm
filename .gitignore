@@ -20,5 +20,6 @@ data/stratigrafia_raccordo.csv
 *.prj
 smt/GDAL-1.11.4-cp27-none-win_amd64.whl
 data/Edifici_Analizzati_Attributi_old.csv
-data/gis/*
+data/gis/contour_*
+data/gis/smt_*
 data/smt_qgis.qgs~
