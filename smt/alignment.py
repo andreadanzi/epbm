@@ -2,6 +2,7 @@
 import logging, sys
 from base import BaseSmtModel, BaseStruct
 from utils import *
+from building import Building
 import datetime, math
 import csv
 # danzi.tn@20160310 refactoring per separare calc da setup
@@ -499,8 +500,7 @@ class Alignment(BaseSmtModel):
         
     def setProject(self, projectItem):
         self.project = BaseStruct(projectItem)    
-    
-    
+
     def assign_reference_strata(self):
         retVal = "XXX"
         # BaseStruct converte un dizionario in un oggetto la cui classe ha come attributi gli elementi del dizionario
@@ -530,13 +530,36 @@ class Alignment(BaseSmtModel):
         pk = self.item["PK"]
         # danzi.tn@20160315 nuovo criterio di ricerca: ci possono essere più PK per ogni building (tun02, tun04, sim)
         # {"PK_INFO.pk_array":{ "$elemMatch": { "$and":[{"pk_min":{"$lte":2150690}},{"pk_max":{"$gt":2150690}} ]}} }
-        bcurr = self.db.Building.find({"PK_INFO.pk_array":{ "$elemMatch": { "$and":[{"pk_min":{"$lte":pk}},{"pk_max":{"$gt":pk}} ]}} })
+        bcurr = self.db.Building.find({"PK_INFO.pk_array":{ "$elemMatch": { "$and":[{"pk_min":{"$lte":pk+5.}},{"pk_max":{"$gt":pk-5.}} ]}} })
         building_array = []
         for b in bcurr:
             building_array.append(b)
         if len(building_array)>0:
             self.item["BUILDINGS"] = building_array
             self.save()
+        return retVal
+
+    def assign_vulnerability(self, bcode, vulnerability):
+        retVal = 0
+        #2129458 94076BC0006_01
+        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
+        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{"vulnerability":{"$lte":vulnerability}} ]})
+        for b in bcurr:
+            bldg = Building(self.db, b)
+            bldg.load()
+            bldg.item["vulnerability"]=vulnerability
+            bldg.save()
+            retVal =  retVal + 1
+
+        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
+        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{"vulnerability":{"$exists":False}} ]})
+        for b in bcurr:
+            bldg = Building(self.db, b)
+            bldg.load()
+            bldg.item["vulnerability"]=vulnerability
+            bldg.save()
+            retVal =  retVal + 1
+            
         return retVal
     
     def doit (self,parm):
@@ -711,13 +734,14 @@ class Alignment(BaseSmtModel):
 
                 
                 if "BUILDINGS" in self.item:
-                    for b in align.BUILDINGS:
+                    for idx,  b in enumerate(align.BUILDINGS):
                         self.logger.debug("\tAnalisi edificio %s con classe di sensibilita' %s" % (b.bldg_code, b.sc_lev))
                         # leggo l'impronta dell'edificio alla pk analizzata
                         x_min = None
                         x_max = None
                         for pk_item in b.PK_INFO.pk_array:
-                            if pk_item.pk_min <= align.PK < pk_item.pk_max:
+# TODO SISTEMARE EDIFICI PICCOLI CHE INIZIANO E FINISCONO TRA UNA PK E L'ALTRA
+                            if pk_item.pk_min <= align.PK +5. and pk_item.pk_max>align.PK-5.:
                                 x_min = pk_item.d_min
                                 x_max = pk_item.d_max
                         z = b.depth_fondation
@@ -725,7 +749,6 @@ class Alignment(BaseSmtModel):
                         try:
                             self.logger.debug("\t\timpronta da %fm a %fm e a una profondita' di %fm dal piano di campagna e con un altezza fuori terra di %fm" % (x_min, x_max, z, h_bldg))
                         except TypeError:
-                            self.logger.error("Dati errati per l'edificio %s" % (b.bldg_code))
                             self.logger.debug("Dati errati per l'edificio %s" % (b.bldg_code))
                             break
                             
@@ -770,9 +793,13 @@ class Alignment(BaseSmtModel):
                                 break
                             else:
                                 p_tbm += 10.
+                        
+                        self.item["BUILDINGS"][idx]["vulnerability"] = vulnerability_class
+                        n_found = self.assign_vulnerability(b.bldg_code, vulnerability_class)
+                        # print "%d %d %s" %(n_found, align.PK, b.bldg_code )
                         self.logger.debug("\t\textra carico in galleria %f kN/m2" % (extra_load))
                         self.logger.debug("\t\tp_tbm = %f, s_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f" % (p_tbm, s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class))
-
+                    
                 # calcolo finale per greenfield
                 gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
                 # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
