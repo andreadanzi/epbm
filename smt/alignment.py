@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import logging
+import logging, sys
 from base import BaseSmtModel, BaseStruct
 from utils import *
 import datetime, math
@@ -714,8 +714,12 @@ class Alignment(BaseSmtModel):
                     for b in align.BUILDINGS:
                         self.logger.debug("\tAnalisi edificio %s con classe di sensibilita' %s" % (b.bldg_code, b.sc_lev))
                         # leggo l'impronta dell'edificio alla pk analizzata
-                        x_min = b.d_min
-                        x_max = b.d_max
+                        x_min = None
+                        x_max = None
+                        for pk_item in b.PK_INFO.pk_array:
+                            if pk_item.pk_min <= align.PK < pk_item.pk_max:
+                                x_min = pk_item.d_min
+                                x_max = pk_item.d_max
                         z = b.depth_fondation
                         h_bldg = b.height_overground
                         try:
