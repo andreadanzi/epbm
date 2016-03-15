@@ -528,8 +528,9 @@ class Alignment(BaseSmtModel):
     def assign_buildings(self):
         retVal="XXX"
         pk = self.item["PK"]
-        #"$and":[{"pk_min":{"$lte":pk}},{"pk_max":{"$gt":pk}}]
-        bcurr = self.db.Building.find({"$and":[{"pk_min":{"$lte":pk}},{"pk_max":{"$gt":pk}}]})
+        # danzi.tn@20160315 nuovo criterio di ricerca: ci possono essere più PK per ogni building (tun02, tun04, sim)
+        # {"PK_INFO.pk_array":{ "$elemMatch": { "$and":[{"pk_min":{"$lte":2150690}},{"pk_max":{"$gt":2150690}} ]}} }
+        bcurr = self.db.Building.find({"PK_INFO.pk_array":{ "$elemMatch": { "$and":[{"pk_min":{"$lte":pk}},{"pk_max":{"$gt":pk}} ]}} })
         building_array = []
         for b in bcurr:
             building_array.append(b)

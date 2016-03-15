@@ -221,7 +221,7 @@ def plot_data(bAuthenticate, sPath):
                     sCode = a_set.item["code"]
                     
                     # GIS create the data source
-                    shpfname=os.path.join(sPath,"smt_%s.shp" % sCode)
+                    shpfname=os.path.join(sPath,"gis","smt_%s.shp" % sCode)
                     if os.path.exists(shpfname):
                         os.remove(shpfname)
                     data_source = driver.CreateDataSource(shpfname)
@@ -244,6 +244,7 @@ def plot_data(bAuthenticate, sPath):
                     layer.CreateField(ogr.FieldDefn("COB", ogr.OFTReal))
                     layer.CreateField(ogr.FieldDefn("BLOWUP", ogr.OFTReal))
                     layer.CreateField(ogr.FieldDefn("SETTLEMENT", ogr.OFTReal))
+                    # layer.CreateField(ogr.FieldDefn("DATETIME", ogr.OFTDateTime))
                     # GIS end 
                     
                     
@@ -291,9 +292,12 @@ def plot_data(bAuthenticate, sPath):
                             for key in keys:
                                 val = dictValues[key][i-1]
                                 if key == 0.0:
-                                
+                                    # pass
                                     mypoints = np.append(mypoints,[[pkxs[i-1],pkys[i-1]]],axis=0)
                                     myvalues = np.append(myvalues,[val],axis=0)
+                                    pcalc_x.append(pkxs[i-1])
+                                    pcalc_y.append(pkys[i-1])
+                                    pcalc_z.append(val)
                                     # GIS 1.1
                                     feature = ogr.Feature(layer.GetLayerDefn())
                                     feature.SetField("Name", "PK %f %d" % (pks[i-1],0))
@@ -307,6 +311,7 @@ def plot_data(bAuthenticate, sPath):
                                     feature.SetField("COB", cobs[i-1])
                                     feature.SetField("SETTLEMENT", val)
                                     feature.SetField("BLOWUP", blowups[i-1])
+                                    # feature.SetField("DATETIME", str(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3])) 
                                     wkt = "POINT(%f %f)" %  (float(pkxs[i-1]) , float(pkys[i-1]))
                                     
                                     # Create the point from the Well Known Txt
@@ -353,6 +358,7 @@ def plot_data(bAuthenticate, sPath):
                                     feature.SetField("COB", cobs[i])
                                     feature.SetField("SETTLEMENT", val)
                                     feature.SetField("BLOWUP", blowups[i])
+                                    #feature.SetField("DATETIME", str(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3])) 
                                     wkt = "POINT(%f %f)" %  (float(x1) , float(y1))
                                     
                                     # Create the point from the Well Known Txt
@@ -377,6 +383,7 @@ def plot_data(bAuthenticate, sPath):
                                     feature.SetField("COB", cobs[i])
                                     feature.SetField("SETTLEMENT", val)
                                     feature.SetField("BLOWUP", blowups[i])
+                                    #feature.SetField("DATETIME", str(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3])) 
                                     wkt = "POINT(%f %f)" %  (float(x2) , float(y2))
                                     
                                     # Create the point from the Well Known Txt
@@ -402,8 +409,8 @@ def plot_data(bAuthenticate, sPath):
                     # Interpolazione ...forse non è la cosa giusta da fare
                     logger.info("x range %d" % (max_x - min_x) )
                     logger.info("y range %d" % (max_y - min_y) )
-                    gx, gy =  np.mgrid[min_x:max_x:1500j,min_y:max_y:1500j]
-                    m_interp_cubic = griddata(mypoints, myvalues, (gx, gy),method='cubic')
+                    gx, gy =  np.mgrid[min_x:max_x,min_y:max_y]
+                    m_interp_cubic = griddata(mypoints, myvalues, (gx, gy),method='nearest')
                     # plot
                     fig = plt.figure()
                     plt.title("Profilo %s" % sCode)
@@ -428,15 +435,15 @@ def plot_data(bAuthenticate, sPath):
                     # filtro a zero tutto qeullo che sta sotto
                     # m_interp_cubic[ m_interp_cubic < 0.0] = 0.0
                         
-                    
-                    cp = plt.contour(gx, gy, m_interp_cubic,linewidths=0.5,colors='k')
+                    clevels = np.arange(0., 0.04, 0.001)
                     cmap = LinearSegmentedColormap.from_list(name="Custom CMap", colors =["white", "blue", "red"], N=11)
-                    contours = plt.contourf(gx, gy, m_interp_cubic,cmap = cmap)
+                    contours = plt.contourf(gx, gy, m_interp_cubic,cmap = cm.jet, extend='both', levels=clevels)
+                    cp = plt.contour(gx, gy, m_interp_cubic,linewidths=0.5,colors='k',levels=clevels)
                     
                     
                     # GIS create the data source
                     attr_name = "SETTLEMENT"
-                    shpfname=os.path.join(sPath,"contour_%s.shp" % sCode)
+                    shpfname=os.path.join(sPath,"gis","contour_%s.shp" % sCode)
                     if os.path.exists(shpfname):
                         os.remove(shpfname)
                     dst_ds = driver.CreateDataSource(shpfname)
@@ -449,6 +456,7 @@ def plot_data(bAuthenticate, sPath):
                     field_level = ogr.FieldDefn("LevelID", ogr.OFTString)
                     field_level.SetWidth(24)
                     dst_layer.CreateField(field_level)
+                    # dst_layer.CreateField(ogr.FieldDefn("DATETIME", ogr.OFTDateTime))
                     # GIS end 
                     
                     for level in range(len(contours.collections)): 
@@ -459,6 +467,7 @@ def plot_data(bAuthenticate, sPath):
                             feat_out.SetField( attr_name, contours.levels[level] )  
                             feat_out.SetField("Alignment", str(sCode))
                             feat_out.SetField("LevelID", str(level))
+                            #feat_out.SetField("DATETIME", str(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3])) 
                             pol = ogr.Geometry(ogr.wkbPolygon)  
 
 

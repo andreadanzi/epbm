@@ -1,4 +1,4 @@
 code;name;domain_code;xmin;ymin;xmax;ymax;zmin;nx;ny;n_xyzsup;n_strata;nx_strata;ny_strata;rel_csv_code
-main_01.1;Main 1 Parigi Fr;paris01;0;0;1000;1000;-50;;;;;;;main_01
-main_01.2;Main 2 Parigi Fr;paris01;0;0;1000;1000;-50;;;;;;;main_01
-bow_01;Bow Parigi;paris01;0;0;1000;1000;-50;;;;;;;bow_01
+tun_02;Main 1 Parigi Fr;paris01;0;0;1000;1000;-50;;;;;;;tun
+tun_04;Main 2 Parigi Fr;paris01;0;0;1000;1000;-50;;;;;;;tun
+smi;Bow Parigi;paris01;0;0;1000;1000;-50;;;;;;;smi

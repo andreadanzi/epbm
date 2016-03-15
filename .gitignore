@@ -17,3 +17,8 @@ data/query_pk.csv
 data/falda_raccordo.csv
 data/profilo_progetto_raccordo.csv
 data/stratigrafia_raccordo.csv
+*.prj
+smt/GDAL-1.11.4-cp27-none-win_amd64.whl
+data/Edifici_Analizzati_Attributi_old.csv
+data/gis/*
+data/smt_qgis.qgs~
