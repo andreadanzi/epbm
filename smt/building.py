@@ -102,3 +102,20 @@ class Building(BaseSmtModel):
                         row=[s_index,splitted[1],building_code,splitted[-4],splitted[-3],splitted[-2],splitted[-1].strip()]
                         writer.writerow(row)
                 logger.info( "%d Buildings found" % b_num)
+                
+    @classmethod
+    def export_building_vulnerability(cls,db, txtFilePath):
+        logger = logging.getLogger('smt_main.export_building_vulnerability')
+        with open(txtFilePath, 'wb') as out_csvfile:
+            writer = csv.writer(out_csvfile,delimiter=";")
+            header = ["bldg_code","vulnerability"]
+            writer.writerow(header)
+            bcurr = db.find({"vulnerability":{"$exists":False}})
+            if bcurr.count == 0:
+                logger.error("No Buildings with vulnerability found!")
+            for bItem in bcurr:
+                building = Building(db,bItem)
+                building.load()
+                row=[building.item["bldg_code"],building.item["vulnerability"]]
+                writer.writerow(row)
+            logger.info( "%d Buildings found" % bcurr.count)
