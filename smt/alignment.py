@@ -525,12 +525,12 @@ class Alignment(BaseSmtModel):
             self.save()
         return retVal
 
-    def assign_buildings(self):
+    def assign_buildings(self, buffer):
         retVal="XXX"
         pk = self.item["PK"]
         # danzi.tn@20160315 nuovo criterio di ricerca: ci possono essere più PK per ogni building (tun02, tun04, sim)
         # {"PK_INFO.pk_array":{ "$elemMatch": { "$and":[{"pk_min":{"$lte":2150690}},{"pk_max":{"$gt":2150690}} ]}} }
-        bcurr = self.db.Building.find({"PK_INFO.pk_array":{ "$elemMatch": { "$and":[{"pk_min":{"$lte":pk+5.}},{"pk_max":{"$gt":pk-5.}} ]}} })
+        bcurr = self.db.Building.find({"PK_INFO.pk_array":{ "$elemMatch": { "$and":[{"pk_min":{"$lte":pk+buffer}},{"pk_max":{"$gt":pk-buffer}} ]}} })
         building_array = []
         for b in bcurr:
             building_array.append(b)
@@ -731,6 +731,14 @@ class Alignment(BaseSmtModel):
 #                    p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
                 p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
                 p_tbm_shield = p_tbm*.75
+                
+                k_peck = k_eq(r_excav, depth_tun, beta_tun)
+                
+                buff = 2.5*k_peck*depth_tun
+                
+                self.assign_buildings(buff)
+                
+                print("%f" % buff)
 
                 
                 if "BUILDINGS" in self.item:
@@ -741,13 +749,13 @@ class Alignment(BaseSmtModel):
                         x_max = None
                         for pk_item in b.PK_INFO.pk_array:
 # TODO SISTEMARE EDIFICI PICCOLI CHE INIZIANO E FINISCONO TRA UNA PK E L'ALTRA
-                            if pk_item.pk_min <= align.PK +5. and pk_item.pk_max>align.PK-5.:
+                            if pk_item.pk_min <= align.PK +buff and pk_item.pk_max>align.PK-buff:
                                 x_min = pk_item.d_min
                                 x_max = pk_item.d_max
                         z = b.depth_fondation
-                        h_bldg = b.height_overground
+                        h_bldg = b.height_overground + z
                         try:
-                            self.logger.debug("\t\timpronta da %fm a %fm e a una profondita' di %fm dal piano di campagna e con un altezza fuori terra di %fm" % (x_min, x_max, z, h_bldg))
+                            self.logger.debug("\t\timpronta da %fm a %fm e a una profondita' di %fm dal piano di campagna e con un altezza totale di %fm" % (x_min, x_max, z, h_bldg))
                         except TypeError:
                             self.logger.debug("Dati errati per l'edificio %s" % (b.bldg_code))
                             break
@@ -796,7 +804,7 @@ class Alignment(BaseSmtModel):
                         
                         self.item["BUILDINGS"][idx]["vulnerability"] = vulnerability_class
                         n_found = self.assign_vulnerability(b.bldg_code, vulnerability_class)
-                        # print "%d %d %s" %(n_found, align.PK, b.bldg_code )
+                        print "%d %d %s" %(n_found, align.PK, b.bldg_code )
                         self.logger.debug("\t\textra carico in galleria %f kN/m2" % (extra_load))
                         self.logger.debug("\t\tp_tbm = %f, s_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f" % (p_tbm, s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class))
                     
@@ -813,7 +821,7 @@ class Alignment(BaseSmtModel):
                 gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
                 gap=gf+gs+gt
                 eps0=volume_loss(gap, r_excav)
-                k_peck = k_eq(r_excav, depth_tun, beta_tun)
+                
 
                 # calcolo cedimento massimo in asse
                 s_max = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
