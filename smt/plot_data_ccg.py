@@ -3,22 +3,15 @@ import math
 import logging
 import logging.handlers
 import ConfigParser, os
-from datetime import datetime
 from pymongo import MongoClient
-from alignment import Alignment
 from alignment_set import AlignmentSet
 from project import Project
-from building import Building
 from domain import Domain
-from bson.objectid import ObjectId
-import glob,io
 import csv, re
 import sys, getopt
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
 from collections import defaultdict
-from shapely.geometry import LineString
 # danzi.tn@20160310 plot secondo distanze dinamiche
 # create main logger
 logger = logging.getLogger('smt_main')

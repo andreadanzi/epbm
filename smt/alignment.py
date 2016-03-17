@@ -525,12 +525,12 @@ class Alignment(BaseSmtModel):
             self.save()
         return retVal
 
-    def assign_buildings(self, buffer):
+    def assign_buildings(self, buff):
         retVal="XXX"
         pk = self.item["PK"]
         # danzi.tn@20160315 nuovo criterio di ricerca: ci possono essere più PK per ogni building (tun02, tun04, sim)
         # {"PK_INFO.pk_array":{ "$elemMatch": { "$and":[{"pk_min":{"$lte":2150690}},{"pk_max":{"$gt":2150690}} ]}} }
-        bcurr = self.db.Building.find({"PK_INFO.pk_array":{ "$elemMatch": { "$and":[{"pk_min":{"$lte":pk+buffer}},{"pk_max":{"$gt":pk-buffer}} ]}} })
+        bcurr = self.db.Building.find({"PK_INFO.pk_array":{ "$elemMatch": { "$and":[{"pk_min":{"$lte":pk+buff}},{"pk_max":{"$gt":pk-buff}} ]}} })
         building_array = []
         for b in bcurr:
             building_array.append(b)
@@ -539,7 +539,7 @@ class Alignment(BaseSmtModel):
             self.save()
         return retVal
 
-    def assign_vulnerability(self, bcode, vulnerability):
+    def assign_vulnerability(self, bcode, vulnerability, damage_class):
         retVal = 0
         #2129458 94076BC0006_01
         # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
@@ -559,8 +559,84 @@ class Alignment(BaseSmtModel):
             bldg.item["vulnerability"]=vulnerability
             bldg.save()
             retVal =  retVal + 1
+
+        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{"damage_class":{"$lte":damage_class}} ]})
+        for b in bcurr:
+            bldg = Building(self.db, b)
+            bldg.load()
+            bldg.item["damage_class"]=damage_class
+            bldg.save()
+            retVal =  retVal + 1
+
+        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
+        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{"damage_class":{"$exists":False}} ]})
+        for b in bcurr:
+            bldg = Building(self.db, b)
+            bldg.load()
+            bldg.item["damage_class"]=damage_class
+            bldg.save()
+            retVal =  retVal + 1
             
         return retVal
+    
+    # parametri geomeccanici relativi al cavo, utilizzati sia per il calcolo volume perso lungo lo scudo, 
+    # che per il calcolo della curva dei cedimenti. I parametri sono:
+    # young_tun, nu_tun, phi_tun
+    # sono calcolati come media pesata sullo spessore e sulla distanza dello strato dall'asse della galleria
+    # il peso e' dato dallo spessore * coeff_d
+    # coeff_d = 2.*r_excav/(max(2.*r_excav, dist) [vale 1 fino a distanze di 2 raggi di scavo e poi va a diminuire
+    # dist = distanza tra il baricentro dello strato considerato e l'asse del tunnel
+    # prendo in considerazione tutti gli strati con top superiore a z_tun meno un diametro
+    def define_tun_param(self):
+        retVal = "XXX"
+        align = BaseStruct(self.item)
+        r_excav = align.TBM.excav_diameter/2.0
+        z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + r_excav
+        z_base = z_top - align.TBM.excav_diameter
+        z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
+        ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > z_tun - align.TBM.excav_diameter]
+        young_wg = 0.
+        nu_wg = 0.
+        phi_wg = 0.
+        ci_wg = 0.
+        wg_tot = 0.
+        for ref_stratus in ref_strata:
+            if ref_stratus.POINTS.top.coordinates[2] > z_base - r_excav:
+                z_max = ref_stratus.POINTS.top.coordinates[2]
+                z_min = max(z_base - r_excav, ref_stratus.POINTS.base.coordinates[2] )
+                z_avg = (z_max+z_min)/2.
+                dist = abs(z_avg-z_tun)
+                th = z_max-z_min
+                wg = th * 2.*r_excav/max(2.*r_excav, dist)
+                young_wg += wg * ref_stratus.PARAMETERS.etounnel
+                nu_wg += wg * ref_stratus.PARAMETERS.n
+                phi_wg += wg * ref_stratus.PARAMETERS.phi_tr
+                ci_wg += wg * ref_stratus.PARAMETERS.c_tr
+                wg_tot += wg
+        young_tun = 1000.*young_wg/wg_tot
+        nu_tun = nu_wg/wg_tot
+        phi_tun = phi_wg/wg_tot
+        ci_tun = ci_wg/wg_tot
+        beta_tun = 45.+phi_tun/2.
+        self.item["young_tun"]=young_tun
+        self.item["nu_tun"]=nu_tun
+        self.item["phi_tun"]=phi_tun
+        self.item["ci_tun"]=ci_tun
+        self.item["beta_tun"]=beta_tun
+        self.save()
+        return retVal
+
+    def define_buffer(self):
+        buff = 0.
+        align = BaseStruct(self.item)
+        r_excav = align.TBM.excav_diameter/2.0
+        z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
+        depth_tun = align.DEM.coordinates[2] - z_tun
+        beta_tun = align.beta_tun
+        k_peck = k_eq(r_excav, depth_tun, beta_tun)
+        buff = 3.*k_peck*depth_tun
+        return buff
+
     
     def doit (self,parm):
         retVal = "XXX"
@@ -710,7 +786,6 @@ class Alignment(BaseSmtModel):
                 beta_tun = 45.+phi_tun/2.
 
                 # pressione al fronte
-                z_dem = align.DEM.coordinates[2]
                 p_max = min(align.TBM.pressure_max, fBlowUp)
                 p_tbm=0.
 #                if align.PK == 2128748:
@@ -733,12 +808,7 @@ class Alignment(BaseSmtModel):
                 p_tbm_shield = p_tbm*.75
                 
                 k_peck = k_eq(r_excav, depth_tun, beta_tun)
-                
-                buff = 2.5*k_peck*depth_tun
-                
-                self.assign_buildings(buff)
-                
-                print("%f" % buff)
+                buff = 3.*k_peck*depth_tun
 
                 
                 if "BUILDINGS" in self.item:
@@ -790,9 +860,12 @@ class Alignment(BaseSmtModel):
                                 beta_max_ab = max(beta_max_ab, abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
                                 esp_h_max_ab = max(esp_h_max_ab, abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
                             
+                            vulnerability_class = 0.
+                            damage_class = 0.
                             for dl in b.DAMAGE_LIMITS:
                                 if s_max_ab<=dl.uz and beta_max_ab<=dl.d_uz_dx and esp_h_max_ab<=dl.d_ux_dx:
                                     vulnerability_class = dl.vc_lev
+                                    damage_class = dl.dc_lev
                                     break
                             if vulnerability_class == dl.vc_lev_target:
                                 break
@@ -803,8 +876,9 @@ class Alignment(BaseSmtModel):
                                 p_tbm += 10.
                         
                         self.item["BUILDINGS"][idx]["vulnerability"] = vulnerability_class
-                        n_found = self.assign_vulnerability(b.bldg_code, vulnerability_class)
-                        print "%d %d %s" %(n_found, align.PK, b.bldg_code )
+                        self.item["BUILDINGS"][idx]["damage_class"] = damage_class
+                        n_found = self.assign_vulnerability(b.bldg_code, vulnerability_class, damage_class)
+                        # print "%d %d %s" %(n_found, align.PK, b.bldg_code )
                         self.logger.debug("\t\textra carico in galleria %f kN/m2" % (extra_load))
                         self.logger.debug("\t\tp_tbm = %f, s_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f" % (p_tbm, s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class))
                     

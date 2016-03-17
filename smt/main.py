@@ -91,5 +91,7 @@ for c in cr:
             a = Alignment(db,al)
             a.setProject(p.item)
             a.load()
-            #a.assign_buildings()
             a.assign_reference_strata()
+            a.define_tun_param()
+            a.assign_buildings(a.define_buffer())
+            
