@@ -29,7 +29,7 @@ def cob_step_2(z_ref, ref_stratus,sigma_v,z_wt, z_tun, gamma_muck,  p_safety_cob
     sigma_v_eff = sigma_v - p_wt
     phi = math.radians(ref_stratus.PARAMETERS.phi_tr)
     ci = ref_stratus.PARAMETERS.c_tr
-    ka = (1.- math.sin(phi))/(1+math.sin(phi))
+    ka = (1.- math.sin(phi))/(1.+math.sin(phi))
     sigma_ha_eff = sigma_v_eff * ka - 2.*ci*math.sqrt(ka)
     pCob = sigma_ha_eff + p_wt + p_safety_cob + (z_ref-z_tun)*gamma_muck
     return pCob

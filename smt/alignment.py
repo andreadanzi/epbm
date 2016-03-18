@@ -644,17 +644,17 @@ class Alignment(BaseSmtModel):
         # per cui se ho d={"a":2,"c":3} con o=BaseStruct(d) => d.a == 2 e d.c == 3
         # a volte ci sono elementi che durante import non hanno recuperato DEM e Stratigrafia, per questo bisogna mettere try
         align = BaseStruct(self.item)
-        z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + align.TBM.excav_diameter/2.0
-        z_base = z_top - align.TBM.excav_diameter
+        r_excav = align.TBM.excav_diameter/2.
         z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
+        z_top = z_tun + r_excav
+        z_base = z_tun - r_excav
         z_dem = align.DEM.coordinates[2]
         self.logger.debug("Analisi alla PK %f" % (align.PK) )
         try:
             if align.z == align.PH.coordinates[2] and z_dem>z_top:
                 ##### Verifica strato di riferimento per le sezioni di riferimento per pressione minima di stabilità
                 z_wt = align.FALDA.coordinates[2]
-                copertura = align.DEM.coordinates[2] - z_top
-                r_excav = align.TBM.excav_diameter/2.
+                copertura = align.DEM.coordinates[2] - z_top                
                 self.logger.debug("\tcopertuta = %f, tra pc = %f e asse tunnel = %f, con falda a %f m" % (copertura, align.DEM.coordinates[2], z_tun, z_wt))
                 gamma_muck = align.TBM.gamma_muck
                 self.logger.debug("\tdiametro di scavo = %f, Raggio interno concio = %f e spessore concio = %f" % (align.TBM.excav_diameter, align.SECTIONS.Lining.Internal_Radius, align.SECTIONS.Lining.Thickness))
@@ -670,16 +670,16 @@ class Alignment(BaseSmtModel):
                     if ref_stratus.POINTS.base.coordinates[2] <= z_base:
                         sigma_v = cob_step_1(z_base,ref_stratus,sigma_v)
                         fTempCOB = cob_step_2(z_base,ref_stratus,sigma_v,z_wt, z_tun, gamma_muck, self.project.p_safe_cob_kpa)
-                        self.logger.debug(u"\t\tstrato di base %s con top a %f, base a %f e spessore = %f" % (ref_stratus.CODE, ref_stratus.POINTS.top.coordinates[2], ref_stratus.POINTS.base.coordinates[2], ref_stratus.POINTS.top.coordinates[2]-ref_stratus.POINTS.base.coordinates[2]))
+                        self.logger.debug(u"\t\tstrato di base %s con gamma = %f, c'= %f, phi'= %f e spessore = %f" % (ref_stratus.CODE, ref_stratus.PARAMETERS.inom, ref_stratus.PARAMETERS.c_tr, ref_stratus.PARAMETERS.phi_tr, ref_stratus.POINTS.top.coordinates[2]-ref_stratus.POINTS.base.coordinates[2]))
                     # se la base dello strato è sotto il top del tunnell allora sono negli strati intermedi
                     elif ref_stratus.POINTS.base.coordinates[2] <= z_top:
                         sigma_v = cob_step_1(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v)
                         fTempCOB = cob_step_2(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v,z_wt, z_tun, gamma_muck, self.project.p_safe_cob_kpa)
-                        self.logger.debug(u"\t\tstrato intermedio %s con top a %f, base a %f e spessore = %f" % (ref_stratus.CODE, ref_stratus.POINTS.top.coordinates[2], ref_stratus.POINTS.base.coordinates[2], ref_stratus.POINTS.top.coordinates[2]-ref_stratus.POINTS.base.coordinates[2]))
+                        self.logger.debug(u"\t\tstrato intermedio %s con gamma = %f, c'= %f, phi'= %f e spessore = %f" % (ref_stratus.CODE, ref_stratus.PARAMETERS.inom, ref_stratus.PARAMETERS.c_tr, ref_stratus.PARAMETERS.phi_tr, ref_stratus.POINTS.top.coordinates[2]-ref_stratus.POINTS.base.coordinates[2]))
                     # altrimenti sono sempre sopra
                     else:
                         sigma_v = cob_step_1(ref_stratus.POINTS.base.coordinates[2],ref_stratus,sigma_v)
-                        self.logger.debug(u"\t\tstrato superiore %s con top a %f, base a %f e spessore = %f" % (ref_stratus.CODE, ref_stratus.POINTS.top.coordinates[2], ref_stratus.POINTS.base.coordinates[2], ref_stratus.POINTS.top.coordinates[2]-ref_stratus.POINTS.base.coordinates[2]))
+                        self.logger.debug(u"\t\tstrato superiore %s con gamma = %f, c'= %f, phi'= %f e spessore = %f" % (ref_stratus.CODE, ref_stratus.PARAMETERS.inom, ref_stratus.PARAMETERS.c_tr, ref_stratus.PARAMETERS.phi_tr, ref_stratus.POINTS.top.coordinates[2]-ref_stratus.POINTS.base.coordinates[2]))
                     # Verifica del massimo
                     if fTempCOB > fCob:
                         fCob = fTempCOB

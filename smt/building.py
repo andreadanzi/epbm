@@ -14,8 +14,16 @@ class Building(BaseSmtModel):
 # assign_building_class
     def assign_class(self):
         retVal="XXX"
+        typology = self.item["typology"]
         sensibility = self.item["sc_lev"]
-        ccurr = self.db.BuildingClass.find({"sc_lev":sensibility}).sort("dc_lev")
+        if typology == "building":
+            ccurr = self.db.BuildingClass.find({"sc_lev":sensibility}).sort("dc_lev")
+        elif typology == "overground_infrastructure":
+            ccurr = self.db.OvergroundInfrastructureClass.find({"sc_lev":sensibility}).sort("dc_lev")
+        elif typology == "underground_structure":
+            ccurr = self.db.UndergroundStructureClass.find({"sc_lev":sensibility}).sort("dc_lev")
+        elif typology == "underground_utility":
+            ccurr = self.db.UndergroundUtilityClass.find({"sc_lev":sensibility}).sort("dc_lev")
         class_array = []
         for c in ccurr:
             class_array.append(c)
@@ -58,13 +66,17 @@ class Building(BaseSmtModel):
                         for bItem in ccurr:
                             building = Building(db,bItem)
                             building.load()
-                            #ha senso inserire ancora il PK_INFO?
-                            building.item["PK_INFO"] = {"pk_array": prop_array}
-                            building.item["pk_min"] = pk_min
-                            building.item["pk_max"] = pk_max
-                            building.item["d_min"] = d_min
-                            building.item["d_max"] = d_max
-                            building.item["updated"] = datetime.datetime.utcnow()
+                            if "PK_INFO" in building.item:
+                                pk_array = building.item["PK_INFO"]["pk_array"]
+                                # prop_array = prop_array.extend(pk_array)
+                                building.item["PK_INFO"]["pk_array"] = pk_array + prop_array
+                            else:
+                                building.item["PK_INFO"] = {"pk_array": prop_array}
+                                building.item["pk_min"] = pk_min
+                                building.item["pk_max"] = pk_max
+                                building.item["d_min"] = d_min
+                                building.item["d_max"] = d_max
+                                building.item["updated"] = datetime.datetime.utcnow()
                             building.save()
                             b_num = b_num+1
                         # inizializzo l'array

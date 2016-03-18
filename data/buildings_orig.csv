@@ -719,7 +719,7 @@ file_name;bldg_code;parcel;bldg_no;sc_lev;z_dem;z_top_tun;overburden_tun_dem;dep
 94081DI0024_02_SEN_ind01.pdf;94081DI0024_02;94081DI0024;2;2;35;15;20;8;27;12;D > 50 m;<30;3;4 (en comptant le rez de jardin);0;1;35 X 30;15;building;;;;
 94081DI0024_03_SEN_ind01.pdf;94081DI0024_03;94081DI0024;3;2;35;15;20;8;27;12;D > 50 m;<30;3;4 (en comptant le rez de jardin);0;1;30 X 30;15;building;;;;
 94081DI0024_04_SEN_ind01.pdf;94081DI0024_04;94081DI0024;4;2;35;15;20;0;35;20;0m < D <= 10m;<30;0;4;0;2;55 X 35;15;building;;;;
-94081DI0026_01_SEN_ind01.pdf;94081DI0026_01;94081DI0026;1;2;ND1;ND2;ND3;0;ND5;ND6;ND7;ND8;ND9;ND10;ND11;ND12;ND13;7;building;;;;
+94081DI0026_01_SEN_ind01.pdf;94081DI0026_01;94081DI0026;1;2;ND1;ND2;ND3;1;ND5;ND6;ND7;ND8;ND9;ND10;ND11;ND12;ND13;28;building;;;;
 94081DI0027_01_SEN_ind02.pdf;94081DI0027_01;94081DI0027;1;2;;ND2;ND3;0;;ND6;ND7;ND8;;ND10;ND11;ND12;;7;building;;;;
 94081DI0027_02_SEN_ind02.pdf;94081DI0027_02;94081DI0027;2;2;;ND2;ND3;0;;ND6;ND7;ND8;;ND10;ND11;ND12;;7;building;;;;
 94081DI0027_03_SEN_ind02.pdf;94081DI0027_03;94081DI0027;3;2;;ND2;ND3;0;;ND6;ND7;ND8;;ND10;ND11;ND12;;7;building;;;;
@@ -773,3 +773,9 @@ file_name;bldg_code;parcel;bldg_no;sc_lev;z_dem;z_top_tun;overburden_tun_dem;dep
 94081DJ0131_16_SEN_ind01.pdf;94081DJ0131_16;94081DJ0131;16;1;35;16;19;5;30;14;40m < D <= 50m;entre 60 et 90;1;0;0;0;40 X 30;4;building;;;;
 94081DJ0135_01_SEN_ind01.pdf;94081DJ0135_01;94081DJ0135;1;2;35;25;10;0;35;10;30m < D <= 40m;entre 60 et 90;0;0;0;0;35 X 15;8;building;;;;
 94081DJ0139_01_SEN_ind01.pdf;94081DJ0139_01;94081DJ0139;1;2;35;29;6;0;35;6;20m < D <= 30m;<30;1;2;0;Non dtermin;60 X 40;10;building;;;;
+94081DJ0041_01_SEN_ind01.pdf;94081DJ0041_01;94081DJ0041;1;2;ND1;ND2;ND3;1;ND5;ND6;ND7;ND8;ND9;ND10;ND11;ND12;ND13;28;building;;;;
+non_disp_1;94028BF0A86_01;94028BF0A86;0;3;;;;0;;;;;;;;;;0.3;overground_infrastructure;;;;
+non_disp_2;94076AZ00M7_01;94076AZ00M7;0;2;;;;12;;;;;;;;;;0;underground_structure;;;;
+non_disp_3;94028BE00M8_01;94028BE00M8;0;3;;;;0;;;;;;;;;;12;overground_infrastructure;;;;
+non_disp_4;94002AFVL09_01;94002AFVL09;0;2;;;;21;;;;;;;;;;0.1;underground_utility;;;;
+non_disp_5;94081BTVL10_01;94081BTVL10;0;2;;;;26;;;;;;;;;;0.1;underground_utility;;;;

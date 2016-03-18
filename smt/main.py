@@ -60,7 +60,11 @@ cr = Domain.find(db, {"project_id": p._id})
 # Import Buildings
 Building.ImportFromCSVFile("../data/buildings_orig.csv", db)
 # danzi.tn@20160312 import delle PK di riferimento sui building
-Building.import_building_pks(db,"../data/Edifici_Analizzati_Attributi.csv")
+#Building.import_building_pks(db,"../data/Edifici_Analizzati_Attributi.csv")
+# gabriele@20160318 nuovo import rispetto ai nuovi output di Ghensi
+Building.import_building_pks(db,"../data/Elementi_Tracciato_pkdist.csv")
+Building.import_building_pks(db,"../data/Elementi_Raccordo_pkdist.csv")
+
 BuildingClass.ImportFromCSVFile("../data/building_class.csv", db)
 UndergroundStructureClass.ImportFromCSVFile("../data/underground_structure_class.csv", db)
 UndergroundUtilityClass.ImportFromCSVFile("../data/underground_utility_class.csv", db)
