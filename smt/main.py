@@ -9,6 +9,9 @@ from alignment_set import AlignmentSet
 from project import Project
 from building import Building
 from building_class import BuildingClass
+from underground_structure_class import UndergroundStructureClass
+from underground_utility_class import UndergroundUtilityClass
+from overground_infrastructure_class import OvergroundInfrastructureClass
 from domain import Domain
 from bson.objectid import ObjectId
 # create main logger
@@ -59,6 +62,9 @@ Building.ImportFromCSVFile("../data/buildings_orig.csv", db)
 # danzi.tn@20160312 import delle PK di riferimento sui building
 Building.import_building_pks(db,"../data/Edifici_Analizzati_Attributi.csv")
 BuildingClass.ImportFromCSVFile("../data/building_class.csv", db)
+UndergroundStructureClass.ImportFromCSVFile("../data/underground_structure_class.csv", db)
+UndergroundUtilityClass.ImportFromCSVFile("../data/underground_utility_class.csv", db)
+OvergroundInfrastructureClass.ImportFromCSVFile("../data/overground_infrastructure_class.csv", db)
 bldgs = Building.find(db, {})
 for bl in bldgs:
     b = Building(db, bl)
