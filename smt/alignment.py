@@ -539,43 +539,43 @@ class Alignment(BaseSmtModel):
             self.save()
         return retVal
 
-    def assign_vulnerability(self, bcode, vulnerability, damage_class):
+    def assign_parameter(self, bcode, param, value): #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
         retVal = 0
         #2129458 94076BC0006_01
         # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
-        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{"vulnerability":{"$lte":vulnerability}} ]})
+        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{param:{"$lt":value}} ]})
         for b in bcurr:
             bldg = Building(self.db, b)
             bldg.load()
-            bldg.item["vulnerability"]=vulnerability
+            bldg.item[param]=value
             bldg.save()
             retVal =  retVal + 1
 
         # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
-        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{"vulnerability":{"$exists":False}} ]})
+        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{param:{"$exists":False}} ]})
         for b in bcurr:
             bldg = Building(self.db, b)
             bldg.load()
-            bldg.item["vulnerability"]=vulnerability
+            bldg.item[param]=value
             bldg.save()
             retVal =  retVal + 1
-
-        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{"damage_class":{"$lte":damage_class}} ]})
-        for b in bcurr:
-            bldg = Building(self.db, b)
-            bldg.load()
-            bldg.item["damage_class"]=damage_class
-            bldg.save()
-            retVal =  retVal + 1
-
-        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
-        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{"damage_class":{"$exists":False}} ]})
-        for b in bcurr:
-            bldg = Building(self.db, b)
-            bldg.load()
-            bldg.item["damage_class"]=damage_class
-            bldg.save()
-            retVal =  retVal + 1
+#
+#        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{"damage_class":{"$lt":damage_class}} ]})
+#        for b in bcurr:
+#            bldg = Building(self.db, b)
+#            bldg.load()
+#            bldg.item["damage_class"]=damage_class
+#            bldg.save()
+#            retVal =  retVal + 1
+#
+#        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
+#        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{"damage_class":{"$exists":False}} ]})
+#        for b in bcurr:
+#            bldg = Building(self.db, b)
+#            bldg.load()
+#            bldg.item["damage_class"]=damage_class
+#            bldg.save()
+#            retVal =  retVal + 1
             
         return retVal
     
@@ -804,6 +804,11 @@ class Alignment(BaseSmtModel):
 #                    p_tbm=300.
 #                else:
 #                    p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
+                # inizializzo la necessita' di consolidare
+                if fCob>p_max:
+                    consolidation="front"
+                else:
+                    consolidation="none"
                 p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
                 p_tbm_shield = p_tbm*.75
                 
@@ -829,7 +834,9 @@ class Alignment(BaseSmtModel):
                         except TypeError:
                             self.logger.debug("Dati errati per l'edificio %s" % (b.bldg_code))
                             break
-                            
+                        s_max_ab = 0.
+                        beta_max_ab = 0.
+                        esp_h_max_ab = 0.
                         while True :
                             # valuto l'incremento di carico dovuto all'edificio come h_bldg * 5.4 kN/m3 + 7.5 kN/m2 (per solaio finale)
                             # a cui tolgo il peso del terreno rimosso per l'approfondimento della fondazione
@@ -875,9 +882,24 @@ class Alignment(BaseSmtModel):
                             else:
                                 p_tbm += 10.
                         
+                        if vulnerability_class > 2:
+                            if consolidation == "none":
+                                consolidation = b.bldg_code
+                            else:
+                                consolidation += ";" + b.bldg_code
                         self.item["BUILDINGS"][idx]["vulnerability"] = vulnerability_class
                         self.item["BUILDINGS"][idx]["damage_class"] = damage_class
-                        n_found = self.assign_vulnerability(b.bldg_code, vulnerability_class, damage_class)
+                        self.item["BUILDINGS"][idx]["settlement_max"] = s_max_ab
+                        self.item["BUILDINGS"][idx]["tilt_max"] = beta_max_ab
+                        self.item["BUILDINGS"][idx]["esp_h_max"] = esp_h_max_ab
+                        # assign_vulnerability(self, bcode, param, value):
+                        self.assign_parameter(b.bldg_code, "vulnerability",  vulnerability_class)
+                        self.assign_parameter(b.bldg_code, "damage_class",  damage_class)
+                        self.assign_parameter(b.bldg_code, "settlement_max",  s_max_ab)
+                        self.assign_parameter(b.bldg_code, "tilt_max",  beta_max_ab)
+                        self.assign_parameter(b.bldg_code, "esp_h_max",  esp_h_max_ab)
+                       
+                       #, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab)
                         # print "%d %d %s" %(n_found, align.PK, b.bldg_code )
                         self.logger.debug("\t\textra carico in galleria %f kN/m2" % (extra_load))
                         self.logger.debug("\t\tp_tbm = %f, s_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f" % (p_tbm, s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class))
@@ -918,6 +940,8 @@ class Alignment(BaseSmtModel):
                 self.item["K_PECK"] = k_peck
                 self.item["SETTLEMENT_MAX"] = s_max
                 self.item["SETTLEMENTS"] = sett_list
+                if consolidation != "none":
+                    self.item["CONSOLIDATION"] = consolidation
 
                 self.logger.debug("\tAnalisi di volume perso")
                 self.logger.debug("\tParametri geomeccanici mediati:")
