@@ -160,7 +160,7 @@ def plot_data(bAuthenticate, sPath):
                     a_set = AlignmentSet(db,aset)
                     a_set.load()
                     sCode = a_set.item["code"]
-                    als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"COB":True,"P_EPB":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, "VOLUME_LOSS":True, "K_PECK":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True}).sort("PK", 1)
+                    als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"COB":True,"P_EPB":True,"P_WT":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, "VOLUME_LOSS":True, "K_PECK":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True}).sort("PK", 1)
                     a_list = list(als)
                     pks = []
                     pklabel = []
@@ -174,9 +174,14 @@ def plot_data(bAuthenticate, sPath):
                             pklabel.append("%d+%03d" % (int(pk_value/1000.),hundreds ))
                     if sCode=='smi':
                         d_press = 0.5 # bar tra calotta e asse
+                        d_press_wt = 0.35
                     else:
                         d_press = 0.7 # bar tra calotta e asse
+                        d_press_wt = 0.5
                     
+                    # scalo di fattore 100
+#                    p_wts =[d['P_WT']/100 - d_press_wt for d in a_list]
+                    p_wts = [d['P_WT']/100 - d_press_wt for d in a_list]
                     # scalo di fattore 100
                     p_epms =[d['P_EPB']/100 - d_press for d in a_list]
                     # scalo di fattore 100
@@ -193,8 +198,9 @@ def plot_data(bAuthenticate, sPath):
                     plt.plot(pks,cobs, label='COB - bar')
                     plt.plot(pks,p_epms, label='P_EPB - bar')
                     plt.plot(pks,blowups, label='BLOWUP - bar')
-                    y_min = math.floor(min(min(cobs), min(p_epms), min(blowups))/.5)*.5-.5 
-                    y_max = math.ceil(max(max(cobs), max(p_epms), max(blowups))/.5)*.5+.5 
+                    plt.plot(pks,p_wts, label='P_WT - bar')
+                    y_min = math.floor(min(min(p_wts),min(cobs), min(p_epms), min(blowups))/.5)*.5-.5 
+                    y_max = math.ceil(max(max(p_wts),max(cobs), max(p_epms), max(blowups))/.5)*.5+.5 
                     my_aspect = 50./(abs(y_max-y_min)/9.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
                     plt.axis([max(pks),min(pks),y_min,y_max])
                     plt.xticks(pkxticks, pklabel, rotation='vertical')
