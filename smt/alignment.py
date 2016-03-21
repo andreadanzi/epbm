@@ -491,15 +491,15 @@ import csv
   },
   "ID": "Profilo Progetto"
 }
-"""        
+"""
 class Alignment(BaseSmtModel):
-    
+
     def _init_utils(self,**kwargs):
         self.project = None
         self.logger.debug('created an instance of %s' % self.__class__.__name__)
-        
+
     def setProject(self, projectItem):
-        self.project = BaseStruct(projectItem)    
+        self.project = BaseStruct(projectItem)
 
     def assign_reference_strata(self):
         retVal = "XXX"
@@ -576,10 +576,10 @@ class Alignment(BaseSmtModel):
 #            bldg.item["damage_class"]=damage_class
 #            bldg.save()
 #            retVal =  retVal + 1
-            
+
         return retVal
-    
-    # parametri geomeccanici relativi al cavo, utilizzati sia per il calcolo volume perso lungo lo scudo, 
+
+    # parametri geomeccanici relativi al cavo, utilizzati sia per il calcolo volume perso lungo lo scudo,
     # che per il calcolo della curva dei cedimenti. I parametri sono:
     # young_tun, nu_tun, phi_tun
     # sono calcolati come media pesata sullo spessore e sulla distanza dello strato dall'asse della galleria
@@ -637,7 +637,7 @@ class Alignment(BaseSmtModel):
         buff = 3.*k_peck*depth_tun
         return buff
 
-    
+
     def doit (self,parm):
         retVal = "XXX"
         # BaseStruct converte un dizionario in un oggetto la cui classe ha come attributi gli elementi del dizionario
@@ -654,7 +654,7 @@ class Alignment(BaseSmtModel):
             if align.z == align.PH.coordinates[2] and z_dem>z_top:
                 ##### Verifica strato di riferimento per le sezioni di riferimento per pressione minima di stabilità
                 z_wt = align.FALDA.coordinates[2]
-                copertura = align.DEM.coordinates[2] - z_top                
+                copertura = align.DEM.coordinates[2] - z_top
                 self.logger.debug("\tcopertuta = %f, tra pc = %f e asse tunnel = %f, con falda a %f m" % (copertura, align.DEM.coordinates[2], z_tun, z_wt))
                 gamma_muck = align.TBM.gamma_muck
                 self.logger.debug("\tdiametro di scavo = %f, Raggio interno concio = %f e spessore concio = %f" % (align.TBM.excav_diameter, align.SECTIONS.Lining.Internal_Radius, align.SECTIONS.Lining.Thickness))
@@ -683,7 +683,7 @@ class Alignment(BaseSmtModel):
                     # Verifica del massimo
                     if fTempCOB > fCob:
                         fCob = fTempCOB
-                
+
                 # 20160309@Gabriele Aggiunta valutazione blowup - inizio
                 fBlowUp=0.0
                 sigma_v = 0.0
@@ -706,14 +706,14 @@ class Alignment(BaseSmtModel):
                 fBlowUp = blowup(sigma_v, r_excav, gamma_muck, self.project.p_safe_blowup_kpa)
                 self.logger.debug("\tValore di COB (riferito all'asse) =%f e valore di Blowup (riferito all'asse) =%f" % (fCob, fBlowUp))
                 # 20160309@Gabriele Aggiunta valutazione blowup - fine
-                
+
                 # CALCOLO VOLUME PERSO
                 # configurazione TBM
                 cutter_bead_thickness = align.TBM.bead_thickness
                 shield_taper = align.TBM.taper
                 tail_skin_thickness=align.TBM.tail_skin_thickness
                 delta=align.TBM.delta
-                
+
                 # tensione totale come valore a fondo scavo (sigma_v) riportato in asse tunnel (s_v)
                 sigma_v=0.
                 for ref_stratus in ref_strata:
@@ -726,10 +726,10 @@ class Alignment(BaseSmtModel):
                 depth_tun = align.DEM.coordinates[2] - z_tun
                 depth_base = align.DEM.coordinates[2] - z_base
                 s_v = sigma_v / depth_base * depth_tun
-                
+
                 # pressione falda in asse tunnel
                 p_wt = max(0., (z_wt-z_tun)*9.81)
-                
+
                 # parametri relativi all'estrusione del fronte (k0, modulo di young, coesione e attrito)
                 # come media sull'altezza del fronte piu' mezzo raggio sopra e sotto
                 k0_th = 0.
@@ -751,8 +751,8 @@ class Alignment(BaseSmtModel):
                 young_face = 1000.*young_th/th
                 ci_face = ci_th/th
                 phi_face = phi_th/th
-                
-                # parametri geomeccanici relativi al cavo, utilizzati sia per il calcolo volume perso lungo lo scudo, 
+
+                # parametri geomeccanici relativi al cavo, utilizzati sia per il calcolo volume perso lungo lo scudo,
                 # che per il calcolo della curva dei cedimenti. I parametri sono:
                 # young_tun, nu_tun, phi_tun
                 # sono calcolati come media pesata sullo spessore e sulla distanza dello strato dall'asse della galleria
@@ -811,10 +811,10 @@ class Alignment(BaseSmtModel):
                     consolidation="none"
                 p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
                 p_tbm_shield = p_tbm*.75
-                
+
                 k_peck = k_eq(r_excav, depth_tun, beta_tun)
                 buff = 3.*k_peck*depth_tun
-                
+
                 if "BUILDINGS" in self.item:
                     for idx,  b in enumerate(align.BUILDINGS):
                         self.logger.debug("\tAnalisi edificio %s con classe di sensibilita' %s" % (b.bldg_code, b.sc_lev))
@@ -864,7 +864,7 @@ class Alignment(BaseSmtModel):
                                 s_max_ab = max(s_max_ab, abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
                                 beta_max_ab = max(beta_max_ab, abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
                                 esp_h_max_ab = max(esp_h_max_ab, abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
-                            
+
                             vulnerability_class = 0.
                             damage_class = 0.
                             for dl in b.DAMAGE_LIMITS:
@@ -874,12 +874,12 @@ class Alignment(BaseSmtModel):
                                     break
                             if vulnerability_class == dl.vc_lev_target:
                                 break
-                            
+
                             if p_tbm >= p_max:
                                 break
                             else:
                                 p_tbm += 10.
-                        
+
                         if vulnerability_class > 2:
                             if consolidation == "none":
                                 consolidation = b.bldg_code
@@ -896,12 +896,12 @@ class Alignment(BaseSmtModel):
                         n_found=self.assign_parameter(b.bldg_code, "settlement_max",  s_max_ab)
                         n_found=self.assign_parameter(b.bldg_code, "tilt_max",  beta_max_ab)
                         n_found=self.assign_parameter(b.bldg_code, "esp_h_max",  esp_h_max_ab)
-                       
+
                        #, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab)
                         # print "%d %d %s" %(n_found, align.PK, b.bldg_code )
                         self.logger.debug("\t\textra carico in galleria %f kN/m2" % (extra_load))
                         self.logger.debug("\t\tp_tbm = %f, s_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f" % (p_tbm, s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class))
-                    
+
                 # calcolo finale per greenfield
                 gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
                 # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
@@ -915,7 +915,7 @@ class Alignment(BaseSmtModel):
                 gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
                 gap=gf+gs+gt
                 eps0=volume_loss(gap, r_excav)
-                
+
 
                 # calcolo cedimento massimo in asse
                 s_max = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
@@ -931,6 +931,7 @@ class Alignment(BaseSmtModel):
 
                 # Assegno il valore COB alla PK
                 self.item["COB"] = fCob
+                self.item["P_WT"] = p_wt
                 # Assegno il valore BLOWUP alla PK
                 self.item["BLOWUP"] = fBlowUp
                 self.item["P_EPB"] = p_tbm
@@ -951,54 +952,54 @@ class Alignment(BaseSmtModel):
                 self.logger.debug("\tValore di volume perso, VL = %f percent con k di peck = %f" % (eps0*100, k_peck))
                 self.logger.debug("\tAnalisi cedimenti")
                 self.logger.debug("\t\tCedimento massimo in asse, s_max =%f mm con una pressione al fronte di %fKPa" % (s_max*1000, p_tbm))
-                
+
         except AttributeError as ae:
             self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
         if "SETTLEMENTS" in self.item:
             self.save()
-        
-        return retVal
-    
 
- 
-    
+        return retVal
+
+
+
+
     @classmethod
     def aggregate_by_strata(cls, db, domain_id):
         collection = db[cls.__name__]
         pipe = [
-                    {   
-                        "$project" : { 
+                    {
+                        "$project" : {
                                         "domain_id" : 1 ,
-                                        "REFERENCE_STRATA.CODE" : 1 , 
-                                        "REFERENCE_STRATA.PARAMETERS.inom" : 1 , 
-                                        "REFERENCE_STRATA.PARAMETERS.k0" : 1 
-                                    } 
-                    },
-                    {   
-                        "$match": { 
-                                        "domain_id": domain_id
-                                    } 
+                                        "REFERENCE_STRATA.CODE" : 1 ,
+                                        "REFERENCE_STRATA.PARAMETERS.inom" : 1 ,
+                                        "REFERENCE_STRATA.PARAMETERS.k0" : 1
+                                    }
                     },
                     {
-                        "$group" : { 
+                        "$match": {
+                                        "domain_id": domain_id
+                                    }
+                    },
+                    {
+                        "$group" : {
                                         "_id":"$REFERENCE_STRATA.CODE",
-                                        "domain_id":{"$addToSet":"$domain_id"}, 
-                                        "inom":{"$addToSet":"$REFERENCE_STRATA.PARAMETERS.inom"}, 
-                                        "k0":{"$addToSet":"$REFERENCE_STRATA.PARAMETERS.k0"}, 
-                                        "total":{"$sum" :{ "$multiply": ["$REFERENCE_STRATA.PARAMETERS.inom",10]} }, 
-                                        "count": { "$sum": 1 } 
-                                    } 
-                    }, 
-                    { 
-                        "$sort" : {     
-                                        "total" : 1, 
-                                        "count": 1 
-                                    } 
+                                        "domain_id":{"$addToSet":"$domain_id"},
+                                        "inom":{"$addToSet":"$REFERENCE_STRATA.PARAMETERS.inom"},
+                                        "k0":{"$addToSet":"$REFERENCE_STRATA.PARAMETERS.k0"},
+                                        "total":{"$sum" :{ "$multiply": ["$REFERENCE_STRATA.PARAMETERS.inom",10]} },
+                                        "count": { "$sum": 1 }
+                                    }
+                    },
+                    {
+                        "$sort" : {
+                                        "total" : 1,
+                                        "count": 1
+                                    }
                     }
                 ]
         return collection.aggregate(pipeline=pipe)
 
-        
+
     @classmethod
     def export_data_by_pk(cls, db, domain_id, csvPk, csvOut):
         bDone = False
@@ -1027,7 +1028,7 @@ class Alignment(BaseSmtModel):
                         for key, value in dictParam.iteritems():
                             if key not in header:
                                 header.append(key)
-                            item.append(value)                    
+                            item.append(value)
                         pkOutArray.append(item)
                 with open(csvOut, 'wb') as out_csvfile:
                     writer = csv.writer(out_csvfile,delimiter=";")
