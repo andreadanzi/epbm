@@ -31,7 +31,20 @@ from openpyxl import Workbook
 from openpyxl.compat import range
 from openpyxl.cell import get_column_letter
 # danzi.tn@20160322 plot sezioni a PK critiche
-# create main logger
+# create main logger 
+"""
+python plot_data_pk.py -a -p ../data -t ../data/pk_crit.txt
+-p  folder di output
+-t file di testo con una pk per riga
+tipo
+pk_crit.txt
+---
+2128218
+2128378
+2126198
+
+
+"""
 logger = logging.getLogger('smt_main')
 logger.setLevel(logging.DEBUG)
 # create a rotating file handler which logs even debug messages 
