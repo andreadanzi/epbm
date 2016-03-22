@@ -241,6 +241,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                     for al in als:
                         align = BaseStruct(al)
                         eps0 = align.VOLUME_LOSS
+                        blowup = align.BLOWUP
                         eps0_base = align.VOLUME_LOSS_BASE
                         eps0_dict = {"base":eps0_base, "":eps0}
                         p_epb = align.P_EPB
@@ -296,6 +297,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                         ws2.cell(column=15, row=1, value="Horiz. Def. (Esp H) Max")
                         ws2.cell(column=16, row=1, value="P Epb Base")
                         ws2.cell(column=17, row=1, value="P Epb")
+                        ws2.cell(column=18, row=1, value="Blowup")
                         for row, b_align in enumerate(align.BUILDINGS):
                             b_dict = db.Building.find_one({"bldg_code":b_align.bldg_code})
                             b = BaseStruct(b_dict)
@@ -316,6 +318,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                             ws2.cell(column=15, row=row+2, value=b.esp_h_max)
                             ws2.cell(column=16, row=row+2, value=p_epb_base)
                             ws2.cell(column=17, row=row+2, value=p_epb)
+                            ws2.cell(column=18, row=row+2, value=blowup)
                         wb.save(filename = dest_filename)
                                                 
                         for i, xi in enumerate(x):
