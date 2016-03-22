@@ -298,6 +298,8 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                         ws2.cell(column=16, row=1, value="P Epb Base")
                         ws2.cell(column=17, row=1, value="P Epb")
                         ws2.cell(column=18, row=1, value="Blowup")
+                        ws2.cell(column=19, row=1, value="Volume Loss Base")
+                        ws2.cell(column=20, row=1, value="Volume Loss")
                         for row, b_align in enumerate(align.BUILDINGS):
                             b_dict = db.Building.find_one({"bldg_code":b_align.bldg_code})
                             b = BaseStruct(b_dict)
@@ -319,6 +321,8 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                             ws2.cell(column=16, row=row+2, value=p_epb_base)
                             ws2.cell(column=17, row=row+2, value=p_epb)
                             ws2.cell(column=18, row=row+2, value=blowup)
+                            ws2.cell(column=19, row=row+2, value=eps0_base)
+                            ws2.cell(column=20, row=row+2, value=eps0)
                         wb.save(filename = dest_filename)
                                                 
                         for i, xi in enumerate(x):
