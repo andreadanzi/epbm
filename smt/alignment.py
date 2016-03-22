@@ -6,6 +6,7 @@ from building import Building
 import datetime, math
 import csv
 # danzi.tn@20160310 refactoring per separare calc da setup
+# danzi.tn@20160322 clacolati dati _base insieme a gabriele
 """
 {
   "_id": ObjectId("56deab2e2a13da141c249612"),
@@ -810,8 +811,25 @@ class Alignment(BaseSmtModel):
                 else:
                     consolidation="none"
                 p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
+                p_tbm_base = p_tbm
                 p_tbm_shield = p_tbm*.75
+                p_tbm_shield_base = p_tbm_shield
+                # calcolo iniziale per greenfield
+                gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
+                # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
+                ui_shield = .75*2.*ur_max(s_v, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                #ui_shield = u_tun(p_tbm, p_wt, s_v, nu_tun, young_tun, r_excav)
+                # gap_shield(ui, shield_taper, cutter_bead_thickness)
+                gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
+                ui_tail = .75*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs
+                #ui_tail = u_tun(0., p_wt, s_v, nu_tun, young_tun, r_excav)
+                # gap_tail(ui, gs,  tail_skin_thickness, delta)
+                gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
+                gap=gf+gs+gt
+                eps0_base=volume_loss(gap, r_excav)
+                s_max_base = uz_laganathan(eps0_base, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
 
+                
                 k_peck = k_eq(r_excav, depth_tun, beta_tun)
                 buff = 3.*k_peck*depth_tun
 
@@ -832,24 +850,61 @@ class Alignment(BaseSmtModel):
                         except TypeError:
                             self.logger.debug("Dati errati per l'edificio %s" % (b.bldg_code))
                             break
-                        s_max_ab = 0.
-                        beta_max_ab = 0.
-                        esp_h_max_ab = 0.
+                        # valuto l'incremento di carico dovuto all'edificio come h_bldg * 5.4 kN/m3 + 7.5 kN/m2 (per solaio finale)
+                        # a cui tolgo il peso del terreno rimosso per l'approfondimento della fondazione
+                        p_soil = 0.
+                        for ref_stratus in ref_strata:
+                            if ref_stratus.POINTS.top.coordinates[2] > z_dem-z:
+                                z_max = min(z_dem, ref_stratus.POINTS.top.coordinates[2])
+                                z_min = max(z_dem-z, ref_stratus.POINTS.base.coordinates[2])
+                                p_soil=(z_max-z_min)*ref_stratus.PARAMETERS.inom
+                        p_bldg = 5.4*h_bldg+7.5
+                        extra_load = max(0., p_bldg-p_soil)
+                        s_v_bldg = s_v+extra_load
+
+
+                        # primo calcolo di base con p_min
+                        # calcolo gap e volume perso
+                        gf=gap_front(p_tbm_base, p_wt, s_v_bldg, k0_face, young_face, ci_face, phi_face, r_excav)
+                        ui_shield = .75*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                        gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
+                        ui_tail = .75*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs
+                        gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
+                        gap=gf+gs+gt
+                        eps0=volume_loss(gap, r_excav)
+                                        # trovo i valori massimi di cedimento, inclinazione e espilon orizzontale
+                        step = (x_max-x_min)/1000.
+                        s_max_ab = abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
+                        beta_max_ab = abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
+                        esp_h_max_ab = abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
+                        for i in range(1, 1000):
+                            s_max_ab = max(s_max_ab, abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+                            beta_max_ab = max(beta_max_ab, abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+                            esp_h_max_ab = max(esp_h_max_ab, abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+                        vulnerability_class = 0.
+                        damage_class = 0.
+                        for dl in b.DAMAGE_LIMITS:
+                            if s_max_ab<=dl.uz and beta_max_ab<=dl.d_uz_dx and esp_h_max_ab<=dl.d_ux_dx:
+                                vulnerability_class = dl.vc_lev
+                                damage_class = dl.dc_lev
+                                break
+                        self.item["BUILDINGS"][idx]["vulnerability_base"] = vulnerability_class
+                        self.item["BUILDINGS"][idx]["damage_class_base"] = damage_class
+                        self.item["BUILDINGS"][idx]["settlement_max_base"] = s_max_ab
+                        self.item["BUILDINGS"][idx]["tilt_max_base"] = beta_max_ab
+                        self.item["BUILDINGS"][idx]["esp_h_max_base"] = esp_h_max_ab
+                        # assign_vulnerability(self, bcode, param, value):
+                        n_found=self.assign_parameter(b.bldg_code, "vulnerability_base",  vulnerability_class)
+                        n_found=self.assign_parameter(b.bldg_code, "damage_class_base",  damage_class)
+                        n_found=self.assign_parameter(b.bldg_code, "settlement_max_base",  s_max_ab)
+                        n_found=self.assign_parameter(b.bldg_code, "tilt_max_base",  beta_max_ab)
+                        n_found=self.assign_parameter(b.bldg_code, "esp_h_max_base",  esp_h_max_ab)
+                        # da qui refactor on parameter min vs actual
+                        
                         while True :
-                            # valuto l'incremento di carico dovuto all'edificio come h_bldg * 5.4 kN/m3 + 7.5 kN/m2 (per solaio finale)
-                            # a cui tolgo il peso del terreno rimosso per l'approfondimento della fondazione
-                            p_soil = 0.
-                            for ref_stratus in ref_strata:
-                                if ref_stratus.POINTS.top.coordinates[2] > z_dem-z:
-                                    z_max = min(z_dem, ref_stratus.POINTS.top.coordinates[2])
-                                    z_min = max(z_dem-z, ref_stratus.POINTS.base.coordinates[2])
-                                    p_soil=(z_max-z_min)*ref_stratus.PARAMETERS.inom
-                            p_bldg = 5.4*h_bldg+7.5
-                            extra_load = max(0., p_bldg-p_soil)
-                            s_v_bldg = s_v+extra_load
                             # calcolo gap e volume perso
                             gf=gap_front(p_tbm, p_wt, s_v_bldg, k0_face, young_face, ci_face, phi_face, r_excav)
-                            ui_shield = .75*2.*ur_max(s_v_bldg, p_wt, p_tbm, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                            ui_shield = .75*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
                             gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
                             ui_tail = .75*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs
                             gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
@@ -896,6 +951,7 @@ class Alignment(BaseSmtModel):
                         n_found=self.assign_parameter(b.bldg_code, "settlement_max",  s_max_ab)
                         n_found=self.assign_parameter(b.bldg_code, "tilt_max",  beta_max_ab)
                         n_found=self.assign_parameter(b.bldg_code, "esp_h_max",  esp_h_max_ab)
+                        # fin qui refactor on parameter min vs actual
 
                        #, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab)
                         # print "%d %d %s" %(n_found, align.PK, b.bldg_code )
@@ -935,9 +991,12 @@ class Alignment(BaseSmtModel):
                 # Assegno il valore BLOWUP alla PK
                 self.item["BLOWUP"] = fBlowUp
                 self.item["P_EPB"] = p_tbm
+                self.item["P_EPB_BASE"] = p_tbm_base
                 self.item["VOLUME_LOSS"] = eps0
+                self.item["VOLUME_LOSS_BASE"] = eps0_base
                 self.item["K_PECK"] = k_peck
                 self.item["SETTLEMENT_MAX"] = s_max
+                self.item["SETTLEMENT_MAX_BASE"] = s_max_base
                 self.item["SETTLEMENTS"] = sett_list
                 if consolidation != "none":
                     self.item["CONSOLIDATION"] = consolidation
