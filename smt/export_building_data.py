@@ -16,7 +16,7 @@ import osgeo.ogr as ogr
 from building import Building
 
 DEFAULT_OUTPUT_FILE_PATH = "../data/buildings_data_export.csv"
-DEFAULT_SHAPEFILE_PATH = "../data/gis/Edifici_da_Analizzare.shp"
+DEFAULT_SHAPEFILE_PATH = "../data/gis/Elementi_Analizzati.shp"
 
 def init_logger(logger_name, file_path):
     '''

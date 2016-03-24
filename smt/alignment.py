@@ -808,7 +808,7 @@ class Alignment(BaseSmtModel):
                 p_tamez = p_min_tamez(copertura, water_depth, gamma_tun, ci_tun, phi_tun, gamma_face, ci_face, phi_face, 2*r_excav, a, 2., self.project.p_safe_cob_kpa, gamma_muck)
 
                 # pressione al fronte
-                p_max = min(align.TBM.pressure_max, fBlowUp)
+                p_max = min(round(align.TBM.pressure_max/10.)*10., round(fBlowUp/10.)*10.)
 #                p_tbm=0.
 #                if align.PK == 2128748:
 #                    p_tbm=400.
@@ -834,8 +834,8 @@ class Alignment(BaseSmtModel):
                     consolidation="none"
                 
                 # p_tbm=min(p_max, round(p_tamez/10.)*10., round(fCob/10.)*10., round(fBlowUp/10.)*10.)
-                p_tbm=min(p_max, round(p_tamez/10.)*10., round(fBlowUp/10.)*10.)
-                p_tbm = max(p_tbm, 170)
+                p_tbm=min(p_max, round(p_tamez/10.)*10.)
+                p_tbm = max(p_tbm, 170.)
                 p_tbm_base = p_tbm
                 p_tbm_shield = max(p_tbm*.75, p_wt)
                 p_tbm_shield_base = p_tbm_shield
@@ -843,7 +843,7 @@ class Alignment(BaseSmtModel):
                 gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
                 # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
                 #ui_shield = .5*2.*ur_max(s_v, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
-                ui_shield = u_tun(p_tbm_shield, p_wt, s_v, nu_tun, young_tun, r_excav)
+                ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v, nu_tun, young_tun, r_excav)
                 # gap_shield(ui, shield_taper, cutter_bead_thickness)
                 gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
                 ui_tail = max(0., .5*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
@@ -856,6 +856,7 @@ class Alignment(BaseSmtModel):
                 k_peck = k_eq(r_excav, depth_tun, beta_tun)
                 buff = 3.*k_peck*depth_tun
                 
+                #"""
                 if "BUILDINGS" in self.item:
                     for idx,  b in enumerate(align.BUILDINGS):
                         self.logger.debug("\tAnalisi edificio %s con classe di sensibilita' %s" % (b.bldg_code, b.sc_lev))
@@ -993,6 +994,7 @@ class Alignment(BaseSmtModel):
                        #, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab)
                         # print "%d %d %s" %(n_found, align.PK, b.bldg_code )
                         self.logger.debug("\t\tp_tbm = %f, s_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f" % (p_tbm, s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class))
+                #"""
                 
                 # calcolo finale per greenfield
                 gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
