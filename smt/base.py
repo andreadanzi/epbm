@@ -54,16 +54,17 @@ class BaseSmtModel:
         self._init_utils(**kwargs)
     
     def _init_utils(self,**kwargs):
-        self.logger.debug('created an instance of %s' % self.__class__.__name__)
+        #self.logger.debug('created an instance of %s' % self.__class__.__name__)
+        pass
         
     
     def load(self, fields=None, **kwargs):
-        self.logger.debug('load %s %s' % (fields,self.__class__.__name__))
+        #self.logger.debug('load %s %s' % (fields,self.__class__.__name__))
         self.item = self.collection.find_one({'_id': self._id}, **kwargs)
         return self
    
     def save(self, *args, **kwargs):
-        self.logger.debug('save %s' % (self.__class__.__name__))
+        #self.logger.debug('save %s' % (self.__class__.__name__))
         self.item["updated"] = datetime.datetime.utcnow()
         self._id = self.collection.save(self.item,*args, **kwargs)
     

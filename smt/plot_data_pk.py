@@ -33,7 +33,7 @@ from openpyxl.cell import get_column_letter
 # danzi.tn@20160322 plot sezioni a PK critiche
 # create main logger 
 """
-python plot_data_pk.py -a -p ../data -t ../data/pk_crit.txt
+python plot_data_pk.py -a -p ../pk_out -t ../data/pk_crit.txt
 -p  folder di output
 -t file di testo con una pk per riga
 tipo

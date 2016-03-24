@@ -9,7 +9,8 @@ from utils import toFloat
 # per questo vengono salvate le informazioni come array in PK_INFO , mentre in pk_min, pk_max, d_min e d_max che stanno sull'elemento dradice vengono inseriti i valori assoluti più bassi e più alti
 class Building(BaseSmtModel):
     def _init_utils(self,**kwargs):
-        self.logger.debug('created an instance of %s' % self.__class__.__name__)
+        #self.logger.debug('created an instance of %s' % self.__class__.__name__)
+        pass
 
 # assign_building_class
     def assign_class(self):

@@ -31,8 +31,80 @@ def cob_step_2(z_ref, ref_stratus,sigma_v,z_wt, z_tun, gamma_muck,  p_safety_cob
     ci = ref_stratus.PARAMETERS.c_tr
     ka = (1.- math.sin(phi))/(1.+math.sin(phi))
     sigma_ha_eff = sigma_v_eff * ka - 2.*ci*math.sqrt(ka)
-    pCob = sigma_ha_eff + p_wt + p_safety_cob + (z_ref-z_tun)*gamma_muck
+    pCob = max(0., sigma_ha_eff) + p_wt + p_safety_cob + (z_ref-z_tun)*gamma_muck
     return pCob
+
+# calcolo pressione minima di supporto secondo Tamez
+# H è copertura netta
+# z_wt e' la profondita' della falda dal piano campagna
+# gamma_tun, ci_tun, phi_tun_deg i valori degli strati di copertura (angoli in gradi)
+# gamma_face, ci_face, phi_face_deg i valori degli strati al fronte (angoli in gradi)
+# D e' il diametro di scavo
+# a è la lunghezza non supportata che per EPM/slurry coincide con la lunghezza dello scudo
+# attenzione che in questa formulazione tutto e'riferito alla calotta, non all'asse
+# req_safety_factor e' il fattore di sicurezza richiesto, generalmente 1.5
+def p_min_tamez(H, z_wt, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_face_deg, D, a, req_safety_factor, additional_pressure, gamma_muck):
+    p_min = 0.
+    H_D = H/D
+    phi_tun = math.radians(phi_tun_deg)
+    phi_face = math.radians(phi_face_deg)
+    theta = math.radians(45.-phi_face_deg/2.)
+    # Lp e' la lunghezza del prisma di spinta lungo l'ase della galleria
+    Lp = D*math.tan(theta)
+    # Hp e' l'altezza del carico agente in calotta
+    # generalmente pari alla copertura a meno di gallerie profonde H/D > 5
+    # coefficienti k0 e ka semplificati in base alla coperutra
+    if H_D > 5.:
+        k0 = 1.
+        ka = 1.
+        Hp = 1.7 * D
+        if z_wt<H:
+            tau_m_2 = ci_tun+k0/2.*(((z_wt*gamma_tun)+(H-Hp-z_wt)*(gamma_tun-9.81))+3.4*ci_face/math.sqrt(ka)-(gamma_face-9.81)*D/2.)
+            tau_m_3 = ci_tun+(0.25*((z_wt*gamma_tun)+(H-Hp-z_wt)*(gamma_tun-9.81))-z_wt*9.81)*math.tan(phi_tun)
+        else:
+            tau_m_2 = ci_tun+k0/2.*((H-Hp)*gamma_tun+3.4*ci_face/math.sqrt(ka))
+            tau_m_3 = ci_tun+(0.25*(H-Hp)*gamma_tun)*math.tan(phi_tun)
+    else:
+        Hp = H
+        if H_D < 3.:
+            k0 = .3
+            ka = .5
+        else:
+            k0 = .5
+            ka = .7
+        if z_wt<H:
+            tau_m_2 = ci_tun+k0/2.*(3.4*ci_face/math.sqrt(ka)-(gamma_face-9.81)*D/2.)
+        else:	
+            tau_m_2 = ci_tun+k0/2.*(3.4*ci_face/math.sqrt(ka))
+        tau_m_3 = ci_tun
+    if phi_tun>0.:
+        fs_3 = ((2*tau_m_3)/(gamma_tun*H))*(Hp/D)*(1+D/a)
+        if fs_3 < req_safety_factor:
+            p_3 = (gamma_tun*H)-((2*tau_m_3)/req_safety_factor)*(Hp/D)*(1+D/a)
+        else:
+            p_3 = 0.
+            
+        fs_f=((2*(tau_m_2-tau_m_3)/(1+a/Lp)**2+2*tau_m_3)*(Hp/D)+(2*tau_m_3/((1+a/Lp)*math.sqrt(ka)))*(Hp/D)+3.4*ci_face/((1+a/Lp)**2*math.sqrt(ka)))/((1+2*D/(3*H*(1+a/Lp)**2))*(gamma_tun*H))
+        if fs_f < req_safety_factor:
+            p_f = (gamma_tun*H)-((2*(tau_m_2-tau_m_3)/(1+a/Lp)**2+2*tau_m_3)*(Hp/D)+(2*tau_m_3/((1+a/Lp)*math.sqrt(ka)))*(Hp/D)+3.4*ci_face/((1+a/Lp)**2*math.sqrt(ka)))/(req_safety_factor*(1+2*D/(3*H*(1+a/Lp)**2)))
+        else:
+            p_f = 0.
+    else:
+        fs_3 = ((2*ci_tun)/(gamma_tun*H))*((Hp/D)*(1+D/a))
+        if fs_3 < req_safety_factor:
+            p_3 = (gamma_tun*H)-((2*ci_tun)/req_safety_factor)*((Hp/D)*(1+D/a))
+        else:
+            p_3 = 0.
+        fs_f=(2*ci_tun*(1+1/(1+a/D)*(D/D))*(Hp/D)+3.4*ci_face/(1+a/D)**2)/(gamma_tun*H*(1+2*D/(3*H*(1+a/D)**2)))
+        if fs_f < req_safety_factor:
+            p_f = (gamma_tun*H)-(2*ci_tun*(1+1/(1+a/D)*(D/D))*(Hp/D)+3.4*ci_face/(1+a/D)**2)/(req_safety_factor*(1+2*D/(3*H*(1+a/D)**2)))
+        else:
+            p_f = 0.
+    p_wt = max (0., (H-z_wt)*9.81+D/2.*gamma_muck) #*gamma_muck) # la riporto all'asse galeria
+    p_min = max(p_3, p_f) + p_wt + additional_pressure
+        
+    return p_min
+
 
 # 20160309@Gabriele Aggiunta valutazione blowup - inizio
 # valore pressione di blow up
@@ -41,8 +113,8 @@ def cob_step_2(z_ref, ref_stratus,sigma_v,z_wt, z_tun, gamma_muck,  p_safety_cob
 # R_excav = raggio di scavo
 # gamma_muck = densita' del fluido al fronte
 # p_safety_blowup costante in kPa di sicurezza per blowup
-def blowup(s_v, R_excav, gamma_muck, p_safety_blowup):
-    pBlowUp = s_v+R_excav*gamma_muck-p_safety_blowup
+def blowup(s_v, delta_wt,  R_excav, gamma_muck, p_safety_blowup):
+    pBlowUp = s_v + delta_wt + R_excav*gamma_muck - p_safety_blowup
     return pBlowUp
 # 20160309@Gabriele Aggiunta valutazione blowup - fine
 
@@ -147,9 +219,9 @@ def u_tun(p_tbm, p_wt, s_v, nu, young, r_excav):
 # da esperienza il gap residuo varia dal 7% al 10% del gap complessivo
 # per considerare la bonta' del materiale in coda applico lo stesso principio usato per calcolare il gap sullo shield, ui, considerando come dalta sigma p_tbm
 # todo fare variare statisticamente tale %
-def gap_tail(ui, gs,  tail_skin_thickness, delta):
-    g_max = .1*(2.*tail_skin_thickness+delta)
-    g_t = min(g_max, (ui-gs))
+def gap_tail(ui,  tail_skin_thickness, delta):
+    g_max = .1*(tail_skin_thickness+delta)
+    g_t = min(g_max, ui)
     return g_t
 
 # definizione gap di perdita lungo lo scudo secondo Laganathan 2011

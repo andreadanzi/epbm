@@ -1,2 +1,2 @@
-project_code;project_name;p_safe_cob_kpa;p_safe_blowup_kpa
-MFW001_0-010 Metro Paris-Ligne 15_T2A;Société du Grand Paris Ligne 15 T2A;20;30
+project_code;project_name;p_safe_cob_kpa;p_safe_blowup_kpa;align_scan_length
+MFW001_0-010 Metro Paris-Ligne 15_T2A;Société du Grand Paris Ligne 15 T2A;20;30;10

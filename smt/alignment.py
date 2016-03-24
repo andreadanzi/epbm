@@ -704,7 +704,8 @@ class Alignment(BaseSmtModel):
 #                        zRef = z_top
 #                        sigma_v = cob_step_1(zRef,ref_stratus,sigma_v)
                 # calcolo il valore complessivo di BLOWUP
-                fBlowUp = blowup(sigma_v, r_excav, gamma_muck, self.project.p_safe_blowup_kpa)
+                delta_wt = max(0., (z_wt-z_dem)*9.81)
+                fBlowUp = blowup(sigma_v, delta_wt, r_excav, gamma_muck, self.project.p_safe_blowup_kpa)
                 self.logger.debug("\tValore di COB (riferito all'asse) =%f e valore di Blowup (riferito all'asse) =%f" % (fCob, fBlowUp))
                 # 20160309@Gabriele Aggiunta valutazione blowup - fine
 
@@ -727,12 +728,17 @@ class Alignment(BaseSmtModel):
                 depth_tun = align.DEM.coordinates[2] - z_tun
                 depth_base = align.DEM.coordinates[2] - z_base
                 s_v = sigma_v / depth_base * depth_tun
+                
+                # nel caso di falda sopra dem aggiungo sovraccarico alla s_v
+                if z_wt > z_dem:
+                    s_v += (z_wt-z_dem)*9.81
 
                 # pressione falda in asse tunnel
                 p_wt = max(0., (z_wt-z_tun)*9.81)
 
                 # parametri relativi all'estrusione del fronte (k0, modulo di young, coesione e attrito)
                 # come media sull'altezza del fronte piu' mezzo raggio sopra e sotto
+                gamma_th = 0.
                 k0_th = 0.
                 young_th = 0.
                 phi_th = 0.
@@ -744,10 +750,12 @@ class Alignment(BaseSmtModel):
                         z_min = max(z_base - r_excav/2., ref_stratus.POINTS.base.coordinates[2] )
                         tmp_th = z_max - z_min
                         th += tmp_th
+                        gamma_th += tmp_th * ref_stratus.PARAMETERS.inom
                         k0_th += tmp_th * ref_stratus.PARAMETERS.k0
                         young_th += tmp_th * ref_stratus.PARAMETERS.etounnel
                         ci_th += tmp_th * ref_stratus.PARAMETERS.c_tr
                         phi_th += tmp_th * ref_stratus.PARAMETERS.phi_tr
+                gamma_face =gamma_th /th
                 k0_face = k0_th/th
                 young_face = 1000.*young_th/th
                 ci_face = ci_th/th
@@ -762,6 +770,7 @@ class Alignment(BaseSmtModel):
                 # dist = distanza tra il baricentro dello strato considerato e l'asse del tunnel
                 # prendo in considerazione tutti gli strati con top superiore a z_tun meno un diametro
 
+                gamma_wg = 0.
                 young_wg = 0.
                 nu_wg = 0.
                 phi_wg = 0.
@@ -775,20 +784,32 @@ class Alignment(BaseSmtModel):
                         dist = abs(z_avg-z_tun)
                         th = z_max-z_min
                         wg = th * 2.*r_excav/max(2.*r_excav, dist)
+                        gamma_wg += wg * ref_stratus.PARAMETERS.inom
+                        nu_wg += wg * ref_stratus.PARAMETERS.n
+                        phi_wg += wg * ref_stratus.PARAMETERS.phi_tr
+                        ci_wg += wg * ref_stratus.PARAMETERS.c_tr
+                        wg_tot += wg
                         young_wg += wg * ref_stratus.PARAMETERS.etounnel
                         nu_wg += wg * ref_stratus.PARAMETERS.n
                         phi_wg += wg * ref_stratus.PARAMETERS.phi_tr
                         ci_wg += wg * ref_stratus.PARAMETERS.c_tr
                         wg_tot += wg
+                gamma_tun = gamma_wg/ wg_tot
                 young_tun = 1000.*young_wg/wg_tot
                 nu_tun = nu_wg/wg_tot
                 phi_tun = phi_wg/wg_tot
                 ci_tun = ci_wg/wg_tot
                 beta_tun = 45.+phi_tun/2.
 
+                # calcolo pressione minima secondo tamez
+                # p_min_tamez(H, z_wt, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_face_deg, D, a, req_safety_factor, additional_pressure)
+                water_depth = z_dem - align.FALDA.coordinates[2]
+                a =align.TBM.shield_length
+                p_tamez = p_min_tamez(copertura, water_depth, gamma_tun, ci_tun, phi_tun, gamma_face, ci_face, phi_face, 2*r_excav, a, 2., self.project.p_safe_cob_kpa, gamma_muck)
+
                 # pressione al fronte
                 p_max = min(align.TBM.pressure_max, fBlowUp)
-                p_tbm=0.
+#                p_tbm=0.
 #                if align.PK == 2128748:
 #                    p_tbm=400.
 #                elif align.PK == 2123208:
@@ -806,43 +827,49 @@ class Alignment(BaseSmtModel):
 #                else:
 #                    p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
                 # inizializzo la necessita' di consolidare
-                if fCob>p_max:
+#                if fCob>p_max:
+                if p_tamez>p_max:
                     consolidation="front"
                 else:
                     consolidation="none"
-                p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
+                
+                # p_tbm=min(p_max, round(p_tamez/10.)*10., round(fCob/10.)*10., round(fBlowUp/10.)*10.)
+                p_tbm=min(p_max, round(p_tamez/10.)*10., round(fBlowUp/10.)*10.)
+                p_tbm = max(p_tbm, 170)
                 p_tbm_base = p_tbm
-                p_tbm_shield = p_tbm*.75
+                p_tbm_shield = max(p_tbm*.75, p_wt)
                 p_tbm_shield_base = p_tbm_shield
                 # calcolo iniziale per greenfield
                 gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
                 # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
-                ui_shield = .75*2.*ur_max(s_v, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
-                #ui_shield = u_tun(p_tbm, p_wt, s_v, nu_tun, young_tun, r_excav)
+                #ui_shield = .5*2.*ur_max(s_v, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                ui_shield = u_tun(p_tbm_shield, p_wt, s_v, nu_tun, young_tun, r_excav)
                 # gap_shield(ui, shield_taper, cutter_bead_thickness)
                 gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
-                ui_tail = .75*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs
+                ui_tail = max(0., .5*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
                 #ui_tail = u_tun(0., p_wt, s_v, nu_tun, young_tun, r_excav)
-                # gap_tail(ui, gs,  tail_skin_thickness, delta)
-                gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
+                # gap_tail(ui, tail_skin_thickness, delta)
+                gt=gap_tail(ui_tail, tail_skin_thickness, delta)
                 gap=gf+gs+gt
                 eps0_base=volume_loss(gap, r_excav)
                 s_max_base = uz_laganathan(eps0_base, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
-
-                
                 k_peck = k_eq(r_excav, depth_tun, beta_tun)
                 buff = 3.*k_peck*depth_tun
-
+                
                 if "BUILDINGS" in self.item:
                     for idx,  b in enumerate(align.BUILDINGS):
                         self.logger.debug("\tAnalisi edificio %s con classe di sensibilita' %s" % (b.bldg_code, b.sc_lev))
                         # leggo l'impronta dell'edificio alla pk analizzata
                         x_min = None
                         x_max = None
+                        pk_min = None
+                        pk_max = None
                         for pk_item in b.PK_INFO.pk_array:
                             if pk_item.pk_min <= align.PK +buff and pk_item.pk_max>align.PK-buff:
                                 x_min = pk_item.d_min
                                 x_max = pk_item.d_max
+                                pk_min = pk_item.pk_min
+                                pk_max = pk_item.pk_max
                         z = b.depth_fondation
                         h_bldg = b.height_overground + z
                         try:
@@ -850,6 +877,15 @@ class Alignment(BaseSmtModel):
                         except TypeError:
                             self.logger.debug("Dati errati per l'edificio %s" % (b.bldg_code))
                             break
+                        # calcolo delta_pk la distanza dell'edificio dalla pk corrente per correggere la distanza
+                        # tengo conto anche del passo delle pk per contare fino a meta' di ogni step
+                        delta_pk = min(max(0., pk_min-(align.PK+self.project.align_scan_length/2.)), max(0., align.PK-self.project.align_scan_length/2.-pk_max ))
+                        if delta_pk >0.:
+                            x_min = math.sqrt(x_min**2+delta_pk**2)
+                            x_max = math.sqrt(x_max**2+delta_pk**2)
+                        #if pk_min <= align.PK + self.project.align_scan_length/2. and pk_max>align.PK-self.project.align_scan_length/2.:
+                            
+                        
                         # valuto l'incremento di carico dovuto all'edificio come h_bldg * 5.4 kN/m3 + 7.5 kN/m2 (per solaio finale)
                         # a cui tolgo il peso del terreno rimosso per l'approfondimento della fondazione
                         p_soil = 0.
@@ -858,60 +894,61 @@ class Alignment(BaseSmtModel):
                                 z_max = min(z_dem, ref_stratus.POINTS.top.coordinates[2])
                                 z_min = max(z_dem-z, ref_stratus.POINTS.base.coordinates[2])
                                 p_soil=(z_max-z_min)*ref_stratus.PARAMETERS.inom
-                        p_bldg = 5.4*h_bldg+7.5
+                        p_bldg = 5.*h_bldg #+7.5
                         extra_load = max(0., p_bldg-p_soil)
                         s_v_bldg = s_v+extra_load
+                        step = (x_max-x_min)/1000.
+                        self.logger.debug("\t\textra carico in galleria %f kN/m2" % (extra_load))
 
 
                         # primo calcolo di base con p_min
                         # calcolo gap e volume perso
                         gf=gap_front(p_tbm_base, p_wt, s_v_bldg, k0_face, young_face, ci_face, phi_face, r_excav)
-                        ui_shield = .75*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                        #ui_shield = .5*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                        ui_shield = u_tun(p_tbm_shield, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)
                         gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
-                        ui_tail = .75*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs
-                        gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
+                        ui_tail = max(0., .5*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
+                        gt=gap_tail(ui_tail, tail_skin_thickness, delta)
                         gap=gf+gs+gt
-                        eps0=volume_loss(gap, r_excav)
-                                        # trovo i valori massimi di cedimento, inclinazione e espilon orizzontale
-                        step = (x_max-x_min)/1000.
-                        s_max_ab = abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
-                        beta_max_ab = abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
-                        esp_h_max_ab = abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
+                        eps0_b=volume_loss(gap, r_excav)
+                        s_max_ab_b = abs(uz_laganathan(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
+                        beta_max_ab_b = abs(d_uz_dx_laganathan(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
+                        esp_h_max_ab_b = abs(d_ux_dx_laganathan(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
                         for i in range(1, 1000):
-                            s_max_ab = max(s_max_ab, abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
-                            beta_max_ab = max(beta_max_ab, abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
-                            esp_h_max_ab = max(esp_h_max_ab, abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
-                        vulnerability_class = 0.
-                        damage_class = 0.
+                            s_max_ab_b = max(s_max_ab_b, abs(uz_laganathan(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+                            beta_max_ab_b = max(beta_max_ab_b, abs(d_uz_dx_laganathan(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+                            esp_h_max_ab_b = max(esp_h_max_ab_b, abs(d_ux_dx_laganathan(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+                        vulnerability_class_b = 0.
+                        damage_class_b = 0.
                         for dl in b.DAMAGE_LIMITS:
-                            if s_max_ab<=dl.uz and beta_max_ab<=dl.d_uz_dx and esp_h_max_ab<=dl.d_ux_dx:
-                                vulnerability_class = dl.vc_lev
-                                damage_class = dl.dc_lev
+                            if s_max_ab_b<=dl.uz and beta_max_ab_b<=dl.d_uz_dx and esp_h_max_ab_b<=dl.d_ux_dx:
+                                vulnerability_class_b = dl.vc_lev
+                                damage_class_b = dl.dc_lev
                                 break
-                        self.item["BUILDINGS"][idx]["vulnerability_base"] = vulnerability_class
-                        self.item["BUILDINGS"][idx]["damage_class_base"] = damage_class
-                        self.item["BUILDINGS"][idx]["settlement_max_base"] = s_max_ab
-                        self.item["BUILDINGS"][idx]["tilt_max_base"] = beta_max_ab
-                        self.item["BUILDINGS"][idx]["esp_h_max_base"] = esp_h_max_ab
+                        self.item["BUILDINGS"][idx]["vulnerability_base"] = vulnerability_class_b
+                        self.item["BUILDINGS"][idx]["damage_class_base"] = damage_class_b
+                        self.item["BUILDINGS"][idx]["settlement_max_base"] = s_max_ab_b
+                        self.item["BUILDINGS"][idx]["tilt_max_base"] = beta_max_ab_b
+                        self.item["BUILDINGS"][idx]["esp_h_max_base"] = esp_h_max_ab_b
                         # assign_vulnerability(self, bcode, param, value):
-                        n_found=self.assign_parameter(b.bldg_code, "vulnerability_base",  vulnerability_class)
-                        n_found=self.assign_parameter(b.bldg_code, "damage_class_base",  damage_class)
-                        n_found=self.assign_parameter(b.bldg_code, "settlement_max_base",  s_max_ab)
-                        n_found=self.assign_parameter(b.bldg_code, "tilt_max_base",  beta_max_ab)
-                        n_found=self.assign_parameter(b.bldg_code, "esp_h_max_base",  esp_h_max_ab)
+                        n_found=self.assign_parameter(b.bldg_code, "vulnerability_base",  vulnerability_class_b)
+                        n_found=self.assign_parameter(b.bldg_code, "damage_class_base",  damage_class_b)
+                        n_found=self.assign_parameter(b.bldg_code, "settlement_max_base",  s_max_ab_b)
+                        n_found=self.assign_parameter(b.bldg_code, "tilt_max_base",  beta_max_ab_b)
+                        n_found=self.assign_parameter(b.bldg_code, "esp_h_max_base",  esp_h_max_ab_b)
+                        self.logger.debug("\t\tp_tbm_base = %f, s_max_ab_base = %f, beta_max_ab_base = %f, esp_h_max_ab_base = %f, vul_base = %f" % (p_tbm_base, s_max_ab_b, beta_max_ab_b, esp_h_max_ab_b, vulnerability_class_b))
+
                         # da qui refactor on parameter min vs actual
-                        
                         while True :
                             # calcolo gap e volume perso
                             gf=gap_front(p_tbm, p_wt, s_v_bldg, k0_face, young_face, ci_face, phi_face, r_excav)
-                            ui_shield = .75*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                            #ui_shield = .5*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                            ui_shield = u_tun(p_tbm_shield, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)
                             gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
-                            ui_tail = .75*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs
-                            gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
+                            ui_tail = max(0., .5*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
+                            gt=gap_tail(ui_tail, tail_skin_thickness, delta)
                             gap=gf+gs+gt
                             eps0=volume_loss(gap, r_excav)
-                                            # trovo i valori massimi di cedimento, inclinazione e espilon orizzontale
-                            step = (x_max-x_min)/1000.
                             s_max_ab = abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
                             beta_max_ab = abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
                             esp_h_max_ab = abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
@@ -955,20 +992,19 @@ class Alignment(BaseSmtModel):
 
                        #, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab)
                         # print "%d %d %s" %(n_found, align.PK, b.bldg_code )
-                        self.logger.debug("\t\textra carico in galleria %f kN/m2" % (extra_load))
                         self.logger.debug("\t\tp_tbm = %f, s_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f" % (p_tbm, s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class))
-
+                
                 # calcolo finale per greenfield
                 gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
                 # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
-                ui_shield = .75*2.*ur_max(s_v, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
-                #ui_shield = u_tun(p_tbm, p_wt, s_v, nu_tun, young_tun, r_excav)
+                #ui_shield = .5*2.*ur_max(s_v, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                ui_shield = u_tun(p_tbm_shield, p_wt, s_v, nu_tun, young_tun, r_excav)
                 # gap_shield(ui, shield_taper, cutter_bead_thickness)
                 gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
-                ui_tail = .75*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs
+                ui_tail = max(0., .5*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
                 #ui_tail = u_tun(0., p_wt, s_v, nu_tun, young_tun, r_excav)
                 # gap_tail(ui, gs,  tail_skin_thickness, delta)
-                gt=gap_tail(ui_tail, gs, tail_skin_thickness, delta)
+                gt=gap_tail(ui_tail, tail_skin_thickness, delta)
                 gap=gf+gs+gt
                 eps0=volume_loss(gap, r_excav)
 
@@ -987,6 +1023,7 @@ class Alignment(BaseSmtModel):
 
                 # Assegno il valore COB alla PK
                 self.item["COB"] = fCob
+                self.item["P_TAMEZ"]= p_tamez
                 self.item["P_WT"] = p_wt
                 # Assegno il valore BLOWUP alla PK
                 self.item["BLOWUP"] = fBlowUp
@@ -1011,6 +1048,9 @@ class Alignment(BaseSmtModel):
                 self.logger.debug("\tValore di volume perso, VL = %f percent con k di peck = %f" % (eps0*100, k_peck))
                 self.logger.debug("\tAnalisi cedimenti")
                 self.logger.debug("\t\tCedimento massimo in asse, s_max =%f mm con una pressione al fronte di %fKPa" % (s_max*1000, p_tbm))
+                #self.project.p_safe_cob_kpa
+                self.logger.debug("\tExtra pressione minima, = %f kPa margine blowup = %f kPa" % (self.project.p_safe_cob_kpa, self.project.p_safe_blowup_kpa))
+                self.logger.debug("\tPressiona acqua, = %f kPa, pressione tamex = %f kPa" % (p_wt, p_tamez))
 
         except AttributeError as ae:
             self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))

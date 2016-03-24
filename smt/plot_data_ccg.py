@@ -10,6 +10,7 @@ from domain import Domain
 import csv, re
 import sys, getopt
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from collections import defaultdict
 # danzi.tn@20160310 plot secondo distanze dinamiche
@@ -143,6 +144,8 @@ def plot_data(bAuthenticate, sPath):
         bLoggedIn = db.authenticate(username,password,source=source_database)
     else:
         bLoggedIn = True
+    # cambio font size
+    mpl.rcParams.update({'font.size': 6})
     if bLoggedIn:
         logger.info("Logged in")
         pd = db.Project.find_one({"project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A"})
@@ -160,7 +163,7 @@ def plot_data(bAuthenticate, sPath):
                     a_set = AlignmentSet(db,aset)
                     a_set.load()
                     sCode = a_set.item["code"]
-                    als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"COB":True,"P_EPB":True,"P_WT":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, "VOLUME_LOSS":True, "K_PECK":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True}).sort("PK", 1)
+                    als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"P_TAMEZ":True,"COB":True,"P_EPB":True,"P_WT":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, "VOLUME_LOSS":True, "K_PECK":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True}).sort("PK", 1)
                     a_list = list(als)
                     pks = []
                     pklabel = []
@@ -181,13 +184,14 @@ def plot_data(bAuthenticate, sPath):
                     
                     # scalo di fattore 100
 #                    p_wts =[d['P_WT']/100 - d_press_wt for d in a_list]
-                    p_wts = [d['P_WT']/100 - d_press_wt for d in a_list]
+                    p_wts = [(max(0., d['P_WT']/100 - d_press_wt)) for d in a_list]
                     # scalo di fattore 100
-                    p_epms =[d['P_EPB']/100 - d_press for d in a_list]
+                    p_epms =[max(0., d['P_EPB']/100 - d_press) for d in a_list]
                     # scalo di fattore 100
-                    cobs =[d['COB']/100 - d_press for d in a_list]
+                    p_tamezs=[max(0., d['P_TAMEZ']/100 - d_press) for d in a_list]
+                    cobs =[max(0., d['COB']/100 - d_press) for d in a_list]
                     # scalo di fattore 100
-                    blowups =[d['BLOWUP']/100 - d_press for d in a_list]
+                    blowups =[max(0., d['BLOWUP']/100 - d_press) for d in a_list]
                     # amplifico di fattore 100
                     volume_losss =[d['VOLUME_LOSS']*100 for d in a_list]
                     k_pecks =[d['K_PECK'] for d in a_list]
@@ -195,10 +199,12 @@ def plot_data(bAuthenticate, sPath):
                     max_settlements =[d['SETTLEMENT_MAX']*1000 for d in a_list]
                     # plot
                     fig = plt.figure()
-                    plt.plot(pks,cobs, label='COB - bar')
+                    fig.set_size_inches(12, 3.54)
+                    #plt.plot(pks,cobs, label='COB - bar')
                     plt.plot(pks,p_epms, label='P_EPB - bar')
                     plt.plot(pks,blowups, label='BLOWUP - bar')
                     plt.plot(pks,p_wts, label='P_WT - bar')
+                    plt.plot(pks,p_tamezs, label='P_TAMEZ - bar')
                     y_min = math.floor(min(min(p_wts),min(cobs), min(p_epms), min(blowups))/.5)*.5-.5 
                     y_max = math.ceil(max(max(p_wts),max(cobs), max(p_epms), max(blowups))/.5)*.5+.5 
                     my_aspect = 50./(abs(y_max-y_min)/9.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
@@ -210,7 +216,7 @@ def plot_data(bAuthenticate, sPath):
                     ticks = np.arange(start, stop + .5, .5)
                     ax.set_yticks(ticks)
                     #ax.grid(True)
-                    #plt.legend()
+                    plt.legend()
                     #fig.set_dpi(1600)
                     outputFigure(sPath, ("profilo_pressioni_%s.svg" % sCode))
                     logger.info("profilo_pressioni.svg plotted in %s" % sPath)
