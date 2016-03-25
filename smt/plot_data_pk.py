@@ -22,16 +22,13 @@ from scipy.interpolate import griddata
 from collections import defaultdict
 from shapely.geometry import LineString
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
-import osgeo.ogr as ogr
-import osgeo.osr as osr
-import osgeo.gdal as gdal
 from utils import uz_laganathan,d_uz_dx_laganathan, d_ux_dx_laganathan,toFloat
 from base import BaseStruct
 from openpyxl import Workbook
 from openpyxl.compat import range
 from openpyxl.cell import get_column_letter
 # danzi.tn@20160322 plot sezioni a PK critiche
-# create main logger 
+# create main logger
 """
 python plot_data_pk.py -a -p ../pk_out -t ../data/pk_crit.txt
 -p  folder di output
@@ -47,7 +44,7 @@ pk_crit.txt
 """
 logger = logging.getLogger('smt_main')
 logger.setLevel(logging.DEBUG)
-# create a rotating file handler which logs even debug messages 
+# create a rotating file handler which logs even debug messages
 fh = logging.handlers.RotatingFileHandler('plto_data_pk.log',maxBytes=5000000, backupCount=5)
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
@@ -66,16 +63,16 @@ password = smtConfig.get('MONGODB','password')
 # Colori da associare alle aree degli strati di riferimento
 main_colors = {
                 'MC':'#1f77b4',
-                'MCA':'#ff7f0e', 
+                'MCA':'#ff7f0e',
                 'SO2':'#2ca02c',
-                'MFL5':'#d62728',  
+                'MFL5':'#d62728',
                 'CG':'#9467bd',
-                'MIG':'#8c564b',  
-                'SB':'#e377c2', 
+                'MIG':'#8c564b',
+                'SB':'#e377c2',
                 'MA':'#7f7f7f',
-                'SO4':'#bcbd22', 
-                'MFL4':'#dbdb8d', 
-                'SO':'#17becf', 
+                'SO4':'#bcbd22',
+                'MFL4':'#dbdb8d',
+                'SO':'#17becf',
                 'MFL3':'#9edae5',
                 'R':'#7f7f7f',
                 'AA':'#bcbd22',}
@@ -95,7 +92,7 @@ def asse2p_p1(p1,p2,x):
     m = (p2[1]-p1[1])/(p2[0]-p1[0])
     m_asse = -1/m
     return m_asse*(x-p1[0]) + p1[1]
-    
+
 
 def pfromdistance_p1(p1,p2,d):
     if abs(p2[0]-p1[0])<=0.1:
@@ -116,8 +113,8 @@ def pfromdistance_p1(p1,p2,d):
     res_y0 = asse2p_p1(p1,p2,res_x[0])
     res_y1 = asse2p_p1(p1,p2,res_x[1])
     return (res_x[0],res_y0),(res_x[1],res_y1)
-                
-                
+
+
 def asse2p(p1,p2,x):
     mid = mid_point(p1,p2)
     if abs(p2[0]-p1[0])<=0.1:
@@ -148,14 +145,14 @@ def pfromdistance(p1,p2,d):
     res_y0 = asse2p(p1,p2,res_x[0])
     res_y1 = asse2p(p1,p2,res_x[1])
     return (res_x[0],res_y0),(res_x[1],res_y1)
-        
-                
+
+
 def plot_line( ob, color="green"):
     parts = hasattr(ob, 'geoms') and ob or [ob]
     for part in parts:
         x, y = part.xy
-        plt.plot(x, y,'o', color=color, zorder=1) 
-        #plt.plot(x, y, color=color, linewidth=2, solid_capstyle='round', zorder=1)    
+        plt.plot(x, y,'o', color=color, zorder=1)
+        #plt.plot(x, y, color=color, linewidth=2, solid_capstyle='round', zorder=1)
 
 
 def plot_coords( x, y, color='#999999', zorder=1):
@@ -177,7 +174,7 @@ def processSettlements(a_list):
     distanceKeys = distanceIndex.keys()
     distanceKeys.sort()
     return distanceKeys, distanceIndex
-    
+
 def fillBetweenStrata(a_list):
     currentStrata = None
     x=[]
@@ -186,10 +183,10 @@ def fillBetweenStrata(a_list):
     facecolors=['orange','yellow']
     for i, a_item in enumerate(a_list):
         z_base = a_item['REFERENCE_STRATA']['POINTS']['base']['coordinates'][2]
-        z_top = a_item['REFERENCE_STRATA']['POINTS']['top']['coordinates'][2]  
+        z_top = a_item['REFERENCE_STRATA']['POINTS']['top']['coordinates'][2]
         code = a_item['REFERENCE_STRATA']['CODE']
         if not currentStrata:
-            currentStrata = code        
+            currentStrata = code
         elif currentStrata == code:
             pass
         else:
@@ -200,18 +197,18 @@ def fillBetweenStrata(a_list):
             currentStrata = code
         x.append(a_item['PK'])
         y1.append(z_base)
-        y2.append(z_top)        
+        y2.append(z_top)
 
 def plot_data_pk(bAuthenticate, sPath, sTxt):
     # connect to MongoDB
     client = MongoClient()
     db = client[database]
     ##################################################### GIS SETUP
-    driver = ogr.GetDriverByName("ESRI Shapefile")
-    # create the spatial reference, EPSG3949 RGF93 / CC49 - http://spatialreference.org/ref/epsg/3949/
-    # xMin,yMin 1653513.80,8175914.21 : xMax,yMax 1659996.62,8177877.58
-    srs = osr.SpatialReference()
-    srs.ImportFromEPSG(3949)
+#    driver = ogr.GetDriverByName("ESRI Shapefile")
+#    # create the spatial reference, EPSG3949 RGF93 / CC49 - http://spatialreference.org/ref/epsg/3949/
+#    # xMin,yMin 1653513.80,8175914.21 : xMax,yMax 1659996.62,8177877.58
+#    srs = osr.SpatialReference()
+#    srs.ImportFromEPSG(3949)
     pk_crit = []
     with open(sTxt) as f:
         lines = f.readlines()
@@ -241,7 +238,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                     a_set.load()
                     sCode = a_set.item["code"]
                     # {"$and":[{"alignment_set_id":"56f0fa102a13da2500a7250b"},{"PK":{"$in":[2126358,2126368,2126378]}}]}
-                    criteria = {"$and":[{"alignment_set_id":a_set._id},{"PK":{"$in":pk_crit}}]} 
+                    criteria = {"$and":[{"alignment_set_id":a_set._id},{"PK":{"$in":pk_crit}}]}
                     fields = {"PK":True,"COB":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, "VOLUME_LOSS":True, "P_EPB":True,"SETTLEMENT_MAX_BASE":True, "VOLUME_LOSS_BASE":True,  "P_EPB_BASE":True, "STRATA":True, "SETTLEMENTS":True, "SECTIONS":True, "nu_tun":True, "beta_tun":True,  "BUILDINGS":True}
                     als = db.Alignment.find(criteria,fields).sort("PK", 1)
                     # eps0 = volume perso (adimensionale) = VOLUME_LOSS
@@ -291,53 +288,54 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                             ws1.cell(column=1, row=row+2, value="%s" % s.CODE)
                             ws1.cell(column=2, row=row+2, value=s.POINTS.top.coordinates[2])
                             ws1.cell(column=3, row=row+2, value=s.POINTS.base.coordinates[2])
-                        # excel buildings sheet
-                        ws2 = wb.create_sheet(title="buildings")
-                        ws2.cell(column=1, row=1, value="CODE")
-                        ws2.cell(column=2, row=1, value="Dist MIN")
-                        ws2.cell(column=3, row=1, value="Dist MAX")
-                        ws2.cell(column=4, row=1, value="Z Fond")
-                        ws2.cell(column=5, row=1, value="SC Lev")
-                        ws2.cell(column=6, row=1, value="Damage Class Base")
-                        ws2.cell(column=7, row=1, value="Damage Class")
-                        ws2.cell(column=8, row=1, value="Vulnerability Class Base")
-                        ws2.cell(column=9, row=1, value="Vulnerability Class")
-                        ws2.cell(column=10, row=1, value="Settlement Max Base")
-                        ws2.cell(column=11, row=1, value="Settlement Max")
-                        ws2.cell(column=12, row=1, value="Tilt (Beta) Max Base")
-                        ws2.cell(column=13, row=1, value="Tilt (Beta) Max")
-                        ws2.cell(column=14, row=1, value="Horiz. Def. (Esp H) Max Base")
-                        ws2.cell(column=15, row=1, value="Horiz. Def. (Esp H) Max")
-                        ws2.cell(column=16, row=1, value="P Epb Base")
-                        ws2.cell(column=17, row=1, value="P Epb")
-                        ws2.cell(column=18, row=1, value="Blowup")
-                        ws2.cell(column=19, row=1, value="Volume Loss Base")
-                        ws2.cell(column=20, row=1, value="Volume Loss")
-                        for row, b_align in enumerate(align.BUILDINGS):
-                            b_dict = db.Building.find_one({"bldg_code":b_align.bldg_code})
-                            b = BaseStruct(b_dict)
-                            ws2.cell(column=1, row=row+2, value="%s" % b.bldg_code)
-                            ws2.cell(column=2, row=row+2, value=b.d_min)
-                            ws2.cell(column=3, row=row+2, value=b.d_max)
-                            ws2.cell(column=4, row=row+2, value=b.depth_fondation)
-                            ws2.cell(column=5, row=row+2, value=b.sc_lev)
-                            ws2.cell(column=6, row=row+2, value=b.damage_class_base)
-                            ws2.cell(column=7, row=row+2, value=b.damage_class)
-                            ws2.cell(column=8, row=row+2, value=b.vulnerability_base)
-                            ws2.cell(column=9, row=row+2, value=b.vulnerability)
-                            ws2.cell(column=10, row=row+2, value=b.settlement_max_base)
-                            ws2.cell(column=11, row=row+2, value=b.settlement_max)
-                            ws2.cell(column=12, row=row+2, value=b.tilt_max_base)
-                            ws2.cell(column=13, row=row+2, value=b.tilt_max)
-                            ws2.cell(column=14, row=row+2, value=b.esp_h_max_base)
-                            ws2.cell(column=15, row=row+2, value=b.esp_h_max)
-                            ws2.cell(column=16, row=row+2, value=p_epb_base)
-                            ws2.cell(column=17, row=row+2, value=p_epb)
-                            ws2.cell(column=18, row=row+2, value=blowup)
-                            ws2.cell(column=19, row=row+2, value=eps0_base)
-                            ws2.cell(column=20, row=row+2, value=eps0)
+                        if hasattr(align, "BUILDINGS"):
+                            # excel buildings sheet
+                            ws2 = wb.create_sheet(title="buildings")
+                            ws2.cell(column=1, row=1, value="CODE")
+                            ws2.cell(column=2, row=1, value="Dist MIN")
+                            ws2.cell(column=3, row=1, value="Dist MAX")
+                            ws2.cell(column=4, row=1, value="Z Fond")
+                            ws2.cell(column=5, row=1, value="SC Lev")
+                            ws2.cell(column=6, row=1, value="Damage Class Base")
+                            ws2.cell(column=7, row=1, value="Damage Class")
+                            ws2.cell(column=8, row=1, value="Vulnerability Class Base")
+                            ws2.cell(column=9, row=1, value="Vulnerability Class")
+                            ws2.cell(column=10, row=1, value="Settlement Max Base")
+                            ws2.cell(column=11, row=1, value="Settlement Max")
+                            ws2.cell(column=12, row=1, value="Tilt (Beta) Max Base")
+                            ws2.cell(column=13, row=1, value="Tilt (Beta) Max")
+                            ws2.cell(column=14, row=1, value="Horiz. Def. (Esp H) Max Base")
+                            ws2.cell(column=15, row=1, value="Horiz. Def. (Esp H) Max")
+                            ws2.cell(column=16, row=1, value="P Epb Base")
+                            ws2.cell(column=17, row=1, value="P Epb")
+                            ws2.cell(column=18, row=1, value="Blowup")
+                            ws2.cell(column=19, row=1, value="Volume Loss Base")
+                            ws2.cell(column=20, row=1, value="Volume Loss")
+                            for row, b_align in enumerate(align.BUILDINGS):
+                                b_dict = db.Building.find_one({"bldg_code":b_align.bldg_code})
+                                b = BaseStruct(b_dict)
+                                ws2.cell(column=1, row=row+2, value="%s" % b.bldg_code)
+                                ws2.cell(column=2, row=row+2, value=b.d_min)
+                                ws2.cell(column=3, row=row+2, value=b.d_max)
+                                ws2.cell(column=4, row=row+2, value=b.depth_fondation)
+                                ws2.cell(column=5, row=row+2, value=b.sc_lev)
+                                ws2.cell(column=6, row=row+2, value=b.damage_class_base)
+                                ws2.cell(column=7, row=row+2, value=b.damage_class)
+                                ws2.cell(column=8, row=row+2, value=b.vulnerability_base)
+                                ws2.cell(column=9, row=row+2, value=b.vulnerability)
+                                ws2.cell(column=10, row=row+2, value=b.settlement_max_base)
+                                ws2.cell(column=11, row=row+2, value=b.settlement_max)
+                                ws2.cell(column=12, row=row+2, value=b.tilt_max_base)
+                                ws2.cell(column=13, row=row+2, value=b.tilt_max)
+                                ws2.cell(column=14, row=row+2, value=b.esp_h_max_base)
+                                ws2.cell(column=15, row=row+2, value=b.esp_h_max)
+                                ws2.cell(column=16, row=row+2, value=p_epb_base)
+                                ws2.cell(column=17, row=row+2, value=p_epb)
+                                ws2.cell(column=18, row=row+2, value=blowup)
+                                ws2.cell(column=19, row=row+2, value=eps0_base)
+                                ws2.cell(column=20, row=row+2, value=eps0)
                         wb.save(filename = dest_filename)
-                                                
+
                         for i, xi in enumerate(x):
                             ret_uz = uz_laganathan(eps0, R, H, nu, beta, xi, z)
                             ret_uz_base = uz_laganathan(eps0_base, R, H, nu, beta, xi, z)
@@ -351,12 +349,12 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                                 pkylabel_uz.append("%.1f mm" % (ret_uz*1000.))
                             ret_uz = d_uz_dx_laganathan(eps0, R, H, nu, beta, xi, z)
                             ret_uz_base = d_uz_dx_laganathan(eps0_base, R, H, nu, beta, xi, z)
-                            y_duz.append(ret_uz)      
-                            y_duz_base.append(ret_uz_base)      
-                            ret_uz = d_ux_dx_laganathan(eps0, R, H, nu, beta, xi, z) 
+                            y_duz.append(ret_uz)
+                            y_duz_base.append(ret_uz_base)
+                            ret_uz = d_ux_dx_laganathan(eps0, R, H, nu, beta, xi, z)
                             ret_uz_base = d_ux_dx_laganathan(eps0_base, R, H, nu, beta, xi, z)
-                            y_dux.append(ret_uz)      
-                            y_dux_base.append(ret_uz_base)      
+                            y_dux.append(ret_uz)
+                            y_dux_base.append(ret_uz_base)
                         # plot uz_laganathan
                         fig = plt.figure(figsize=(1708/100, 348/100), dpi=100)
                         plt.title(u"S[mm] PK %d" % (int(align.PK)))
@@ -369,7 +367,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                         plt.grid(True)
                         plt.plot(x,y_uz,"r-")
                         plt.plot(x,y_uz_base,"g--")
-                        outputFigure(sPath, "S[mm]_uz_laganathan_%s_%d.png" % (sCode,int(align.PK)), format="png")                     
+                        outputFigure(sPath, "S[mm]_uz_laganathan_%s_%d.png" % (sCode,int(align.PK)), format="png")
                         plt.close(fig)
                         # plot d_uz_dx_laganathan
                         # find min and max
@@ -380,7 +378,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                         pkyticks_dz.append(min(y_duz))
                         pkylabel_dz.append(u"%.2f \u2030" % (min(y_duz)*1000.))
                         pkyticks_dz.append(max(y_duz))
-                        pkylabel_dz.append(u"%.2f \u2030" % (max(y_duz)*1000.)) 
+                        pkylabel_dz.append(u"%.2f \u2030" % (max(y_duz)*1000.))
                         pkxticks.append(x[y_duz.index(min(y_duz))])
                         pkxticks.append(x[y_duz.index(max(y_duz))])
                         fig = plt.figure(figsize=(1708/100, 348/100), dpi=100)
@@ -392,7 +390,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                         #plt.xticks(list(plt.xticks()[0]) + pkxticks)
                         pkylabel_dz = [ u"%.2f \u2030" % (yt*1000.) for yt in list(plt.yticks()[0])] + pkylabel_dz
                         plt.yticks(list(plt.yticks()[0]) + pkyticks_dz,pkylabel_dz)
-                        outputFigure(sPath, u"Beta[\u2030]_d_uz_dx_laganathan_%s_%d.png" % (sCode,int(align.PK)), format="png")                         
+                        outputFigure(sPath, u"Beta[\u2030]_d_uz_dx_laganathan_%s_%d.png" % (sCode,int(align.PK)), format="png")
                         plt.close(fig)
                         # plot d_uz_dx_laganathan
                         # find min and max
@@ -403,7 +401,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                         pkyticks_dx.append(min(y_dux))
                         pkylabel_dx.append(u"%.2f \u2030" % (min(y_dux)*1000.))
                         pkyticks_dx.append(max(y_dux))
-                        pkylabel_dx.append(u"%.2f \u2030" % (max(y_dux)*1000.)) 
+                        pkylabel_dx.append(u"%.2f \u2030" % (max(y_dux)*1000.))
                         pkxticks.append(x[y_dux.index(min(y_dux))])
                         pkxticks.append(x[y_dux.index(max(y_dux))])
                         fig = plt.figure(figsize=(1708/100, 348/100), dpi=100)
@@ -415,13 +413,13 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                         #plt.xticks(list(plt.xticks()[0]) + pkxticks)
                         pkylabel_dx = [ u"%.2f \u2030" % (yt*1000.) for yt in list(plt.yticks()[0])] + pkylabel_dx
                         plt.yticks(list(plt.yticks()[0]) + pkyticks_dx,pkylabel_dx)
-                        outputFigure(sPath, u"Epsh[\u2030]_d_ux_dx_laganathan_%s_%d.png" % (sCode,int(align.PK)), format="png")                         
+                        outputFigure(sPath, u"Epsh[\u2030]_d_ux_dx_laganathan_%s_%d.png" % (sCode,int(align.PK)), format="png")
                         plt.close(fig)
                     logger.info("plot_data terminated!")
     else:
         logger.error("Authentication failed")
-        
-                
+
+
 def main(argv):
     sPath = None
     sTxt = None
@@ -457,7 +455,7 @@ def main(argv):
                 sys.exit(3)
     if sPath and sTxt:
         plot_data_pk(bAuthenticate, sPath, sTxt)
-    
-    
+
+
 if __name__ == "__main__":
     main(sys.argv[1:])
