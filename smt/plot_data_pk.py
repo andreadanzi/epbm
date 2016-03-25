@@ -358,7 +358,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                             y_dux.append(ret_uz)      
                             y_dux_base.append(ret_uz_base)      
                         # plot uz_laganathan
-                        fig = plt.figure(figsize=(1200/100, 900/100), dpi=100)
+                        fig = plt.figure(figsize=(1708/100, 348/100), dpi=100)
                         plt.title(u"S[mm] PK %d" % (int(align.PK)))
                         ymin = min(y_uz)-(0.1*abs(min(y_uz)))
                         ymin = -0.03
@@ -383,7 +383,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                         pkylabel_dz.append(u"%.2f \u2030" % (max(y_duz)*1000.)) 
                         pkxticks.append(x[y_duz.index(min(y_duz))])
                         pkxticks.append(x[y_duz.index(max(y_duz))])
-                        fig = plt.figure(figsize=(1200/100, 900/100), dpi=100)
+                        fig = plt.figure(figsize=(1708/100, 348/100), dpi=100)
                         plt.title(u"Beta[\u2030] PK %d" % (int(align.PK)))
                         plt.grid(True)
                         plt.plot(x,y_duz,"r-")
@@ -406,7 +406,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                         pkylabel_dx.append(u"%.2f \u2030" % (max(y_dux)*1000.)) 
                         pkxticks.append(x[y_dux.index(min(y_dux))])
                         pkxticks.append(x[y_dux.index(max(y_dux))])
-                        fig = plt.figure(figsize=(1200/100, 900/100), dpi=100)
+                        fig = plt.figure(figsize=(1708/100, 348/100), dpi=100)
                         plt.title(u"EpsH[\u2030] PK %d" % (int(align.PK)))
                         plt.grid(True)
                         plt.plot(x,y_dux,"r-")
