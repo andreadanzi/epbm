@@ -163,7 +163,9 @@ def plot_data(bAuthenticate, sPath):
                     a_set = AlignmentSet(db,aset)
                     a_set.load()
                     sCode = a_set.item["code"]
-                    als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"P_TAMEZ":True,"COB":True,"P_EPB":True,"P_WT":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, "VOLUME_LOSS":True, "K_PECK":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True}).sort("PK", 1)
+                    als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"P_TAMEZ":True,"COB":True,"P_EPB":True,"P_WT":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, \
+                    "TILT_MAX":True, "EPS_H_MAX":True, "VOLUME_LOSS":True, "K_PECK":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True, "SENSIBILITY":True, "DAMAGE_CLASS":True, "VULNERABILITY":True,  \
+                    "CONSOLIDATION_VALUE":True}).sort("PK", 1)
                     a_list = list(als)
                     pks = []
                     pklabel = []
@@ -184,19 +186,26 @@ def plot_data(bAuthenticate, sPath):
                     
                     # scalo di fattore 100
 #                    p_wts =[d['P_WT']/100 - d_press_wt for d in a_list]
-                    p_wts = [(max(0., d['P_WT']/100 - d_press_wt)) for d in a_list]
+                    p_wts = [(max(0., d['P_WT']/100. - d_press_wt)) for d in a_list]
                     # scalo di fattore 100
-                    p_epms =[max(0., d['P_EPB']/100 - d_press) for d in a_list]
+                    p_epms =[max(0., d['P_EPB']/100. - d_press) for d in a_list]
                     # scalo di fattore 100
-                    p_tamezs=[max(0., d['P_TAMEZ']/100 - d_press) for d in a_list]
-                    cobs =[max(0., d['COB']/100 - d_press) for d in a_list]
+                    p_tamezs=[max(0., d['P_TAMEZ']/100. - d_press) for d in a_list]
+                    cobs =[max(0., d['COB']/100. - d_press) for d in a_list]
                     # scalo di fattore 100
-                    blowups =[max(0., d['BLOWUP']/100 - d_press) for d in a_list]
+                    blowups =[max(0., d['BLOWUP']/100. - d_press) for d in a_list]
                     # amplifico di fattore 100
-                    volume_losss =[d['VOLUME_LOSS']*100 for d in a_list]
+                    volume_losss =[d['VOLUME_LOSS']*100. for d in a_list]
                     k_pecks =[d['K_PECK'] for d in a_list]
                     # amplifico di fattore 1000
-                    max_settlements =[d['SETTLEMENT_MAX']*1000 for d in a_list]
+                    max_settlements =[d['SETTLEMENT_MAX']*1000. for d in a_list]
+                    tilts =[d['TILT_MAX']*1000. for d in a_list]
+                    epshs =[d['EPS_H_MAX']*1000. for d in a_list]
+                    consolidations =[d['CONSOLIDATION_VALUE'] for d in a_list]
+                    sensibilities =[d['SENSIBILITY'] for d in a_list]
+                    damages =[d['DAMAGE_CLASS'] for d in a_list]
+                    vulnerabilities =[d['VULNERABILITY'] for d in a_list]
+
                     # plot
                     fig = plt.figure()
                     fig.set_size_inches(12, 3.54)
@@ -216,7 +225,7 @@ def plot_data(bAuthenticate, sPath):
                     ticks = np.arange(start, stop + .5, .5)
                     ax.set_yticks(ticks)
                     #ax.grid(True)
-                    plt.legend()
+                    #plt.legend()
                     #fig.set_dpi(1600)
                     outputFigure(sPath, ("profilo_pressioni_%s.svg" % sCode))
                     logger.info("profilo_pressioni.svg plotted in %s" % sPath)
@@ -247,7 +256,7 @@ def plot_data(bAuthenticate, sPath):
                     plt.axis([max(pks),min(pks),y_min,y_max])
                     plt.xticks(pkxticks, pklabel, rotation='vertical')
                     ax = plt.gca()
-                    my_aspect = 50./(abs(y_max-y_min)/9.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    my_aspect = 50./(abs(y_max-y_min)/4.5) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
                     ax.set_aspect(my_aspect)
                     start, stop = ax.get_ylim()
                     ticks = np.arange(start, stop + 5., 5.)
@@ -258,6 +267,103 @@ def plot_data(bAuthenticate, sPath):
                     outputFigure(sPath, ("profilo_cedimenti_%s.svg" % sCode))
                     logger.info("profilo_cedimenti.svg plotted in %s" % sPath)
                     plt.show()
+
+                    plt.plot(pks,tilts, label='BETA (0/00)')
+                    plt.plot(pks,epshs, label='EPS_H (0/00)')
+                    y_min = 0. # math.floor(min(max_settlements))-1. 
+                    y_max = 3.5 # math.ceil(max(max_settlements))+1. 
+                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    my_aspect = 50./(abs(y_max-y_min)/4.5) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    ax.set_aspect(my_aspect)
+                    start, stop = ax.get_ylim()
+                    ticks = np.arange(start, stop + .5, .5)
+                    ax.set_yticks(ticks)
+                    #ax.grid(True)
+                    #plt.legend()
+                    #fig.set_dpi(1600)
+                    outputFigure(sPath, ("profilo_distorsioni_%s.svg" % sCode))
+                    logger.info("profilo_distorsioni.svg plotted in %s" % sPath)
+                    plt.show()
+
+                    plt.plot(pks,sensibilities, label='SENSIBILITY (1-3)')
+                    y_min = -0.5 
+                    y_max = 3.5  
+                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    ax.set_aspect(my_aspect)
+                    #start, stop = ax.get_ylim()
+                    #ticks = np.arange(start, stop + 1., 1.)
+                    ticks =[0., 1., 2., 3.]
+                    ax.set_yticks(ticks)
+                    #ax.grid(True)
+                    #plt.legend()
+                    #fig.set_dpi(1600)
+                    outputFigure(sPath, ("profilo_sensibilita_%s.svg" % sCode))
+                    logger.info("profilo_sensibilita.svg plotted in %s" % sPath)
+                    plt.show()
+
+                    plt.plot(pks,damages, label='DAMAGE CLASS (1-3)')
+                    y_min = -0.5 
+                    y_max = 3.5  
+                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    ax.set_aspect(my_aspect)
+                    #start, stop = ax.get_ylim()
+                    #ticks = np.arange(start, stop + 1., 1.)
+                    ticks =[0., 1., 2., 3.]
+                    ax.set_yticks(ticks)
+                    #ax.grid(True)
+                    #plt.legend()
+                    #fig.set_dpi(1600)
+                    outputFigure(sPath, ("profilo_danni_%s.svg" % sCode))
+                    logger.info("profilo_danni.svg plotted in %s" % sPath)
+                    plt.show()
+
+                    plt.plot(pks,vulnerabilities, label='VULNERABILITY (1-3)')
+                    y_min = -0.5 
+                    y_max = 3.5  
+                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    ax.set_aspect(my_aspect)
+                    #start, stop = ax.get_ylim()
+                    #ticks = np.arange(start, stop + 1., 1.)
+                    ticks =[0., 1., 2., 3.]
+                    ax.set_yticks(ticks)
+                    #ax.grid(True)
+                    #plt.legend()
+                    #fig.set_dpi(1600)
+                    outputFigure(sPath, ("profilo_vulnerabilita_%s.svg" % sCode))
+                    logger.info("profilo_vulnerabilita.svg plotted in %s" % sPath)
+                    plt.show()
+
+                    plt.plot(pks,consolidations, label='CONSOLIDATION (0-1)')
+                    y_min = -0.3 
+                    y_max = 1.3  
+                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    my_aspect = 50./(abs(y_max-y_min)/1.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    ax.set_aspect(my_aspect)
+                    #start, stop = ax.get_ylim()
+                    #ticks = np.arange(start, stop + 1., 1.)
+                    ticks =[0., 1.]
+                    ax.set_yticks(ticks)
+                    #ax.grid(True)
+                    #plt.legend()
+                    #fig.set_dpi(1600)
+                    outputFigure(sPath, ("profilo_consolidamenti_%s.svg" % sCode))
+                    logger.info("profilo_consolidamenti.svg plotted in %s" % sPath)
+                    plt.show()
+
+
                     logger.info("plot_data terminated!")
     else:
         logger.error("Authentication failed")

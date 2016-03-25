@@ -830,8 +830,10 @@ class Alignment(BaseSmtModel):
 #                if fCob>p_max:
                 if p_tamez>p_max:
                     consolidation="front"
+                    consolidation_value = 1.
                 else:
                     consolidation="none"
+                    consolidation_value = 0.
                 
                 # p_tbm=min(p_max, round(p_tamez/10.)*10., round(fCob/10.)*10., round(fBlowUp/10.)*10.)
                 p_tbm=min(p_max, round(p_tamez/10.)*10.)
@@ -852,10 +854,16 @@ class Alignment(BaseSmtModel):
                 gt=gap_tail(ui_tail, tail_skin_thickness, delta)
                 gap=gf+gs+gt
                 eps0_base=volume_loss(gap, r_excav)
-                s_max_base = uz_laganathan(eps0_base, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
+                s_max_pk_base = uz_laganathan(eps0_base, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
                 k_peck = k_eq(r_excav, depth_tun, beta_tun)
                 buff = 3.*k_peck*depth_tun
-                
+
+                sensibility_pk = 0.
+                damage_class_pk = 0.
+                damage_class_pk_base = 0.
+                vulnerability_pk = 0.
+                vulnerability_pk_base = 0.
+
                 #"""
                 if "BUILDINGS" in self.item:
                     for idx,  b in enumerate(align.BUILDINGS):
@@ -938,7 +946,11 @@ class Alignment(BaseSmtModel):
                         n_found=self.assign_parameter(b.bldg_code, "tilt_max_base",  beta_max_ab_b)
                         n_found=self.assign_parameter(b.bldg_code, "esp_h_max_base",  esp_h_max_ab_b)
                         self.logger.debug("\t\tp_tbm_base = %f, s_max_ab_base = %f, beta_max_ab_base = %f, esp_h_max_ab_base = %f, vul_base = %f" % (p_tbm_base, s_max_ab_b, beta_max_ab_b, esp_h_max_ab_b, vulnerability_class_b))
-
+                        
+                        # aggiorno i parametri di base della pk
+                        sensibility_pk = max(sensibility_pk, b.sc_lev)
+                        damage_class_pk_base = max(damage_class_pk_base, damage_class_b)
+                        vulnerability_pk_base = max(vulnerability_pk_base, vulnerability_class_b)                        
                         # da qui refactor on parameter min vs actual
                         while True :
                             # calcolo gap e volume perso
@@ -976,6 +988,7 @@ class Alignment(BaseSmtModel):
                         if vulnerability_class > 2:
                             if consolidation == "none":
                                 consolidation = b.bldg_code
+                                consolidation_value = 1.
                             else:
                                 consolidation += ";" + b.bldg_code
                         self.item["BUILDINGS"][idx]["vulnerability"] = vulnerability_class
@@ -990,6 +1003,11 @@ class Alignment(BaseSmtModel):
                         n_found=self.assign_parameter(b.bldg_code, "tilt_max",  beta_max_ab)
                         n_found=self.assign_parameter(b.bldg_code, "esp_h_max",  esp_h_max_ab)
                         # fin qui refactor on parameter min vs actual
+                        
+                        # aggiorno i valori massimi della pk
+                        damage_class_pk = max(damage_class_pk, damage_class)
+                        vulnerability_pk = max(vulnerability_pk, vulnerability_class)                        
+
 
                        #, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab)
                         # print "%d %d %s" %(n_found, align.PK, b.bldg_code )
@@ -1010,13 +1028,21 @@ class Alignment(BaseSmtModel):
                 gap=gf+gs+gt
                 eps0=volume_loss(gap, r_excav)
 
+                # calcolo cedimento massimo in asse, beta max e esps_h max al greenfield
+                s_max_pk = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
+                x_min = -2.5*depth_tun
+                x_max = - x_min
+                step = (x_max-x_min) / 1000.
+                beta_max_pk = abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, 0.))
+                esp_h_max_pk = abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, 0.))
+                for i in range(1, 1000):
+                    beta_max_pk = max(beta_max_pk, abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, 0.)))
+                    esp_h_max_pk = max(esp_h_max_pk, abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, 0.)))
 
-                # calcolo cedimento massimo in asse
-                s_max = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
                 s_calc = 0.
                 sett_list=[]
                 # qui inizializzo con il SETTLEMENT_MAX
-                sett_list.append({"code":0., "value":s_max})
+                sett_list.append({"code":0., "value":s_max_pk})
                 for fstep in [2., 4., 6., 8., 10., 12., 15., 20., 25., 30., 35., 40., 45., 50., 75.]:
                     # qui il calcolo del SETTLEMENT per lo step corrente
                     # uz_laganathan(eps0, R, H, nu, beta, x, z)
@@ -1034,11 +1060,26 @@ class Alignment(BaseSmtModel):
                 self.item["VOLUME_LOSS"] = eps0
                 self.item["VOLUME_LOSS_BASE"] = eps0_base
                 self.item["K_PECK"] = k_peck
-                self.item["SETTLEMENT_MAX"] = s_max
-                self.item["SETTLEMENT_MAX_BASE"] = s_max_base
+                self.item["SETTLEMENT_MAX"] = s_max_pk
+                self.item["TILT_MAX"] = beta_max_pk
+                self.item["EPS_H_MAX"] = esp_h_max_pk
                 self.item["SETTLEMENTS"] = sett_list
                 if consolidation != "none":
                     self.item["CONSOLIDATION"] = consolidation
+                self.item["CONSOLIDATION_VALUE"] = consolidation_value
+                self.item["SENSIBILITY"] = sensibility_pk
+                self.item["DAMAGE_CLASS"] = damage_class_pk
+                self.item["VULNERABILITY"] = vulnerability_pk
+                self.item["DAMAGE_CLASS_BASE"] = damage_class_pk_base
+                self.item["VULNERABILITY_BASE"] = vulnerability_pk_base
+                """
+                sensibility_pk = 0.
+                damage_class_pk = 0.
+                damage_class_pk_base = 0.
+                vulnerability_pk = 0.
+                vulnerability_pk_base = 0.
+
+                """
 
                 self.logger.debug("\tAnalisi di volume perso")
                 self.logger.debug("\tParametri geomeccanici mediati:")
@@ -1049,7 +1090,7 @@ class Alignment(BaseSmtModel):
                 self.logger.debug("\t\t gap al fronte, gf =%f cm; gap sullo scudo, gs= %f cm; gap in coda,gt = %f cm" % (gf*100, gs*100, gt*100))
                 self.logger.debug("\tValore di volume perso, VL = %f percent con k di peck = %f" % (eps0*100, k_peck))
                 self.logger.debug("\tAnalisi cedimenti")
-                self.logger.debug("\t\tCedimento massimo in asse, s_max =%f mm con una pressione al fronte di %fKPa" % (s_max*1000, p_tbm))
+                self.logger.debug("\t\tCedimento massimo in asse, s_max_pk =%f mm con una pressione al fronte di %fKPa" % (s_max_pk*1000, p_tbm))
                 #self.project.p_safe_cob_kpa
                 self.logger.debug("\tExtra pressione minima, = %f kPa margine blowup = %f kPa" % (self.project.p_safe_cob_kpa, self.project.p_safe_blowup_kpa))
                 self.logger.debug("\tPressiona acqua, = %f kPa, pressione tamex = %f kPa" % (p_wt, p_tamez))
