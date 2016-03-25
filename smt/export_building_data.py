@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
 export_buildngs_data
 esporta il file CSV con i valori calcolati degli edifici
@@ -97,24 +98,38 @@ def export_buildings_data(authenticate, csv_path, shp_path):
     else:
         logged_in = True
     if logged_in:
+        dati = [{"field":"bldg_code", "csv_field":"ID_bati", "shp_field":"bldg_code", "multiplier":0},
+                {"field":"pk_min-tun", "csv_field":"PK début", "shp_field":"pk_min-tun", "multiplier":1},
+                {"field":"pk_max-tun", "csv_field":"PK fin", "shp_field":"pk_max-tun", "multiplier":1},
+                {"field":"d_min-tun", "csv_field":"Distance horizontale minimale à l'axe du tunnel", "shp_field":"d_min-tun", "multiplier":1},
+                {"field":"d_max-tun", "csv_field":"Distance horizontale maximale à l'axe du tunnel", "shp_field":"d_max-tun", "multiplier":1},
+                {"field":"pk_min-smi", "csv_field":"PK début", "shp_field":"pk_min-smi", "multiplier":1},
+                {"field":"pk_max-smi", "csv_field":"PK fin", "shp_field":"pk_max-smi", "multiplier":1},
+                {"field":"d_min-smi", "csv_field":"Distance horizontale minimale à l'axe du tunnel", "shp_field":"d_min-smi", "multiplier":1},
+                {"field":"d_max-smi", "csv_field":"Distance horizontale maximale à l'axe du tunnel", "shp_field":"d_max-smi", "multiplier":1},
+                {"field":"sc_lev", "csv_field":"Classe de sensibilité", "shp_field":"sc_lev", "multiplier":1},
+                {"field":"damage_class", "csv_field":"Classe de dommage", "shp_field":"dmg_cls", "multiplier":1},
+                {"field":"vulnerability", "csv_field":"Vulnérablité", "shp_field":"vuln", "multiplier":1},
+                {"field":"settlement_max", "csv_field":"Settlement max", "shp_field":"sett_max", "multiplier":1000},
+                {"field":"tilt_max", "csv_field":"Tilt max", "shp_field":"tilt_max", "multiplier":1000},
+                {"field":"esp_h_max", "csv_field":"Esp h max", "shp_field":"esph_max", "multiplier":1000},
+                {"field":"damage_class_base", "csv_field":"Classe de dommage base", "shp_field":"dmg_cls_b", "multiplier":1},
+                {"field":"vulnerability_base", "csv_field":"Vulnérablité base", "shp_field":"vuln_b", "multiplier":1},
+                {"field":"settlement_max_base", "csv_field":"Settlement max base", "shp_field":"sett_max_b", "multiplier":1000},
+                {"field":"tilt_max_base", "csv_field":"Tilt max base", "shp_field":"tilt_max_b", "multiplier":1000},
+                {"field":"esp_h_max_base", "csv_field":"Esp h max base", "shp_field":"esph_max_b", "multiplier":1000}]
        # EXPORT BUILDINGS CALCULATED DATA
         with open(csv_path, 'wb') as out_csvfile:
             writer = csv.writer(out_csvfile, delimiter=";")
-            header = ["bldg_code", "vulnerability", "sc_lev", "damage_class",
-                      "settlement_max", "tilt_max", "esp_h_max"]
-            writer.writerow(header)
-            bcurr = Building.find(mongodb, {"$or":[{"vulnerability":{"$exists":True}},
-                                                   {"sc_lev":{"$exists":True}},
-                                                   {"damage_class":{"$exists":True}},
-                                                   {"settlement_max":{"$exists":True}},
-                                                   {"tilt_max":{"$exists":True}},
-                                                   {"esp_h_max":{"$exists":True}}]})
+            writer.writerow([x["csv_field"] for x in dati])
+            bcurr = Building.find(mongodb, {"PK_INFO":{"$exists":True}})
             if bcurr.count == 0:
-                logger.error("No Buildings with useful data found!")
+                logger.error("No Buildings found!")
             else:
                 shape_data = open_shapefile(shp_path, logger)
                 if shape_data:
-                    layer = append_fields_to_shapefile(shape_data, header[1:], logger)
+                    layer = append_fields_to_shapefile(shape_data,
+                                                       [x["shp_field"] for x in dati[1:]], logger)
                 for item in bcurr:
                     building = Building(mongodb, item)
                     building.load()
@@ -125,13 +140,23 @@ def export_buildings_data(authenticate, csv_path, shp_path):
                             logger.warn("No feature with bldg_code %s found", bldg_code)
                     logger.debug("Processing building %s", bldg_code)
                     row = []
-                    for field in header:
-                        field_value = building.item.get(field, None)
+                    for dato in dati:
+                        if dato["field"] == "bldg_code":
+                            field_value = building.item["bldg_code"]
+                        elif dato["field"].split("_", 1)[0] in ["d", "pk"]:
+                            field, align = dato["field"].split("-", 1)
+                            pk_array = building.item["PK_INFO"]["pk_array"]
+                            if align == "smi":
+                                field_value = next((l[field] for l in pk_array if l['pk_min'] > 2150000), None)
+                            else:
+                                field_value = next((l[field] for l in pk_array if l['pk_min'] < 2150000), None)
+                        else:
+                            field_value = building.item.get(dato["field"], 0) * dato["multiplier"]
                         row.append(str(field_value))
-                        if bldg_feature and field_value and field != "bldg_code":
+                        if bldg_feature and field_value and dato["field"] != "bldg_code":
                             logger.debug("Trying to set field %s of building %s to value %0.10f",
-                                         field[:10], bldg_code, field_value)
-                            bldg_feature.SetField(field[:10], field_value)
+                                         dato["shp_field"][:10], bldg_code, field_value)
+                            bldg_feature.SetField(dato["shp_field"][:10], field_value)
                     writer.writerow(row)
                     if layer and bldg_feature:
                         layer.SetFeature(bldg_feature)
