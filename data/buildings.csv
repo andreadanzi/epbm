@@ -1,3 +1,0 @@
-file_name;bldg_code;parcel;bldg_no;sc_lev;z_dem;z_top_tun;overburden_tun_dem;depth_fondation;z_fondation;overburden_tun_bldg;d_min_range;angle_bldg_tun;stories_underground_no;stories_overground_no;nb_de_niveaux;lift_no;footprint;height_overground;comments;pk_min;pk_max;d_min;d_max
-94028BC0310_01_SEN_ind01.pdf;94028BC0310_01;94028BC0310;1;2;35;26;9;3;32;6;0m < D <= 10m;<30;1;2;0;1;70 X 32;10;;2122505;2122585;5;45
-pippo.pdf;94028BC0310_01;94028BC0310;1;2;35;26;9;3;32;6;0m < D <= 10m;<30;1;2;0;1;70 X 32;10;;2123505;2123585;5;45
