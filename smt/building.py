@@ -31,6 +31,7 @@ class Building(BaseSmtModel):
         self.item["DAMAGE_LIMITS"] = class_array
         #Gabriele@20160330 Vibration analysis
         # per il momento uso la sensibilita' generale dell'edificio
+        sensibility = self.item["sc_vbr_lev"]
         ccurr = self.db.VibrationClass.find({"sc_lev":sensibility}).sort("dc_lev")
         class_array = []
         for c in ccurr:

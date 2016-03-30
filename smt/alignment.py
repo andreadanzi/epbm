@@ -986,7 +986,11 @@ class Alignment(BaseSmtModel):
                         n_found=self.assign_parameter(b.bldg_code, "esp_h_max",  esp_h_max_ab)
                         
                         #Gabriele@20160330 Vibration analysis
-                        distance = math.sqrt(x_min**2+(copertura-z)**2)
+                        if x_min*x_max <0:
+                            distance = copertura-z
+                        else:
+                            ddd = min(abs(x_min), abs(x_max))
+                            distance = math.sqrt(ddd**2+(copertura-z)**2)
                         vibration_speed_mm_s= vibration_speed_Boucliers(distance)
                         vulnerability_class_vibration = 0.
                         damage_class_vibration = 0.
