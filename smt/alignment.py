@@ -987,7 +987,10 @@ class Alignment(BaseSmtModel):
                         
                         #Gabriele@20160330 Vibration analysis
                         if x_min*x_max <0:
-                            distance = copertura-z
+							distance = copertura-z
+							if distance < 1.:
+								distance = 1.
+								self.logger.error("\Struttura %s in collisione con tunnel alla pk %f" % (b.bldg_code,align.PK))
                         else:
                             ddd = min(abs(x_min), abs(x_max))
                             distance = math.sqrt(ddd**2+(copertura-z)**2)
