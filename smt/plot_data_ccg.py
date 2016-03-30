@@ -165,7 +165,7 @@ def plot_data(bAuthenticate, sPath):
                     sCode = a_set.item["code"]
                     als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"P_TAMEZ":True,"COB":True,"P_EPB":True,"P_WT":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, \
                     "TILT_MAX":True, "EPS_H_MAX":True, "VOLUME_LOSS":True, "K_PECK":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True, "SENSIBILITY":True, "DAMAGE_CLASS":True, "VULNERABILITY":True,  \
-                    "CONSOLIDATION_VALUE":True}).sort("PK", 1)
+                    "CONSOLIDATION_VALUE":True, "gamma_face":True, "gamma_tun":True}).sort("PK", 1)
                     a_list = list(als)
                     pks = []
                     pklabel = []
@@ -205,8 +205,31 @@ def plot_data(bAuthenticate, sPath):
                     sensibilities =[d['SENSIBILITY'] for d in a_list]
                     damages =[d['DAMAGE_CLASS'] for d in a_list]
                     vulnerabilities =[d['VULNERABILITY'] for d in a_list]
+                    young_tuns =[d['gamma_tun'] for d in a_list]
+                    young_faces =[d['gamma_face'] for d in a_list]
 
                     # plot
+                    fig = plt.figure()
+                    fig.set_size_inches(12, 3.54)
+                    plt.plot(pks,young_tuns, label='E_TUN - GPa')
+                    plt.plot(pks,young_faces, label='E_FACE - GPa')
+                    y_min = math.floor(min(min(young_tuns),min(young_faces))/1.)*1. 
+                    y_max = math.ceil(max(max(young_tuns),max(young_faces))/1.)*1. 
+                    my_aspect = 50./(abs(y_max-y_min)/9.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    ax.set_aspect(my_aspect)
+                    start, stop = ax.get_ylim()
+                    ticks = np.arange(start, stop + 1., 1.)
+                    ax.set_yticks(ticks)
+                    #ax.grid(True)
+                    plt.legend()
+                    #fig.set_dpi(1600)
+                    outputFigure(sPath, ("profilo_young_%s.svg" % sCode))
+                    logger.info("profilo_young.svg plotted in %s" % sPath)
+                    plt.show()
+
                     fig = plt.figure()
                     fig.set_size_inches(12, 3.54)
                     #plt.plot(pks,cobs, label='COB - bar')
@@ -225,12 +248,12 @@ def plot_data(bAuthenticate, sPath):
                     ticks = np.arange(start, stop + .5, .5)
                     ax.set_yticks(ticks)
                     #ax.grid(True)
-                    #plt.legend()
+                    plt.legend()
                     #fig.set_dpi(1600)
                     outputFigure(sPath, ("profilo_pressioni_%s.svg" % sCode))
                     logger.info("profilo_pressioni.svg plotted in %s" % sPath)
                     plt.show()
-
+                    """
                     plt.plot(pks,volume_losss, label='VL percent')
                     plt.plot(pks,k_pecks, label='k peck')
                     y_min = math.floor(min(min(volume_losss), min(k_pecks))/.05)*.05-.05 
@@ -362,7 +385,7 @@ def plot_data(bAuthenticate, sPath):
                     outputFigure(sPath, ("profilo_consolidamenti_%s.svg" % sCode))
                     logger.info("profilo_consolidamenti.svg plotted in %s" % sPath)
                     plt.show()
-
+                    """
 
                     logger.info("plot_data terminated!")
     else:

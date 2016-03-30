@@ -58,12 +58,19 @@ def process_calc(bAuthenticate):
                     a_set = AlignmentSet(db, aset)
                     a_set.load()
                     #sCode = a_set.item["code"]
-                    als = Alignment.find(db, {"alignment_set_id":a_set._id})
+                    als = Alignment.find(db, {"alignment_set_id":a_set._id}).sort("PK", 1)
+                    cnt = 0.
+                    cnt_tot = als.count()
                     for al in als:
                         a = Alignment(db, al)
                         a.setProject(p.item)
                         a.load()
+                        cnt+=1.
+                        
+                        sys.stdout.write("\r{:5s} pk= {:.0f} progress= {:.0%}".format(a_set.item["code"], a.item["PK"], cnt/cnt_tot ))
+                        sys.stdout.flush()
                         a.perform_calc(str(datetime.now()))
+                        
     else:
         logger.error("Authentication failed")
 

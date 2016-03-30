@@ -103,5 +103,6 @@ for c in cr:
             a.load()
             a.assign_reference_strata()
             a.define_tun_param()
+            a.define_face_param()
             a.assign_buildings(a.define_buffer())
             

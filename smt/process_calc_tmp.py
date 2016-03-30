@@ -602,7 +602,6 @@ class Alignment(BaseSmtModel):
         phi_wg = 0.
         ci_wg = 0.
         wg_tot = 0.
-        th_tot = 0.
         for ref_stratus in ref_strata:
             if ref_stratus.POINTS.top.coordinates[2] > z_base - r_excav:
                 z_max = ref_stratus.POINTS.top.coordinates[2]
@@ -610,15 +609,14 @@ class Alignment(BaseSmtModel):
                 z_avg = (z_max+z_min)/2.
                 dist = abs(z_avg-z_tun)
                 th = max(0., z_max-z_min)
-                th_tot += th
                 wg = th * 2.*r_excav/max(2.*r_excav, dist)
-                gamma_wg += th * ref_stratus.PARAMETERS.inom
+                gamma_wg += wg * ref_stratus.PARAMETERS.inom
                 young_wg += wg * ref_stratus.PARAMETERS.etounnel
                 nu_wg += wg * ref_stratus.PARAMETERS.n
                 phi_wg += wg * ref_stratus.PARAMETERS.phi_tr
                 ci_wg += wg * ref_stratus.PARAMETERS.c_tr
                 wg_tot += wg
-        gamma_tun = gamma_wg/ th_tot
+        gamma_tun = gamma_wg/wg_tot
         young_tun = 1000.*young_wg/wg_tot
         nu_tun = nu_wg/wg_tot
         phi_tun = phi_wg/wg_tot
@@ -632,6 +630,7 @@ class Alignment(BaseSmtModel):
         self.item["beta_tun"]=beta_tun
         self.save()
         return retVal
+
 
     def define_face_param(self):
         retVal = "XXX"
@@ -672,7 +671,6 @@ class Alignment(BaseSmtModel):
         self.item["ci_face"]=ci_face
         self.save()
         return retVal
-
 
     def define_buffer(self):
         buff = 0.
@@ -783,11 +781,22 @@ class Alignment(BaseSmtModel):
                 # pressione falda in asse tunnel
                 p_wt = max(0., (z_wt-z_tun)*9.81)
 
-                gamma_face =self.item["gamma_face"]
+                # parametri relativi all'estrusione del fronte (k0, modulo di young, coesione e attrito)
+                # come media sull'altezza del fronte piu' mezzo raggio sopra e sotto
+                gamma_face = self.item["gamma_face"]
                 k0_face = self.item["k0_face"]
                 young_face = self.item["young_face"]
                 ci_face = self.item["ci_face"]
                 phi_face = self.item["phi_face"]
+
+                # parametri geomeccanici relativi al cavo, utilizzati sia per il calcolo volume perso lungo lo scudo,
+                # che per il calcolo della curva dei cedimenti. I parametri sono:
+                # young_tun, nu_tun, phi_tun
+                # sono calcolati come media pesata sullo spessore e sulla distanza dello strato dall'asse della galleria
+                # il peso e' dato dallo spessore * coeff_d
+                # coeff_d = 2.*r_excav/(max(2.*r_excav, dist) [vale 1 fino a distanze di 2 raggi di scavo e poi va a diminuire
+                # dist = distanza tra il baricentro dello strato considerato e l'asse del tunnel
+                # prendo in considerazione tutti gli strati con top superiore a z_tun meno un diametro
                 gamma_tun = self.item["gamma_tun"]
                 young_tun = self.item["young_tun"]
                 nu_tun = self.item["nu_tun"]
@@ -796,13 +805,11 @@ class Alignment(BaseSmtModel):
                 beta_tun = self.item["beta_tun"]
 
                 # calcolo pressione minima secondo tamez
-                # p_min_tamez(H, z_wt, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_face_deg, D, a, req_safety_factor, additional_pressure)
-                W = z_dem-align.FALDA.coordinates[2]
+                # p_min_tamez(H, z_wt, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_face_deg, D, a, req_safety_factor, additional_pressure, gamma_muck)
+                water_depth = z_dem - align.FALDA.coordinates[2]
                 a =align.TBM.shield_length
-                tamez_safety_factor = 1.3
-                p_tamez = p_min_tamez(copertura, W, gamma_tun, ci_tun, phi_tun, gamma_face, ci_face, phi_face, k0_face, 2*r_excav, a, tamez_safety_factor, self.project.p_safe_cob_kpa, gamma_muck)
-#                p_tamez = p_min_tamez(copertura, W, gamma_face, ci_face, phi_face, gamma_face, ci_face, phi_face, 2*r_excav, a, tamez_safety_factor, self.project.p_safe_cob_kpa, gamma_muck)
-#                p_tamez = p_min_tamez(copertura, W, gamma_tun, ci_tun, phi_tun, gamma_tun, ci_tun, phi_tun, 2*r_excav, a, tamez_safety_factor, self.project.p_safe_cob_kpa, gamma_muck)
+                safety_factor_tamez = 2.
+                p_tamez = p_min_tamez(copertura, water_depth, gamma_tun, ci_tun, phi_tun, gamma_face, ci_face, phi_face, 2*r_excav, a,safety_factor_tamez, self.project.p_safe_cob_kpa, gamma_muck)
 
                 # pressione al fronte
                 p_max = min(round(align.TBM.pressure_max/10.)*10., round(fBlowUp/10.)*10.)
@@ -835,16 +842,13 @@ class Alignment(BaseSmtModel):
                 # p_tbm=min(p_max, round(p_tamez/10.)*10., round(fCob/10.)*10., round(fBlowUp/10.)*10.)
                 p_tbm=min(p_max, round(p_tamez/10.)*10.)
                 p_tbm = max(p_tbm, 170.)
-                
-                #p_tbm = round(p_wt/10.)*10. + 50.
-                
                 p_tbm_base = p_tbm
                 p_tbm_shield = max(p_tbm*.75, p_wt)
                 p_tbm_shield_base = p_tbm_shield
                 # calcolo iniziale per greenfield
-                gf=gap_front(p_tbm_base, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
+                gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
                 # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
-                #ui_shield = .5*2.*ur_max(s_v, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                #ui_shield = .5*2.*ur_max(s_v, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
                 ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v, nu_tun, young_tun, r_excav)
                 # gap_shield(ui, shield_taper, cutter_bead_thickness)
                 gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
@@ -864,7 +868,7 @@ class Alignment(BaseSmtModel):
                 vulnerability_pk = 0.
                 vulnerability_pk_base = 0.
 
-#                """
+                """
                 if "BUILDINGS" in self.item:
                     for idx,  b in enumerate(align.BUILDINGS):
                         self.logger.debug("\tAnalisi edificio %s con classe di sensibilita' %s" % (b.bldg_code, b.sc_lev))
@@ -914,7 +918,7 @@ class Alignment(BaseSmtModel):
                         # calcolo gap e volume perso
                         gf=gap_front(p_tbm_base, p_wt, s_v_bldg, k0_face, young_face, ci_face, phi_face, r_excav)
                         #ui_shield = .5*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
-                        ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)
+                        ui_shield = u_tun(p_tbm_shield, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)
                         gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
                         ui_tail = max(0., .5*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
                         gt=gap_tail(ui_tail, tail_skin_thickness, delta)
@@ -984,7 +988,6 @@ class Alignment(BaseSmtModel):
                                 break
                             else:
                                 p_tbm += 10.
-                                p_tbm_shield = max(p_tbm*.75, p_wt)
 
                         if vulnerability_class > 2:
                             if consolidation == "none":
@@ -1013,7 +1016,7 @@ class Alignment(BaseSmtModel):
                        #, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab)
                         # print "%d %d %s" %(n_found, align.PK, b.bldg_code )
                         self.logger.debug("\t\tp_tbm = %f, s_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f" % (p_tbm, s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class))
-#                """
+                """
                 
                 # calcolo finale per greenfield
                 gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)

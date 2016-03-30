@@ -36,71 +36,110 @@ def cob_step_2(z_ref, ref_stratus,sigma_v,z_wt, z_tun, gamma_muck,  p_safety_cob
 
 # calcolo pressione minima di supporto secondo Tamez
 # H è copertura netta
-# z_wt e' la profondita' della falda dal piano campagna
+# W e' la distanza tra la falda e il piano di campagna
 # gamma_tun, ci_tun, phi_tun_deg i valori degli strati di copertura (angoli in gradi)
 # gamma_face, ci_face, phi_face_deg i valori degli strati al fronte (angoli in gradi)
 # D e' il diametro di scavo
 # a è la lunghezza non supportata che per EPM/slurry coincide con la lunghezza dello scudo
 # attenzione che in questa formulazione tutto e'riferito alla calotta, non all'asse
 # req_safety_factor e' il fattore di sicurezza richiesto, generalmente 1.5
-def p_min_tamez(H, z_wt, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_face_deg, D, a, req_safety_factor, additional_pressure, gamma_muck):
+# prendo k0 e ka dalla faccia del tunnel
+def p_min_tamez(H, W, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_face_deg, k0_face, D, a, req_safety_factor, additional_pressure, gamma_muck):
     p_min = 0.
     H_D = H/D
     phi_tun = math.radians(phi_tun_deg)
     phi_face = math.radians(phi_face_deg)
     theta = math.radians(45.-phi_face_deg/2.)
+    k0 = k0_face
+    ka = (1.- math.sin(phi_face))/(1.+math.sin(phi_face))
     # Lp e' la lunghezza del prisma di spinta lungo l'ase della galleria
     Lp = D*math.tan(theta)
     # Hp e' l'altezza del carico agente in calotta
-    # generalmente pari alla copertura a meno di gallerie profonde H/D > 5
-    # coefficienti k0 e ka semplificati in base alla coperutra
+    # generalmente pari alla copertura a meno di gallerie profonde H/D > 5 --- sbagliato secondo ccg
     if H_D > 5.:
-        k0 = 1.
-        ka = 1.
         Hp = 1.7 * D
-        if z_wt<H:
-            tau_m_2 = ci_tun+k0/2.*(((z_wt*gamma_tun)+(H-Hp-z_wt)*(gamma_tun-9.81))+3.4*ci_face/math.sqrt(ka)-(gamma_face-9.81)*D/2.)
-            tau_m_3 = ci_tun+(0.25*((z_wt*gamma_tun)+(H-Hp-z_wt)*(gamma_tun-9.81))-z_wt*9.81)*math.tan(phi_tun)
-        else:
-            tau_m_2 = ci_tun+k0/2.*((H-Hp)*gamma_tun+3.4*ci_face/math.sqrt(ka))
-            tau_m_3 = ci_tun+(0.25*(H-Hp)*gamma_tun)*math.tan(phi_tun)
     else:
         Hp = H
-        if H_D < 3.:
-            k0 = .3
-            ka = .5
-        else:
-            k0 = .5
-            ka = .7
-        if z_wt<H:
-            tau_m_2 = ci_tun+k0/2.*(3.4*ci_face/math.sqrt(ka)-(gamma_face-9.81)*D/2.)
-        else:	
-            tau_m_2 = ci_tun+k0/2.*(3.4*ci_face/math.sqrt(ka))
+    
+    if Hp < H-W:
+        gamma_hp = (gamma_tun-9.81)*Hp
+    else:
+        gamma_hp = (Hp-H+W)*gamma_tun+(H-W)*(gamma_tun-9.81)
+    # gamma z generalizzato di tamez
+    u = (H-W)*9.81
+    gamma_D_2 = (gamma_tun-9.81)*D/2.
+    if W<0.:	
+        gamma_z = -W*9.81+H*(gamma_tun-9.81) # non mi torna prendere il sovraccarico dell'acqua come tensione efficace
+    elif W<H:
+        gamma_z = W*gamma_tun+(H-W)*(gamma_tun-9.81)
+    else:
+        gamma_z = H*gamma_tun
+        gamma_hp = Hp*gamma_tun
+        u = 0.
+        gamma_D_2 = gamma_tun*D/2.
+
+    if H_D > 3.:
+        tau_m_3 = ci_tun+max(0., (0.25*(gamma_z-gamma_hp)-u)*math.tan(phi_tun))
+        tau_m_2 = ci_tun+k0/2.*(max(0., gamma_z-gamma_hp)+3.4*ci_face/math.sqrt(ka)-gamma_D_2)
+    else:
         tau_m_3 = ci_tun
+        tau_m_2 = ci_tun+k0/2.*(3.4*ci_face/math.sqrt(ka)-gamma_D_2)
+    
+
+    
+    # coefficienti k0 e ka semplificati in base alla coperutra
+#    Hp = min(1.7 * D, H)
+#    if H_D > 5.:
+#        k0 = 1.
+#        ka = 1.
+#        Hp = 1.7 * D
+    # TODO CASO FALDA SOPRA DEM
+#        if W<H:
+#            tau_m_2 = ci_tun+k0/2.*(W*gamma_tun+(H-Hp-W)*(gamma_tun-9.81)+3.4*ci_face/math.sqrt(ka)-(gamma_face-9.81)*D/2.)
+#            tau_m_3 = ci_tun+(0.25*(W*gamma_tun+(H-Hp-W)*(gamma_tun-9.81))-(H-W)*9.81)*math.tan(phi_tun)
+#        else:
+#            tau_m_2 = ci_tun+k0/2.*((H-Hp)*gamma_tun+3.4*ci_face/math.sqrt(ka)-gamma_face*D/2.)
+#            tau_m_3 = ci_tun+(0.25*(H-Hp)*gamma_tun)*math.tan(phi_tun)
+#    else:
+##        Hp = H
+##        if H_D < 3.:
+##            k0 = .3
+##            ka = .5
+##        else:
+##            k0 = .5
+##            ka = .7
+#    # TODO CASO FALDA SOPRA DEM
+#        if W<H:
+#            tau_m_2 = ci_tun+k0/2.*(3.4*ci_face/math.sqrt(ka)-(gamma_face-9.81)*D/2.)
+#        else:	
+#            tau_m_2 = ci_tun+k0/2.*(3.4*ci_face/math.sqrt(ka)-gamma_face*D/2.)
+#        tau_m_3 = ci_tun
+#
+
     if phi_tun>0.:
-        fs_3 = ((2*tau_m_3)/(gamma_tun*H))*(Hp/D)*(1+D/a)
+        fs_3 = ((2*tau_m_3)/gamma_z)*(Hp/D)*(1+D/a)
         if fs_3 < req_safety_factor:
-            p_3 = (gamma_tun*H)-((2*tau_m_3)/req_safety_factor)*(Hp/D)*(1+D/a)
+            p_3 = gamma_z-((2*tau_m_3)/req_safety_factor)*(Hp/D)*(1+D/a)
         else:
             p_3 = 0.
             
-        fs_f=((2*(tau_m_2-tau_m_3)/(1+a/Lp)**2+2*tau_m_3)*(Hp/D)+(2*tau_m_3/((1+a/Lp)*math.sqrt(ka)))*(Hp/D)+3.4*ci_face/((1+a/Lp)**2*math.sqrt(ka)))/((1+2*D/(3*H*(1+a/Lp)**2))*(gamma_tun*H))
+        fs_f=((2*(tau_m_2-tau_m_3)/(1+a/Lp)**2+2*tau_m_3)*(Hp/D)+(2*tau_m_3/((1+a/Lp)*math.sqrt(ka)))*(Hp/D)+3.4*ci_face/((1+a/Lp)**2*math.sqrt(ka)))/((1+2*D/(3*H*(1+a/Lp)**2))*gamma_z)
         if fs_f < req_safety_factor:
-            p_f = (gamma_tun*H)-((2*(tau_m_2-tau_m_3)/(1+a/Lp)**2+2*tau_m_3)*(Hp/D)+(2*tau_m_3/((1+a/Lp)*math.sqrt(ka)))*(Hp/D)+3.4*ci_face/((1+a/Lp)**2*math.sqrt(ka)))/(req_safety_factor*(1+2*D/(3*H*(1+a/Lp)**2)))
+            p_f = gamma_z-((2*(tau_m_2-tau_m_3)/(1+a/Lp)**2+2*tau_m_3)*(Hp/D)+(2*tau_m_3/((1+a/Lp)*math.sqrt(ka)))*(Hp/D)+3.4*ci_face/((1+a/Lp)**2*math.sqrt(ka)))/(req_safety_factor*(1+2*D/(3*H*(1+a/Lp)**2)))
         else:
             p_f = 0.
     else:
-        fs_3 = ((2*ci_tun)/(gamma_tun*H))*((Hp/D)*(1+D/a))
+        fs_3 = ((2*ci_tun)/gamma_z)*((Hp/D)*(1+D/a))
         if fs_3 < req_safety_factor:
-            p_3 = (gamma_tun*H)-((2*ci_tun)/req_safety_factor)*((Hp/D)*(1+D/a))
+            p_3 = gamma_z-((2*ci_tun)/req_safety_factor)*((Hp/D)*(1+D/a))
         else:
             p_3 = 0.
-        fs_f=(2*ci_tun*(1+1/(1+a/D)*(D/D))*(Hp/D)+3.4*ci_face/(1+a/D)**2)/(gamma_tun*H*(1+2*D/(3*H*(1+a/D)**2)))
+        fs_f=(2*ci_tun*(1+1/(1+a/D)*(D/D))*(Hp/D)+3.4*ci_face/(1+a/D)**2)/(gamma_z*(1+2*D/(3*H*(1+a/D)**2)))
         if fs_f < req_safety_factor:
-            p_f = (gamma_tun*H)-(2*ci_tun*(1+1/(1+a/D)*(D/D))*(Hp/D)+3.4*ci_face/(1+a/D)**2)/(req_safety_factor*(1+2*D/(3*H*(1+a/D)**2)))
+            p_f = gamma_z-(2*ci_tun*(1+1/(1+a/D)*(D/D))*(Hp/D)+3.4*ci_face/(1+a/D)**2)/(req_safety_factor*(1+2*D/(3*H*(1+a/D)**2)))
         else:
             p_f = 0.
-    p_wt = max (0., (H-z_wt)*9.81+D/2.*gamma_muck) #*gamma_muck) # la riporto all'asse galeria
+    p_wt = max (0., max(0., (H-W)*9.81)+D/2.*gamma_muck) #*gamma_muck) # la riporto all'asse galeria
     p_min = max(p_3, p_f) + p_wt + additional_pressure
         
     return p_min
@@ -294,7 +333,13 @@ def ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_exc
     else:
         urplmax = 0.0
     return max(urplmax, uremax)
-  
+
+# velocita' di vibrazione secondo Buocliers
+# d e' la distanza in metri tra la fresa e la fondazione o l'elemento strutturale
+# estrapolata dal grafico logaritmico
+def vibration_speed_Boucliers(d):
+    vs=10.43*math.exp(d, -1.3825)
+    return vs
 
 """        
 def latLonToProjection(lat, lon, epsg):
