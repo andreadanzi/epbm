@@ -117,7 +117,10 @@ def export_buildings_data(authenticate, csv_path, shp_path):
                 {"field":"vulnerability_base", "csv_field":"Vulnérablité base", "shp_field":"vuln_b", "multiplier":1},
                 {"field":"settlement_max_base", "csv_field":"Settlement max base", "shp_field":"sett_max_b", "multiplier":1000},
                 {"field":"tilt_max_base", "csv_field":"Tilt max base", "shp_field":"tilt_max_b", "multiplier":1000},
-                {"field":"esp_h_max_base", "csv_field":"Esp h max base", "shp_field":"esph_max_b", "multiplier":1000}]
+                {"field":"esp_h_max_base", "csv_field":"Esp h max base", "shp_field":"esph_max_b", "multiplier":1000}, 
+                {"field":"damage_class_vibration", "csv_field":"Classe de dommage - Vibration", "shp_field":"dmg_cls_vbr", "multiplier":1},
+                {"field":"vulnerability_class_vibration", "csv_field":"Vulnérablité - Vibration", "shp_field":"vuln_vbr", "multiplier":1},
+                {"field":"vibration_speed_mm_s", "csv_field":"Vitessse de vibration", "shp_field":"vbr_speed", "multiplier":1}]
        # EXPORT BUILDINGS CALCULATED DATA
         with open(csv_path, 'wb') as out_csvfile:
             writer = csv.writer(out_csvfile, delimiter=";")

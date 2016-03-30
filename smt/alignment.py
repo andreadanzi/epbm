@@ -801,45 +801,28 @@ class Alignment(BaseSmtModel):
                 a =align.TBM.shield_length
                 tamez_safety_factor = 1.3
                 p_tamez = p_min_tamez(copertura, W, gamma_tun, ci_tun, phi_tun, gamma_face, ci_face, phi_face, k0_face, 2*r_excav, a, tamez_safety_factor, self.project.p_safe_cob_kpa, gamma_muck)
-#                p_tamez = p_min_tamez(copertura, W, gamma_face, ci_face, phi_face, gamma_face, ci_face, phi_face, 2*r_excav, a, tamez_safety_factor, self.project.p_safe_cob_kpa, gamma_muck)
-#                p_tamez = p_min_tamez(copertura, W, gamma_tun, ci_tun, phi_tun, gamma_tun, ci_tun, phi_tun, 2*r_excav, a, tamez_safety_factor, self.project.p_safe_cob_kpa, gamma_muck)
 
                 # pressione al fronte
-                p_max = min(round(align.TBM.pressure_max/10.)*10., round(fBlowUp/10.)*10.)
-#                p_tbm=0.
-#                if align.PK == 2128748:
-#                    p_tbm=400.
-#                elif align.PK == 2123208:
-#                    p_tbm=300.
-#                elif align.PK == 2127608:
-#                    p_tbm=300.
-#                elif align.PK == 2124508:
-#                    p_tbm=400.
-#                elif align.PK == 2123868:
-#                    p_tbm=400.
-#                elif align.PK == 2129098:
-#                    p_tbm=300.
-#                elif align.PK == 2126398:
-#                    p_tbm=300.
-#                else:
-#                    p_tbm=min(p_max, round(fCob/10.)*10., round(fBlowUp/10.)*10.)
-                # inizializzo la necessita' di consolidare
-#                if fCob>p_max:
-                if p_tamez>p_max:
-                    consolidation="front"
-                    consolidation_value = 1.
+                p_max = min(round(align.TBM.pressure_max/10.)*10., round(fBlowUp/10.)*10. -30.)
+                # forzo la pressione della macchina di massimo 0.5 bar oltre il limite
+                if p_tamez+30.> p_max:
+#                    consolidation="front"
+#                    consolidation_value = 1.
+                    p_max = min(p_tamez+30., align.TBM.pressure_max+50.)
+                    consolidation="none"
+                    consolidation_value = 0.
                 else:
                     consolidation="none"
                     consolidation_value = 0.
                 
                 # p_tbm=min(p_max, round(p_tamez/10.)*10., round(fCob/10.)*10., round(fBlowUp/10.)*10.)
-                p_tbm=min(p_max, round(p_tamez/10.)*10.)
+                p_tbm=min(p_max, round(p_tamez/10.)*10.+30.)
                 p_tbm = max(p_tbm, 170.)
                 
                 #p_tbm = round(p_wt/10.)*10. + 50.
                 
                 p_tbm_base = p_tbm
-                p_tbm_shield = max(p_tbm*.75, p_wt)
+                p_tbm_shield = max(p_tbm*1., p_wt)
                 p_tbm_shield_base = p_tbm_shield
                 # calcolo iniziale per greenfield
                 gf=gap_front(p_tbm_base, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
@@ -984,8 +967,7 @@ class Alignment(BaseSmtModel):
                                 break
                             else:
                                 p_tbm += 10.
-                                p_tbm_shield = max(p_tbm*.75, p_wt)
-
+                                p_tbm_shield = max(p_tbm*1., p_wt)
                         if vulnerability_class > 2:
                             if consolidation == "none":
                                 consolidation = b.bldg_code
@@ -997,12 +979,29 @@ class Alignment(BaseSmtModel):
                         self.item["BUILDINGS"][idx]["settlement_max"] = s_max_ab
                         self.item["BUILDINGS"][idx]["tilt_max"] = beta_max_ab
                         self.item["BUILDINGS"][idx]["esp_h_max"] = esp_h_max_ab
-                        # assign_vulnerability(self, bcode, param, value):
                         n_found=self.assign_parameter(b.bldg_code, "vulnerability",  vulnerability_class)
                         n_found=self.assign_parameter(b.bldg_code, "damage_class",  damage_class)
                         n_found=self.assign_parameter(b.bldg_code, "settlement_max",  s_max_ab)
                         n_found=self.assign_parameter(b.bldg_code, "tilt_max",  beta_max_ab)
                         n_found=self.assign_parameter(b.bldg_code, "esp_h_max",  esp_h_max_ab)
+                        
+                        #Gabriele@20160330 Vibration analysis
+                        distance = math.sqrt(x_min**2+(copertura-z)**2)
+                        vibration_speed_mm_s= vibration_speed_Boucliers(distance)
+                        vulnerability_class_vibration = 0.
+                        damage_class_vibration = 0.
+                        for dl in b.VIBRATION_LIMITS:
+                            if vibration_speed_mm_s<=dl.mm_s:
+                                vulnerability_class_vibration = dl.vc_lev
+                                damage_class_vibration = dl.dc_lev
+                                break
+                        self.item["BUILDINGS"][idx]["vulnerability_class_vibration"] = vulnerability_class_vibration
+                        self.item["BUILDINGS"][idx]["damage_class_vibration"] = damage_class_vibration
+                        self.item["BUILDINGS"][idx]["vibration_speed_mm_s"] = vibration_speed_mm_s
+                        n_found=self.assign_parameter(b.bldg_code, "vulnerability_class_vibration",  vulnerability_class_vibration)
+                        n_found=self.assign_parameter(b.bldg_code, "damage_class_vibration",  damage_class_vibration)
+                        n_found=self.assign_parameter(b.bldg_code, "vibration_speed_mm_s",  vibration_speed_mm_s)
+
                         # fin qui refactor on parameter min vs actual
                         
                         # aggiorno i valori massimi della pk

@@ -12,6 +12,7 @@ from building_class import BuildingClass
 from underground_structure_class import UndergroundStructureClass
 from underground_utility_class import UndergroundUtilityClass
 from overground_infrastructure_class import OvergroundInfrastructureClass
+from vibration_class import VibrationClass
 from domain import Domain
 from bson.objectid import ObjectId
 # create main logger
@@ -69,6 +70,7 @@ BuildingClass.ImportFromCSVFile("../data/building_class.csv", db)
 UndergroundStructureClass.ImportFromCSVFile("../data/underground_structure_class.csv", db)
 UndergroundUtilityClass.ImportFromCSVFile("../data/underground_utility_class.csv", db)
 OvergroundInfrastructureClass.ImportFromCSVFile("../data/overground_infrastructure_class.csv", db)
+VibrationClass.ImportFromCSVFile("../data/vibration_class.csv", db)
 bldgs = Building.find(db, {})
 for bl in bldgs:
     b = Building(db, bl)

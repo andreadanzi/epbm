@@ -334,11 +334,12 @@ def ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_exc
         urplmax = 0.0
     return max(urplmax, uremax)
 
+#Gabriele@20160330 Vibration analysis
 # velocita' di vibrazione secondo Buocliers
 # d e' la distanza in metri tra la fresa e la fondazione o l'elemento strutturale
 # estrapolata dal grafico logaritmico
 def vibration_speed_Boucliers(d):
-    vs=10.43*math.exp(d, -1.3825)
+    vs=10.43*d**(-1.3825)
     return vs
 
 """        
