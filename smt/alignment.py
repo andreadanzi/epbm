@@ -822,13 +822,13 @@ class Alignment(BaseSmtModel):
                 #p_tbm = round(p_wt/10.)*10. + 50.
                 
                 p_tbm_base = p_tbm
-                p_tbm_shield = max(p_tbm*1., p_wt)
+                p_tbm_shield = max(p_tbm-50., p_wt)
                 p_tbm_shield_base = p_tbm_shield
                 # calcolo iniziale per greenfield
                 gf=gap_front(p_tbm_base, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
                 # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
-                #ui_shield = .5*2.*ur_max(s_v, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
-                ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v, nu_tun, young_tun, r_excav)
+                ui_shield = .5*2.*ur_max(s_v, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                #ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v, nu_tun, young_tun, r_excav)
                 # gap_shield(ui, shield_taper, cutter_bead_thickness)
                 gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
                 ui_tail = max(0., .5*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
@@ -896,8 +896,8 @@ class Alignment(BaseSmtModel):
                         # primo calcolo di base con p_min
                         # calcolo gap e volume perso
                         gf=gap_front(p_tbm_base, p_wt, s_v_bldg, k0_face, young_face, ci_face, phi_face, r_excav)
-                        #ui_shield = .5*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
-                        ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)
+                        ui_shield = .5*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                        #ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)
                         gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
                         ui_tail = max(0., .5*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
                         gt=gap_tail(ui_tail, tail_skin_thickness, delta)
@@ -938,8 +938,8 @@ class Alignment(BaseSmtModel):
                         while True :
                             # calcolo gap e volume perso
                             gf=gap_front(p_tbm, p_wt, s_v_bldg, k0_face, young_face, ci_face, phi_face, r_excav)
-                            #ui_shield = .5*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
-                            ui_shield = u_tun(p_tbm_shield, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)
+                            ui_shield = .5*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                            #ui_shield = u_tun(p_tbm_shield, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)
                             gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
                             ui_tail = max(0., .5*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
                             gt=gap_tail(ui_tail, tail_skin_thickness, delta)
@@ -967,7 +967,7 @@ class Alignment(BaseSmtModel):
                                 break
                             else:
                                 p_tbm += 10.
-                                p_tbm_shield = max(p_tbm*1., p_wt)
+                                p_tbm_shield = max(p_tbm-50., p_wt)
                         if vulnerability_class > 2:
                             if consolidation == "none":
                                 consolidation = b.bldg_code
@@ -987,10 +987,10 @@ class Alignment(BaseSmtModel):
                         
                         #Gabriele@20160330 Vibration analysis
                         if x_min*x_max <0:
-							distance = copertura-z
-							if distance < 1.:
-								distance = 1.
-								self.logger.error("\Struttura %s in collisione con tunnel alla pk %f" % (b.bldg_code,align.PK))
+                            distance = copertura-z
+                            if distance < 1.:
+                                distance = 1.
+                                self.logger.error("\Struttura %s in collisione con tunnel alla pk %f" % (b.bldg_code,align.PK))
                         else:
                             ddd = min(abs(x_min), abs(x_max))
                             distance = math.sqrt(ddd**2+(copertura-z)**2)
@@ -1024,8 +1024,8 @@ class Alignment(BaseSmtModel):
                 # calcolo finale per greenfield
                 gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
                 # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
-                #ui_shield = .5*2.*ur_max(s_v, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
-                ui_shield = u_tun(p_tbm_shield, p_wt, s_v, nu_tun, young_tun, r_excav)
+                ui_shield = .5*2.*ur_max(s_v, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+                #ui_shield = u_tun(p_tbm_shield, p_wt, s_v, nu_tun, young_tun, r_excav)
                 # gap_shield(ui, shield_taper, cutter_bead_thickness)
                 gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
                 ui_tail = max(0., .5*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
