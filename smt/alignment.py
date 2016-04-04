@@ -846,6 +846,10 @@ class Alignment(BaseSmtModel):
                 damage_class_pk_base = 0.
                 vulnerability_pk = 0.
                 vulnerability_pk_base = 0.
+                sensibility_vbr_pk = 0.
+                vibration_speed_mm_s_pk = 0.
+                damage_class_vbr_pk = 0.
+                vulnerability_vbr_pk = 0.
 
 #                """
                 if "BUILDINGS" in self.item:
@@ -1014,6 +1018,10 @@ class Alignment(BaseSmtModel):
                         # aggiorno i valori massimi della pk
                         damage_class_pk = max(damage_class_pk, damage_class)
                         vulnerability_pk = max(vulnerability_pk, vulnerability_class)                        
+                        sensibility_vbr_pk = max(b.sc_vbr_lev, sensibility_vbr_pk)
+                        vibration_speed_mm_s_pk = max(vibration_speed_mm_s, vibration_speed_mm_s_pk)
+                        damage_class_vbr_pk = max(damage_class_vibration, damage_class_vbr_pk)
+                        vulnerability_vbr_pk = max(vulnerability_class_vibration, vulnerability_vbr_pk)
 
 
                        #, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab)
@@ -1079,13 +1087,16 @@ class Alignment(BaseSmtModel):
                 self.item["VULNERABILITY"] = vulnerability_pk
                 self.item["DAMAGE_CLASS_BASE"] = damage_class_pk_base
                 self.item["VULNERABILITY_BASE"] = vulnerability_pk_base
-                """
-                sensibility_pk = 0.
-                damage_class_pk = 0.
-                damage_class_pk_base = 0.
-                vulnerability_pk = 0.
-                vulnerability_pk_base = 0.
 
+                self.item["sensibility_vbr_pk"] = sensibility_vbr_pk
+                self.item["vibration_speed_mm_s_pk"] = vibration_speed_mm_s_pk
+                self.item["damage_class_vbr_pk"] = damage_class_vbr_pk
+                self.item["vulnerability_vbr_pk"] = vulnerability_vbr_pk
+                """
+                        sensibility_vbr_pk = max(b.sc_vbr_lev, sensibility_vbr_pk)
+                        vibration_speed_mm_s_pk = max(vibration_speed_mm_s, vibration_speed_mm_s_pk)
+                        damage_class_vbr_pk = max(damage_class_vibration, damage_class_vbr_pk)
+                        vulnerability_vbr_pk = max(vulnerability_class_vibration, vulnerability_vbr_pk)
                 """
 
                 self.logger.debug("\tAnalisi di volume perso")

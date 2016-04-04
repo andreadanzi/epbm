@@ -165,7 +165,7 @@ def plot_data(bAuthenticate, sPath):
                     sCode = a_set.item["code"]
                     als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"P_TAMEZ":True,"COB":True,"P_EPB":True,"P_WT":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, \
                     "TILT_MAX":True, "EPS_H_MAX":True, "VOLUME_LOSS":True, "K_PECK":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True, "SENSIBILITY":True, "DAMAGE_CLASS":True, "VULNERABILITY":True,  \
-                    "CONSOLIDATION_VALUE":True, "gamma_face":True, "gamma_tun":True}).sort("PK", 1)
+                    "CONSOLIDATION_VALUE":True, "gamma_face":True, "gamma_tun":True, "sensibility_vbr_pk":True, "vibration_speed_mm_s_pk":True, "damage_class_vbr_pk":True, "vulnerability_vbr_pk":True}).sort("PK", 1)
                     a_list = list(als)
                     pks = []
                     pklabel = []
@@ -207,6 +207,13 @@ def plot_data(bAuthenticate, sPath):
                     vulnerabilities =[d['VULNERABILITY'] for d in a_list]
                     young_tuns =[d['gamma_tun'] for d in a_list]
                     young_faces =[d['gamma_face'] for d in a_list]
+                    sensibility_vbr_pks =[d['sensibility_vbr_pk'] for d in a_list]
+                    vibration_speed_mm_s_pks =[d['vibration_speed_mm_s_pk'] for d in a_list]
+                    damage_class_vbr_pks =[d['damage_class_vbr_pk'] for d in a_list]
+                    vulnerability_vbr_pks =[d['vulnerability_vbr_pk'] for d in a_list]
+                    
+                    
+                    # "sensibility_vbr_pk":True, "vibration_speed_mm_s_pk":True, "damage_class_vbr_pk":True, "vulnerability_vbr_pk":True
 
 #                    # plot
 #                    fig = plt.figure()
@@ -385,6 +392,73 @@ def plot_data(bAuthenticate, sPath):
                     outputFigure(sPath, ("profilo_consolidamenti_%s.svg" % sCode))
                     logger.info("profilo_consolidamenti.svg plotted in %s" % sPath)
                     plt.show()
+
+                    plt.plot(pks,sensibility_vbr_pks, label='SENSIBILITY VBR (1-3)')
+                    y_min = -0.5 
+                    y_max = 3.5  
+                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    ax.set_aspect(my_aspect)
+                    ticks =[0., 1., 2., 3.]
+                    ax.set_yticks(ticks)
+                    outputFigure(sPath, ("profilo_sensibilita_vbr_%s.svg" % sCode))
+                    logger.info("profilo_sensibilita_vbr.svg plotted in %s" % sPath)
+                    plt.show()
+                    
+                    plt.plot(pks,damage_class_vbr_pks, label='DAMAGE CLASS (1-3)')
+                    y_min = -0.5 
+                    y_max = 3.5  
+                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    ax.set_aspect(my_aspect)
+                    ticks =[0., 1., 2., 3.]
+                    ax.set_yticks(ticks)
+                    outputFigure(sPath, ("profilo_danno_vbr_%s.svg" % sCode))
+                    logger.info("profilo_danno_vbr.svg plotted in %s" % sPath)
+                    plt.show()
+
+                    plt.plot(pks,vulnerability_vbr_pks, label='VULNERABILITY (1-3)')
+                    y_min = -0.5 
+                    y_max = 3.5  
+                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    ax.set_aspect(my_aspect)
+                    ticks =[0., 1., 2., 3.]
+                    ax.set_yticks(ticks)
+                    outputFigure(sPath, ("profilo_vulnerabilita_vbr_%s.svg" % sCode))
+                    logger.info("profilo_vulnerabilita_vbr.svg plotted in %s" % sPath)
+                    plt.show()
+
+                    plt.plot(pks,vibration_speed_mm_s_pks, label='VIBRATION SPEED (mm/s)')
+                    y_min = -0.5 
+                    y_max = 12.5  
+                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    plt.xticks(pkxticks, pklabel, rotation='vertical')
+                    ax = plt.gca()
+                    my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
+                    ax.set_aspect(my_aspect)
+                    ticks =[0., 2., 3., 5.,  6.,  9., 12.]
+                    ax.set_yticks(ticks)
+                    outputFigure(sPath, ("profilo_velocita_vbr_%s.svg" % sCode))
+                    logger.info("profilo_velocita_vbr.svg plotted in %s" % sPath)
+                    plt.show()
+
+                    """
+                    
+                    sensibility_vbr_pks =[d['sensibility_vbr_pk'] for d in a_list]
+                    vibration_speed_mm_s_pks =[d['vibration_speed_mm_s_pk'] for d in a_list]
+                    damage_class_vbr_pks =[d['damage_class_vbr_pk'] for d in a_list]
+                    vulnerability_vbr_pks =[d['vulnerability_vbr_pk'] for d in a_list]
+
+                    """
+                    
+                    
 #                    """
 
                     logger.info("plot_data terminated!")
