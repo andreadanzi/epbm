@@ -1,17 +1,26 @@
 import logging
+import logging.handlers
 import sys
 import SocketServer
 import sys, os, csv, time, socket
+import ConfigParser
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                     )
 
-class EchoRequestHandler(SocketServer.BaseRequestHandler):
+class CTRLRequestHandler(SocketServer.BaseRequestHandler):
     
     def __init__(self, request, client_address, server):
-        self.logger = logging.getLogger('EchoRequestHandler')
-        self.logger.debug('__init__')
+        self.logger = logging.getLogger('CTRLRequestHandler')
+        self.logger.setLevel(logging.DEBUG)
+        # create a rotating file handler which logs even debug messages 
+        fh = logging.handlers.RotatingFileHandler('CTRLRequestHandler.log' ,maxBytes=5000000, backupCount=5)
+        fh.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
+        self.logger.debug("CTRLRequestHandler instance") 
         SocketServer.BaseRequestHandler.__init__(self, request, client_address, server)
         return
 
@@ -25,18 +34,38 @@ class EchoRequestHandler(SocketServer.BaseRequestHandler):
         # Echo the back to the client
         data = self.request.recv(1024)
         self.logger.debug('recv()->"%s"', data)
-        self.request.send(data)
+        # message = "DATA:%s|%s|%f|%f|%f" % ("04",bh_id,delta_t,p_val,q_val)
+        if data[:4]=="DATA":
+            source = data[5:]
+            splitted = source.split("|")
+            sp_id = splitted[0]
+            bh_id = splitted[1]
+            delta_t = float(splitted[2])
+            p_val = float(splitted[3])
+            q_val = float(splitted[4])
+            f_out = p_val*q_val/10.
+            self.logger.debug('OUT=%f'%f_out)
+            sSentData = "OUT:%s|%s|%f|%f" % (sp_id,bh_id,delta_t,f_out)
+            self.request.send(sSentData)
         return
 
     def finish(self):
         self.logger.debug('finish')
         return SocketServer.BaseRequestHandler.finish(self)
 
-class EchoServer(SocketServer.TCPServer):
+class CTRLServer(SocketServer.TCPServer):
     
-    def __init__(self, server_address, handler_class=EchoRequestHandler):
-        self.logger = logging.getLogger('EchoServer')
-        self.logger.debug('__init__')
+    def __init__(self, server_address, handler_class=CTRLRequestHandler):        
+        self.logger = logging.getLogger('CTRLServer')
+        self.logger.setLevel(logging.DEBUG)
+        # create a rotating file handler which logs even debug messages 
+        fh = logging.handlers.RotatingFileHandler('CTRLServer.log' ,maxBytes=5000000, backupCount=5)
+        fh.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
+        self.logger.debug("CTRLRequestHandler instance")
+        
         SocketServer.TCPServer.__init__(self, server_address, handler_class)
         return
 
@@ -79,17 +108,31 @@ class EchoServer(SocketServer.TCPServer):
 if __name__ == '__main__':
     import socket
     import threading
-
-    address = ('localhost', 0) # let the kernel give us a port
-    server = EchoServer(address, EchoRequestHandler)
+    sCFGName = 'mosul.cfg'
+    mosulConfig = ConfigParser.RawConfigParser()
+    mosulConfig.read(sCFGName)
+    export_file = mosulConfig.get('DEMODATA','export_file')
+    port = mosulConfig.getint('DEMODATA','port')
+    server_host = mosulConfig.get('DEMODATA','server_host')
+    
+    address = (server_host, port)
+    server = CTRLServer(address, CTRLRequestHandler)
     ip, port = server.server_address # find out what port we were given
 
     t = threading.Thread(target=server.serve_forever)
     t.setDaemon(True) # don't hang on exit
     t.start()
 
-    logger = logging.getLogger('client')
-    logger.info('Server on %s:%s', ip, port)
+    logger = logging.getLogger('Client')
+    logger.setLevel(logging.DEBUG)
+    # create a rotating file handler which logs even debug messages 
+    fh = logging.handlers.RotatingFileHandler('Client.log' ,maxBytes=5000000, backupCount=5)
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    logger.debug('Server on %s:%s', ip, port)  
+    
     
     csvfile_name = "mosul_samples_04.csv"
     with open(csvfile_name) as csvfile:
@@ -121,5 +164,6 @@ if __name__ == '__main__':
             logger.debug('closing socket')
             s.close()
             logger.debug('done')
-            time.sleep(0.1)
+            # 1 misura inviata al secondo
+            time.sleep(1.0)
     server.socket.close()
