@@ -1,18 +1,15 @@
 import logging
 import logging.handlers
-import ConfigParser, os
-from datetime import datetime
 from pymongo import MongoClient
-from alignment import Alignment
-from project import Project
+import ConfigParser
+
 from building import Building
-from domain import Domain
-from bson.objectid import ObjectId
+
 # danzi.tn@20160312 import solo delle PK di riferimento sui building
 # create main logger
 logger = logging.getLogger('smt_main')
 logger.setLevel(logging.INFO)
-# create a rotating file handler which logs even debug messages 
+# create a rotating file handler which logs even debug messages
 fh = logging.handlers.RotatingFileHandler('import_building_pks.log',maxBytes=5000000, backupCount=5)
 fh.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')

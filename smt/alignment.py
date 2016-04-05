@@ -203,7 +203,7 @@ class Alignment(BaseSmtModel):
         depth_tun = align.DEM.coordinates[2] - z_tun
         beta_tun = align.beta_tun
         k_peck = k_eq(r_excav, depth_tun, beta_tun)
-        buff = 3.*k_peck*depth_tun
+        buff = .5*k_peck*depth_tun
         return buff
 
     def doit(self, parm):
@@ -360,7 +360,8 @@ class Alignment(BaseSmtModel):
                 # TODO/FIXME: questa variabile non viene mai utilizzata!
                 s_max_pk_base = uz_laganathan(eps0_base, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
                 k_peck = k_eq(r_excav, depth_tun, beta_tun)
-                buff = 3.*k_peck*depth_tun
+#TODO richiamare il define buffer
+                buff = .5*k_peck*depth_tun
 
                 sensibility_pk = 0.
                 damage_class_pk = 0.
@@ -547,7 +548,7 @@ class Alignment(BaseSmtModel):
                         vulnerability_pk = max(vulnerability_pk, vulnerability_class)
                         #, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab)
                         # print "%d %d %s" %(n_found, align.PK, b.bldg_code )
-                        self.logger.debug("\t\tp_tbm = %f, s_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f" % (p_tbm, s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class))
+                        self.logger.debug("\t\tp_tbm = %f, s_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f, eps_0 = %f" % (p_tbm, s_max_ab, beta_max_ab, esp_h_max_ab, vulnerability_class,eps0))
 
                 # calcolo finale per greenfield
                 gf = gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)

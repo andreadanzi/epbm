@@ -1,23 +1,30 @@
 # -*- coding: utf-8 -*-
+'''
+Classe Edificio
+ danzi.tn@20160312 import delle PK di riferimento sui building
+ nota che gli edifici possono dividersi su più PK anche diverse,
+ così come le distanze min e max dipendono da quali PK vengono intercettate
+ per questo vengono salvate le informazioni come array in PK_INFO ,
+ mentre in pk_min, pk_max, d_min e d_max che stanno sull'elemento radice
+ vengono inseriti i valori assoluti più bassi e più alti
+'''
 import logging
 import csv
 import datetime
 from base import BaseSmtModel
 from utils import toFloat
-# danzi.tn@20160312 import delle PK di riferimento sui building
-# nota che gli edifici possono dividersi su più PK anche diverse,
-# così come le distanze min e max dipendono da quali PK vengono intercettate
-# per questo vengono salvate le informazioni come array in PK_INFO ,
-# mentre in pk_min, pk_max, d_min e d_max che stanno sull'elemento radice
-# vengono inseriti i valori assoluti più bassi e più alti
+
 class Building(BaseSmtModel):
-    def _init_utils(self,**kwargs):
+    '''
+    classe edificio
+    '''
+    def _init_utils(self, **kwargs):
         #self.logger.debug('created an instance of %s' % self.__class__.__name__)
         pass
 
 # assign_building_class
     def assign_class(self):
-        retVal="XXX"
+        retVal = "XXX"
         typology = self.item["typology"]
         sensibility = self.item["sc_lev"]
         if typology == "building":
@@ -44,11 +51,11 @@ class Building(BaseSmtModel):
         return retVal
 
 
-    def doit (self,parm):
+    def doit(self, parm):
         pass
 
     @classmethod
-    def import_building_pks(cls,db, txtFilePath):
+    def import_building_pks(cls, db, txtFilePath):
         logger = logging.getLogger('smt_main.import_building_pks')
         with open(txtFilePath, 'rb') as csv_file:
             csv_reader = csv.DictReader(csv_file, delimiter=';')
@@ -59,8 +66,9 @@ class Building(BaseSmtModel):
                 pk_max = toFloat(row["pk_max"])
                 d_min = toFloat(row["d_min"])
                 d_max = toFloat(row["d_max"])
-                prop_array=[{"shape_id":0, "pk_min":pk_min, "pk_max":pk_max, "d_min":d_min,
-                             "d_max":d_max}]
+                # TODO: serve ancora shape_id?
+                prop_array = [{"shape_id":0, "pk_min":pk_min, "pk_max":pk_max, "d_min":d_min,
+                               "d_max":d_max}]
                 ccurr = db.Building.find({"bldg_code": building_code})
                 if ccurr.count == 0:
                     logger.error("Building with bldg_code = %s not found!", building_code)
@@ -81,6 +89,6 @@ class Building(BaseSmtModel):
                         building.item["updated"] = datetime.datetime.utcnow()
                     building.save()
                     b_num = b_num + 1
-            logger.info( "%d Buildings found" % b_num)
+            logger.info("%d Buildings found" % b_num)
 
 

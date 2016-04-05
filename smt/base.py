@@ -74,7 +74,7 @@ class BaseSmtModel:
         self._id = self.collection.save(self.item, *args, **kwargs)
 
     def delete(self):
-        self.logger.debug('delete %s %s' % (self.__class__.__name__, self._id))
+        self.logger.debug('delete %s %s', self.__class__.__name__, self._id)
         self.collection.remove(self._id)
 
     @classmethod
@@ -87,7 +87,7 @@ class BaseSmtModel:
         return parm
 
     def after_doit(self, parm, out):
-        self.logger.debug("after_doit with parm = %s and out = %s" % (parm, out))
+        self.logger.debug("after_doit with parm = %s and out = %s", parm, out)
         return out
 
     def perform_calc(self, parm):
@@ -99,7 +99,7 @@ class BaseSmtModel:
 
     def doit(self, parm):
         out = ""
-        self.logger.debug("doit with parm = %s and out = %s" % (parm, out))
+        self.logger.debug("doit with parm = %s and out = %s", parm, out)
         return out
 
 
