@@ -92,7 +92,7 @@ def main(argv):
     authenticate = False
     syntax = os.path.basename(__file__) + " -o <output path> -s <shapefile path> -f <field settings path> [-a for autentication -h for help]"
     try:
-        opts, _ = getopt.getopt(argv, "haosf:", ["output=", "shapefile=", "fields="])
+        opts, _ = getopt.getopt(argv, "hao:s:f:", ["output=", "shapefile=", "fields="])
     except getopt.GetoptError:
         print syntax
         sys.exit(1)

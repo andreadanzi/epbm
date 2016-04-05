@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import csv
+import os
 import datetime
 from utils import toFloat
 
@@ -16,22 +17,25 @@ class BaseStruct(object):
 class BaseSmtModel:
     @classmethod
     def ImportFromCSVFile(cls, csvFilePath, db, delete_existing=True):
-        with open(csvFilePath, 'rb') as csvfile:
-            rows = []
-            csv_reader = csv.DictReader(csvfile, delimiter=';')
-            for row in csv_reader:
-                for key, value in row.iteritems():
-                    # HACK: bldg_code deve restare stringa - oppure uso sempre toFloat?
-                    if key != "bldg_code":
-                        row[key] = toFloat(value)
-                row["created"] = datetime.datetime.utcnow()
-                row["updated"] = datetime.datetime.utcnow()
-                rows.append(row)
-            #db.Alignment.insert(rows)
-            collection = db[cls.__name__]
-            if delete_existing:
-                collection.remove()
-            collection.insert(rows)
+        # TODO: warning se non esiste il file
+        if os.path.exists(csvFilePath):
+            with open(csvFilePath, 'rb') as csvfile:
+                rows = []
+                csv_reader = csv.DictReader(csvfile, delimiter=';')
+                for row in csv_reader:
+                    for key, value in row.iteritems():
+                        # HACK: bldg_code deve restare stringa - oppure uso sempre toFloat?
+                        if key != "bldg_code":
+                            row[key] = toFloat(value)
+                    row["created"] = datetime.datetime.utcnow()
+                    row["updated"] = datetime.datetime.utcnow()
+                    rows.append(row)
+                #db.Alignment.insert(rows)
+                collection = db[cls.__name__]
+                if delete_existing:
+                    collection.remove()
+                collection.insert(rows)
+
 
     @classmethod
     def find(cls, db, parms=None):

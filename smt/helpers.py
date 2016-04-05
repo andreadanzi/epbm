@@ -10,6 +10,8 @@ import csv
 import osgeo.ogr as ogr
 from pymongo import MongoClient
 
+from utils import toFloat
+
 # COMMON FUNCTIONS
 
 def get_project_basedir(project_code):
@@ -63,7 +65,15 @@ def get_csv_dict_list(path):
     reads a csv file and returns a list of dictionaries using the first row as keys
     '''
     with open(path, 'rb') as csv_file:
-        return list(csv.DictReader(csv_file, delimiter=';'))
+        csv_reader = csv.DictReader(csv_file, delimiter=';')
+        rows = []
+        for row in csv_reader:
+            for key, value in row.iteritems():
+                # HACK: bldg_code deve restare stringa - oppure uso sempre toFloat?
+                if key != "bldg_code":
+                    row[key] = toFloat(value)
+            rows.append(row)
+        return rows
 
 # SHAPEFILE FUNCTIONS
 
