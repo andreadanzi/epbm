@@ -8,6 +8,8 @@
 *.1
 *.svg
 *.xlsx
+examples/*.csv
+examples/*.log
 data/alignment_riferimento.js
 data/Stratigrafia_2.csv
 data/Stratigrafia_originale.csv
