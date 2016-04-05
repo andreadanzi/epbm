@@ -13,6 +13,8 @@ from alignment_set import AlignmentSet
 from project import Project
 from domain import Domain
 
+PROJECT_CODE = "MDW029_S_E_05"
+
 # create main logger
 logger = logging.getLogger('smt_main')
 logger.setLevel(logging.DEBUG)
@@ -44,7 +46,7 @@ def process_calc(bAuthenticate):
         bLoggedIn = True
     if bLoggedIn:
         logger.info("Authenticated")
-        pd = db.Project.find_one({"project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A"})
+        pd = db.Project.find_one({"project_code":PROJECT_CODE})
         if pd:
             logger.info("Project %s found", pd["project_name"])
             p = Project(db, pd)
@@ -65,15 +67,12 @@ def process_calc(bAuthenticate):
                         a = Alignment(db, al)
                         a.setProject(p.item)
                         a.load()
-                        cnt+=1.
-                        
-                        sys.stdout.write("\r{:5s} pk= {:.0f} progress= {:.0%}".format(a_set.item["code"], a.item["PK"], cnt/cnt_tot ))
+                        cnt += 1.
+                        sys.stdout.write("\r{:5s} pk= {:.0f} progress= {:.0%}".format(a_set.item["code"], a.item["PK"], cnt/cnt_tot))
                         sys.stdout.flush()
                         a.perform_calc(str(datetime.now()))
-                        
     else:
         logger.error("Authentication failed")
-
 
 def main(argv):
     bAuthenticate = False
@@ -92,7 +91,6 @@ def main(argv):
             sys.exit()
         elif opt == '-a':
             bAuthenticate = True
-
     process_calc(bAuthenticate)
 
 

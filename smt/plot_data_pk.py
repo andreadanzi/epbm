@@ -2,31 +2,18 @@
 import logging
 import logging.handlers
 import ConfigParser, os
-from datetime import datetime
 from pymongo import MongoClient
-from alignment import Alignment
 from alignment_set import AlignmentSet
 from project import Project
-from building import Building
 from domain import Domain
-from bson.objectid import ObjectId
-import glob,io
-import csv, re
 import sys, getopt
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import matplotlib.tri as tri
 from mpl_toolkits.mplot3d.axes3d import *
-from scipy.interpolate import griddata
 from collections import defaultdict
-from shapely.geometry import LineString
-from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 from utils import uz_laganathan,d_uz_dx_laganathan, d_ux_dx_laganathan,toFloat
 from base import BaseStruct
 from openpyxl import Workbook
-from openpyxl.compat import range
-from openpyxl.cell import get_column_letter
 # danzi.tn@20160322 plot sezioni a PK critiche
 # create main logger
 """
@@ -39,9 +26,8 @@ pk_crit.txt
 2128218
 2128378
 2126198
-
-
 """
+PROJECT_CODE = "MDW029_S_E_05"
 logger = logging.getLogger('smt_main')
 logger.setLevel(logging.DEBUG)
 # create a rotating file handler which logs even debug messages
@@ -221,7 +207,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
         bLoggedIn = True
     if bLoggedIn:
         logger.info("Logged in")
-        pd = db.Project.find_one({"project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A"})
+        pd = db.Project.find_one({"project_code":PROJECT_CODE})
         if pd:
             logger.info("Project %s found" % pd["project_name"])
             p = Project(db, pd)

@@ -1,110 +1,127 @@
 # -*- coding: utf-8 -*-
+'''
+main.py
+crea e popola il database MongoDB prendendo le informazioni dai file CSV
+'''
 import logging
 import logging.handlers
-import ConfigParser, os
+import os
+import sys
+import getopt
 import datetime
-from pymongo import MongoClient
+
 from alignment import Alignment
 from alignment_set import AlignmentSet
 from project import Project
 from building import Building
 from building_class import BuildingClass
-from underground_structure_class import UndergroundStructureClass
-from underground_utility_class import UndergroundUtilityClass
-from overground_infrastructure_class import OvergroundInfrastructureClass
-from vibration_class import VibrationClass
+#from underground_structure_class import UndergroundStructureClass
+#from underground_utility_class import UndergroundUtilityClass
+#from overground_infrastructure_class import OvergroundInfrastructureClass
+#from vibration_class import VibrationClass
 from domain import Domain
-from bson.objectid import ObjectId
-# create main logger
-logger = logging.getLogger('smt_main')
-logger.setLevel(logging.DEBUG)
-# create a rotating file handler which logs even debug messages 
-fh = logging.handlers.RotatingFileHandler('main.log',maxBytes=5000000, backupCount=5)
-fh.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-fh.setFormatter(formatter)
-logger.addHandler(fh)
-# reading config file
-sCFGName = 'smt.cfg'
-smtConfig = ConfigParser.RawConfigParser()
-smtConfig.read(sCFGName)
-# setup DB parameter
-host = smtConfig.get('MONGODB','host')
-database = smtConfig.get('MONGODB','database')
-source_database = smtConfig.get('MONGODB','source_database')
-username = smtConfig.get('MONGODB','username')
-password = smtConfig.get('MONGODB','password')
-# connect to MongoDB
-client = MongoClient()
-db = client[database]
-# DB authentication
-db.authenticate(username,password,source=source_database)
-Building.delete_all(db)
-BuildingClass.delete_all(db)
-Alignment.delete_all(db)
-AlignmentSet.delete_all(db)
-Domain.delete_all(db)
-Project.delete_all(db)
-# Search for project_code = "MFW001_0-010 Metro Paris-Ligne 15_T2A"
-Project.ImportFromCSVFile("../data/project.csv", db)
-pd = db.Project.find_one({"project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A"})
-p = None
-if not pd:
-    p = Project(db, {"project_name":u"Société du Grand Paris Ligne 15 T2A","project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A" })
-    p.item["created"] = datetime.datetime.utcnow()
-    p.save()
-else:
-    p = Project(db, pd)
-# Import domain inside the project: one-to-many relationship by references
-p.import_domains("../data/domain.csv")
-cr = Domain.find(db, {"project_id": p._id})
-# Import Buildings
-Building.ImportFromCSVFile("../data/buildings_orig.csv", db)
-# danzi.tn@20160312 import delle PK di riferimento sui building
-#Building.import_building_pks(db,"../data/Edifici_Analizzati_Attributi.csv")
-# gabriele@20160318 nuovo import rispetto ai nuovi output di Ghensi
-Building.import_building_pks(db,"../data/Elementi_Tracciato_pkdist.csv")
-Building.import_building_pks(db,"../data/Elementi_Raccordo_pkdist.csv")
+import helpers
 
-BuildingClass.ImportFromCSVFile("../data/building_class.csv", db)
-UndergroundStructureClass.ImportFromCSVFile("../data/underground_structure_class.csv", db)
-UndergroundUtilityClass.ImportFromCSVFile("../data/underground_utility_class.csv", db)
-OvergroundInfrastructureClass.ImportFromCSVFile("../data/overground_infrastructure_class.csv", db)
-VibrationClass.ImportFromCSVFile("../data/vibration_class.csv", db)
-bldgs = Building.find(db, {})
-for bl in bldgs:
-    b = Building(db, bl)
-    b.assign_class()
+# TODO: chiedo PROJECT_CODE da linea comando, leggo gli altri dati da CSV contenuti nella cartella chiamata con quel codice
+PROJECT_CODE = "MDW029_S_E_05"
+PROJECT_NAME = u"Prolungamento della rete ferroviaria nella tratta metropolitana di Catania dalla stazione centrale f.s. all'aeroporto tratta stesicoro-aeroporto lotto 1"
 
-for c in cr:
-    d = Domain(db,c)
-    d.load()
-    d.import_alignment_set("../data/alignment_set.csv")
-    asets = db.AlignmentSet.find({"domain_id": d._id})
-    for aset in asets:
-        a_set = AlignmentSet(db,aset)
-        a_set.load()
-        sCode = a_set.item["code"]
-        sRelCsvCode = a_set.item["rel_csv_code"]
-        # Import reference strata inside the alignment set: one-to-one relationship by embedding
-        a_set.import_reference_strata("../data/reference_strata.csv" )
-        # Import alignment inside the alignment set: one-to-many relationship by references
-        a_set.import_alignment("../data/profilo_progetto-%s.csv" % sCode)
-        # Import stratigraphy inside the alignment: one-to-many relationship by embedding
-        a_set.import_strata("../data/stratigrafia-%s.csv" % sRelCsvCode)
-        # Import water folders inside the alignment: one-to-many relationship by embedding
-        a_set.import_falda("../data/falda-%s.csv" % sRelCsvCode)
-        # Import tunnel sections inside the alignment: one-to-many relationship by embedding
-        a_set.import_sezioni("../data/sezioni_progetto-%s.csv" % sRelCsvCode)
-        # Import TBM inside the alignment: one-to-many relationship by embedding
-        a_set.import_tbm("../data/tbm_progetto-%s.csv" % sRelCsvCode)
-        als = Alignment.find(db,{"alignment_set_id":a_set._id})
-        for al in als:
-            a = Alignment(db,al)
-            a.setProject(p.item)
-            a.load()
-            a.assign_reference_strata()
-            a.define_tun_param()
-            a.define_face_param()
-            a.assign_buildings(a.define_buffer())
-            
+def import_all_data(project_code):
+    logger = helpers.init_logger('smt_main', 'main.log', logging.DEBUG)
+    smt_config = helpers.get_config('smt.cfg')
+    logged_in, mongodb = helpers.init_db(smt_config, True)
+    project_basedir = helpers.get_project_basedir(project_code)
+
+    # TODO: come preservare gli altri progetti?
+    Building.delete_all(mongodb)
+    BuildingClass.delete_all(mongodb)
+    Alignment.delete_all(mongodb)
+    AlignmentSet.delete_all(mongodb)
+    Domain.delete_all(mongodb)
+    Project.delete_all(mongodb)
+
+
+
+    Project.ImportFromCSVFile(os.path.join(project_basedir, "in" ,"project.csv"), mongodb)
+    pd = mongodb.Project.find_one({"project_code":project_code})
+    p = None
+    if not pd:
+        p = Project(mongodb, {"project_name":PROJECT_NAME, "project_code":PROJECT_CODE})
+        p.item["created"] = datetime.datetime.utcnow()
+        p.save()
+    else:
+        p = Project(mongodb, pd)
+    # Import domain inside the project: one-to-many relationship by references
+    p.import_domains("../data/MDW029_S_E_05/in/domain.csv")
+    cr = Domain.find(mongodb, {"project_id": p._id})
+    # Import Buildings
+    Building.ImportFromCSVFile("../data/MDW029_S_E_05/in/buildings-tun.csv", mongodb)
+    Building.import_building_pks(mongodb, "../data/MDW029_S_E_05/in/buildings-tun.csv")
+    BuildingClass.ImportFromCSVFile("../data/MDW029_S_E_05/in/building_class.csv", mongodb)
+    #UndergroundStructureClass.ImportFromCSVFile("../data/underground_structure_class.csv", db)
+    #UndergroundUtilityClass.ImportFromCSVFile("../data/underground_utility_class.csv", db)
+    #OvergroundInfrastructureClass.ImportFromCSVFile("../data/overground_infrastructure_class.csv", db)
+    #VibrationClass.ImportFromCSVFile("../data/vibration_class.csv", db)
+    bldgs = Building.find(mongodb, {})
+    for bl in bldgs:
+        b = Building(mongodb, bl)
+        b.assign_class()
+
+    for c in cr:
+        d = Domain(mongodb, c)
+        d.load()
+        d.import_alignment_set("../data/MDW029_S_E_05/in/alignment_set.csv")
+        asets = mongodb.AlignmentSet.find({"domain_id": d._id})
+        for aset in asets:
+            a_set = AlignmentSet(mongodb, aset)
+            a_set.load()
+            sCode = a_set.item["code"]
+            sRelCsvCode = a_set.item["rel_csv_code"]
+            # Import reference strata inside the alignment set: one-to-one relationship by embedding
+            a_set.import_reference_strata("../data/MDW029_S_E_05/in/reference_strata.csv")
+            # Import alignment inside the alignment set: one-to-many relationship by references
+            a_set.import_alignment("../data/MDW029_S_E_05/in/profilo_progetto-%s.csv" % sCode)
+            # Import stratigraphy inside the alignment: one-to-many relationship by embedding
+            a_set.import_strata("../data/MDW029_S_E_05/in/stratigrafia-%s.csv" % sRelCsvCode)
+            # Import water folders inside the alignment: one-to-many relationship by embedding
+            a_set.import_falda("../data/MDW029_S_E_05/in/falda-%s.csv" % sRelCsvCode)
+            # Import tunnel sections inside the alignment: one-to-many relationship by embedding
+            a_set.import_sezioni("../data/MDW029_S_E_05/in/sezioni_progetto-%s.csv" % sRelCsvCode)
+            # Import TBM inside the alignment: one-to-many relationship by embedding
+            a_set.import_tbm("../data/MDW029_S_E_05/in/tbm_progetto-%s.csv" % sRelCsvCode)
+            als = Alignment.find(mongodb, {"alignment_set_id":a_set._id})
+            for al in als:
+                a = Alignment(mongodb, al)
+                a.setProject(p.item)
+                a.load()
+                a.assign_reference_strata()
+                a.define_tun_param()
+                a.define_face_param()
+                a.assign_buildings(a.define_buffer())
+
+def main(argv):
+    '''
+    funzione principale
+    '''
+    project_code = None
+    syntax = os.path.basename(__file__) + " -o <project code>"
+    try:
+        opts, _ = getopt.getopt(argv, "hc:", ["code="])
+    except getopt.GetoptError:
+        print syntax
+        sys.exit(1)
+    if len(opts) < 1:
+        print syntax
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print syntax
+            sys.exit()
+        elif opt in ("-c", "--code"):
+            project_code = arg
+    if project_code:
+        import_all_data(project_code)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

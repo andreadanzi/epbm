@@ -2,22 +2,25 @@
 import math
 import logging
 import logging.handlers
-import ConfigParser, os
-from pymongo import MongoClient
-from alignment_set import AlignmentSet
-from project import Project
-from domain import Domain
-import csv, re
-import sys, getopt
+import ConfigParser
+import os
+import sys
+import getopt
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from collections import defaultdict
+from pymongo import MongoClient
+
+from alignment_set import AlignmentSet
+from project import Project
+from domain import Domain
 # danzi.tn@20160310 plot secondo distanze dinamiche
 # create main logger
+PROJECT_CODE = "MDW029_S_E_05"
 logger = logging.getLogger('smt_main')
 logger.setLevel(logging.DEBUG)
-# create a rotating file handler which logs even debug messages 
+# create a rotating file handler which logs even debug messages
 fh = logging.handlers.RotatingFileHandler('plto_data.log',maxBytes=5000000, backupCount=5)
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
@@ -36,16 +39,16 @@ password = smtConfig.get('MONGODB','password')
 # Colori da associare alle aree degli strati di riferimento
 main_colors = {
                 'MC':'#1f77b4',
-                'MCA':'#ff7f0e', 
+                'MCA':'#ff7f0e',
                 'SO2':'#2ca02c',
-                'MFL5':'#d62728',  
+                'MFL5':'#d62728',
                 'CG':'#9467bd',
-                'MIG':'#8c564b',  
-                'SB':'#e377c2', 
+                'MIG':'#8c564b',
+                'SB':'#e377c2',
                 'MA':'#7f7f7f',
-                'SO4':'#bcbd22', 
-                'MFL4':'#dbdb8d', 
-                'SO':'#17becf', 
+                'SO4':'#bcbd22',
+                'MFL4':'#dbdb8d',
+                'SO':'#17becf',
                 'MFL3':'#9edae5',
                 'R':'#7f7f7f',
                 'AA':'#bcbd22',}
@@ -54,8 +57,8 @@ def mid_point(p1,p2):
     x = (p1[0] + p2[0])/2.
     y = (p1[1] + p2[1])/2.
     return x,y
-    
-                
+
+
 def asse2p(p1,p2,x):
     mid = mid_point(p1,p2)
     if p2[0]==p1[0]:
@@ -82,14 +85,14 @@ def pfromdistance(p1,p2,d):
     res_y0 = asse2p(p1,p2,res_x[0])
     res_y1 = asse2p(p1,p2,res_x[1])
     return (res_x[0],res_y0),(res_x[1],res_y1)
-        
-                
+
+
 def plot_line( ob, color="green"):
     parts = hasattr(ob, 'geoms') and ob or [ob]
     for part in parts:
         x, y = part.xy
-        plt.plot(x, y,'o', color=color, zorder=1) 
-        #plt.plot(x, y, color=color, linewidth=2, solid_capstyle='round', zorder=1)    
+        plt.plot(x, y,'o', color=color, zorder=1)
+        #plt.plot(x, y, color=color, linewidth=2, solid_capstyle='round', zorder=1)
 
 
 def plot_coords( x, y, color='#999999', zorder=1):
@@ -110,7 +113,7 @@ def processSettlements(a_list):
     distanceKeys = distanceIndex.keys()
     distanceKeys.sort()
     return distanceKeys, distanceIndex
-    
+
 def fillBetweenStrata(a_list):
     currentStrata = None
     x=[]
@@ -119,10 +122,10 @@ def fillBetweenStrata(a_list):
     facecolors=['orange','yellow']
     for i, a_item in enumerate(a_list):
         z_base = a_item['REFERENCE_STRATA']['POINTS']['base']['coordinates'][2]
-        z_top = a_item['REFERENCE_STRATA']['POINTS']['top']['coordinates'][2]  
+        z_top = a_item['REFERENCE_STRATA']['POINTS']['top']['coordinates'][2]
         code = a_item['REFERENCE_STRATA']['CODE']
         if not currentStrata:
-            currentStrata = code        
+            currentStrata = code
         elif currentStrata == code:
             pass
         else:
@@ -133,7 +136,7 @@ def fillBetweenStrata(a_list):
             currentStrata = code
         x.append(a_item['PK'])
         y1.append(z_base)
-        y2.append(z_top)        
+        y2.append(z_top)
 
 def plot_data(bAuthenticate, sPath):
     # connect to MongoDB
@@ -148,7 +151,7 @@ def plot_data(bAuthenticate, sPath):
     mpl.rcParams.update({'font.size': 6})
     if bLoggedIn:
         logger.info("Logged in")
-        pd = db.Project.find_one({"project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A"})
+        pd = db.Project.find_one({"project_code":PROJECT_CODE})
         if pd:
             logger.info("Project %s found" % pd["project_name"])
             p = Project(db, pd)
@@ -165,7 +168,7 @@ def plot_data(bAuthenticate, sPath):
                     sCode = a_set.item["code"]
                     als = db.Alignment.find({"alignment_set_id":a_set._id},{"PK":True,"P_TAMEZ":True,"COB":True,"P_EPB":True,"P_WT":True,"BLOWUP":True, "PH":True, "DEM":True,"SETTLEMENT_MAX":True, \
                     "TILT_MAX":True, "EPS_H_MAX":True, "VOLUME_LOSS":True, "K_PECK":True, "REFERENCE_STRATA":True, "SETTLEMENTS":True, "SENSIBILITY":True, "DAMAGE_CLASS":True, "VULNERABILITY":True,  \
-                    "CONSOLIDATION_VALUE":True, "gamma_face":True, "gamma_tun":True, "sensibility_vbr_pk":True, "vibration_speed_mm_s_pk":True, "damage_class_vbr_pk":True, "vulnerability_vbr_pk":True}).sort("PK", 1)
+                    "CONSOLIDATION_VALUE":True, "gamma_face":True, "gamma_tun":True}).sort("PK", 1)
                     a_list = list(als)
                     pks = []
                     pklabel = []
@@ -183,7 +186,7 @@ def plot_data(bAuthenticate, sPath):
                     else:
                         d_press = 0.7 # bar tra calotta e asse
                         d_press_wt = 0.5
-                    
+
                     # scalo di fattore 100
 #                    p_wts =[d['P_WT']/100 - d_press_wt for d in a_list]
                     p_wts = [(max(0., d['P_WT']/100. - d_press_wt)) for d in a_list]
@@ -207,23 +210,16 @@ def plot_data(bAuthenticate, sPath):
                     vulnerabilities =[d['VULNERABILITY'] for d in a_list]
                     young_tuns =[d['gamma_tun'] for d in a_list]
                     young_faces =[d['gamma_face'] for d in a_list]
-                    sensibility_vbr_pks =[d['sensibility_vbr_pk'] for d in a_list]
-                    vibration_speed_mm_s_pks =[d['vibration_speed_mm_s_pk'] for d in a_list]
-                    damage_class_vbr_pks =[d['damage_class_vbr_pk'] for d in a_list]
-                    vulnerability_vbr_pks =[d['vulnerability_vbr_pk'] for d in a_list]
-                    
-                    
-                    # "sensibility_vbr_pk":True, "vibration_speed_mm_s_pk":True, "damage_class_vbr_pk":True, "vulnerability_vbr_pk":True
 
 #                    # plot
 #                    fig = plt.figure()
 #                    fig.set_size_inches(12, 3.54)
 #                    plt.plot(pks,young_tuns, label='E_TUN - GPa')
 #                    plt.plot(pks,young_faces, label='E_FACE - GPa')
-#                    y_min = math.floor(min(min(young_tuns),min(young_faces))/1.)*1. 
-#                    y_max = math.ceil(max(max(young_tuns),max(young_faces))/1.)*1. 
+#                    y_min = math.floor(min(min(young_tuns),min(young_faces))/1.)*1.
+#                    y_max = math.ceil(max(max(young_tuns),max(young_faces))/1.)*1.
 #                    my_aspect = 50./(abs(y_max-y_min)/9.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
-#                    plt.axis([max(pks),min(pks),y_min,y_max])
+#                    plt.axis([min(pks),max(pks),y_min,y_max])
 #                    plt.xticks(pkxticks, pklabel, rotation='vertical')
 #                    ax = plt.gca()
 #                    ax.set_aspect(my_aspect)
@@ -239,15 +235,15 @@ def plot_data(bAuthenticate, sPath):
 
                     fig = plt.figure()
                     fig.set_size_inches(12, 3.54)
-                    #plt.plot(pks,cobs, label='COB - bar')
+                    plt.plot(pks,cobs, label='COB - bar')
                     plt.plot(pks,p_epms, label='P_EPB - bar')
                     plt.plot(pks,blowups, label='BLOWUP - bar')
                     plt.plot(pks,p_wts, label='P_WT - bar')
-                    plt.plot(pks,p_tamezs, label='P_TAMEZ - bar')
-                    y_min = math.floor(min(min(p_wts),min(cobs), min(p_epms), min(blowups))/.5)*.5-.5 
-                    y_max = math.ceil(max(max(p_wts),max(cobs), max(p_epms), max(blowups))/.5)*.5+.5 
+                    #plt.plot(pks,p_tamezs, label='P_TAMEZ - bar')
+                    y_min = math.floor(min(min(p_wts),min(cobs), min(p_epms), min(blowups))/.5)*.5-.5
+                    y_max = math.ceil(max(max(p_wts),max(cobs), max(p_epms), max(blowups))/.5)*.5+.5
                     my_aspect = 50./(abs(y_max-y_min)/9.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
-                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    plt.axis([min(pks),max(pks),y_min,y_max])
                     plt.xticks(pkxticks, pklabel, rotation='vertical')
                     ax = plt.gca()
                     ax.set_aspect(my_aspect)
@@ -263,9 +259,9 @@ def plot_data(bAuthenticate, sPath):
 #                    """
                     plt.plot(pks,volume_losss, label='VL percent')
                     plt.plot(pks,k_pecks, label='k peck')
-                    y_min = math.floor(min(min(volume_losss), min(k_pecks))/.05)*.05-.05 
-                    y_max = math.ceil(max(max(volume_losss), max(k_pecks))/.05)*.05+.05 
-                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    y_min = math.floor(min(min(volume_losss), min(k_pecks))/.05)*.05-.05
+                    y_max = math.ceil(max(max(volume_losss), max(k_pecks))/.05)*.05+.05
+                    plt.axis([min(pks),max(pks),y_min,y_max])
                     plt.xticks(pkxticks, pklabel, rotation='vertical')
                     ax = plt.gca()
                     my_aspect = 50./(abs(y_max-y_min)/9.0) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
@@ -281,9 +277,9 @@ def plot_data(bAuthenticate, sPath):
                     plt.show()
 
                     plt.plot(pks,max_settlements, label='SETTLEMENT_MAX (mm)')
-                    y_min = 0. # math.floor(min(max_settlements))-1. 
-                    y_max = 30. # math.ceil(max(max_settlements))+1. 
-                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    y_min = 0. # math.floor(min(max_settlements))-1.
+                    y_max = 30. # math.ceil(max(max_settlements))+1.
+                    plt.axis([min(pks),max(pks),y_min,y_max])
                     plt.xticks(pkxticks, pklabel, rotation='vertical')
                     ax = plt.gca()
                     my_aspect = 50./(abs(y_max-y_min)/4.5) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
@@ -300,9 +296,9 @@ def plot_data(bAuthenticate, sPath):
 
                     plt.plot(pks,tilts, label='BETA (0/00)')
                     plt.plot(pks,epshs, label='EPS_H (0/00)')
-                    y_min = 0. # math.floor(min(max_settlements))-1. 
-                    y_max = 3.5 # math.ceil(max(max_settlements))+1. 
-                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    y_min = 0. # math.floor(min(max_settlements))-1.
+                    y_max = 3.5 # math.ceil(max(max_settlements))+1.
+                    plt.axis([min(pks),max(pks),y_min,y_max])
                     plt.xticks(pkxticks, pklabel, rotation='vertical')
                     ax = plt.gca()
                     my_aspect = 50./(abs(y_max-y_min)/4.5) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
@@ -318,9 +314,9 @@ def plot_data(bAuthenticate, sPath):
                     plt.show()
 
                     plt.plot(pks,sensibilities, label='SENSIBILITY (1-3)')
-                    y_min = -0.5 
-                    y_max = 3.5  
-                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    y_min = -0.5
+                    y_max = 3.5
+                    plt.axis([min(pks),max(pks),y_min,y_max])
                     plt.xticks(pkxticks, pklabel, rotation='vertical')
                     ax = plt.gca()
                     my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
@@ -337,9 +333,9 @@ def plot_data(bAuthenticate, sPath):
                     plt.show()
 
                     plt.plot(pks,damages, label='DAMAGE CLASS (1-3)')
-                    y_min = -0.5 
-                    y_max = 3.5  
-                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    y_min = -0.5
+                    y_max = 3.5
+                    plt.axis([min(pks),max(pks),y_min,y_max])
                     plt.xticks(pkxticks, pklabel, rotation='vertical')
                     ax = plt.gca()
                     my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
@@ -356,9 +352,9 @@ def plot_data(bAuthenticate, sPath):
                     plt.show()
 
                     plt.plot(pks,vulnerabilities, label='VULNERABILITY (1-3)')
-                    y_min = -0.5 
-                    y_max = 3.5  
-                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    y_min = -0.5
+                    y_max = 3.5
+                    plt.axis([min(pks),max(pks),y_min,y_max])
                     plt.xticks(pkxticks, pklabel, rotation='vertical')
                     ax = plt.gca()
                     my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
@@ -375,9 +371,9 @@ def plot_data(bAuthenticate, sPath):
                     plt.show()
 
                     plt.plot(pks,consolidations, label='CONSOLIDATION (0-1)')
-                    y_min = -0.3 
-                    y_max = 1.3  
-                    plt.axis([max(pks),min(pks),y_min,y_max])
+                    y_min = -0.3
+                    y_max = 1.3
+                    plt.axis([min(pks),max(pks),y_min,y_max])
                     plt.xticks(pkxticks, pklabel, rotation='vertical')
                     ax = plt.gca()
                     my_aspect = 50./(abs(y_max-y_min)/1.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
@@ -392,80 +388,13 @@ def plot_data(bAuthenticate, sPath):
                     outputFigure(sPath, ("profilo_consolidamenti_%s.svg" % sCode))
                     logger.info("profilo_consolidamenti.svg plotted in %s" % sPath)
                     plt.show()
-
-                    plt.plot(pks,sensibility_vbr_pks, label='SENSIBILITY VBR (1-3)')
-                    y_min = -0.5 
-                    y_max = 3.5  
-                    plt.axis([max(pks),min(pks),y_min,y_max])
-                    plt.xticks(pkxticks, pklabel, rotation='vertical')
-                    ax = plt.gca()
-                    my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
-                    ax.set_aspect(my_aspect)
-                    ticks =[0., 1., 2., 3.]
-                    ax.set_yticks(ticks)
-                    outputFigure(sPath, ("profilo_sensibilita_vbr_%s.svg" % sCode))
-                    logger.info("profilo_sensibilita_vbr.svg plotted in %s" % sPath)
-                    plt.show()
-                    
-                    plt.plot(pks,damage_class_vbr_pks, label='DAMAGE CLASS (1-3)')
-                    y_min = -0.5 
-                    y_max = 3.5  
-                    plt.axis([max(pks),min(pks),y_min,y_max])
-                    plt.xticks(pkxticks, pklabel, rotation='vertical')
-                    ax = plt.gca()
-                    my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
-                    ax.set_aspect(my_aspect)
-                    ticks =[0., 1., 2., 3.]
-                    ax.set_yticks(ticks)
-                    outputFigure(sPath, ("profilo_danno_vbr_%s.svg" % sCode))
-                    logger.info("profilo_danno_vbr.svg plotted in %s" % sPath)
-                    plt.show()
-
-                    plt.plot(pks,vulnerability_vbr_pks, label='VULNERABILITY (1-3)')
-                    y_min = -0.5 
-                    y_max = 3.5  
-                    plt.axis([max(pks),min(pks),y_min,y_max])
-                    plt.xticks(pkxticks, pklabel, rotation='vertical')
-                    ax = plt.gca()
-                    my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
-                    ax.set_aspect(my_aspect)
-                    ticks =[0., 1., 2., 3.]
-                    ax.set_yticks(ticks)
-                    outputFigure(sPath, ("profilo_vulnerabilita_vbr_%s.svg" % sCode))
-                    logger.info("profilo_vulnerabilita_vbr.svg plotted in %s" % sPath)
-                    plt.show()
-
-                    plt.plot(pks,vibration_speed_mm_s_pks, label='VIBRATION SPEED (mm/s)')
-                    y_min = -0.5 
-                    y_max = 12.5  
-                    plt.axis([max(pks),min(pks),y_min,y_max])
-                    plt.xticks(pkxticks, pklabel, rotation='vertical')
-                    ax = plt.gca()
-                    my_aspect = 50./(abs(y_max-y_min)/3.) # 50 m di profilo sono 1 cm in tavola, in altezza ho 9 cm a disposizione
-                    ax.set_aspect(my_aspect)
-                    ticks =[0., 2., 3., 5.,  6.,  9., 12.]
-                    ax.set_yticks(ticks)
-                    outputFigure(sPath, ("profilo_velocita_vbr_%s.svg" % sCode))
-                    logger.info("profilo_velocita_vbr.svg plotted in %s" % sPath)
-                    plt.show()
-
-                    """
-                    
-                    sensibility_vbr_pks =[d['sensibility_vbr_pk'] for d in a_list]
-                    vibration_speed_mm_s_pks =[d['vibration_speed_mm_s_pk'] for d in a_list]
-                    damage_class_vbr_pks =[d['damage_class_vbr_pk'] for d in a_list]
-                    vulnerability_vbr_pks =[d['vulnerability_vbr_pk'] for d in a_list]
-
-                    """
-                    
-                    
 #                    """
 
                     logger.info("plot_data terminated!")
     else:
         logger.error("Authentication failed")
-        
-                
+
+
 def main(argv):
     sPath = None
     bAuthenticate = False
@@ -493,7 +422,7 @@ def main(argv):
                 sys.exit(3)
     if sPath:
         plot_data(bAuthenticate, sPath)
-    
-    
+
+
 if __name__ == "__main__":
     main(sys.argv[1:])
