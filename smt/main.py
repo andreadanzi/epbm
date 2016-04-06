@@ -14,20 +14,10 @@ from alignment import Alignment
 from alignment_set import AlignmentSet
 from project import Project
 from building import Building
-from building_class import BuildingClass
-from underground_structure_class import UndergroundStructureClass
-from underground_utility_class import UndergroundUtilityClass
-from overground_infrastructure_class import OvergroundInfrastructureClass
-from vibration_class import VibrationClass
 from domain import Domain
 import helpers
 
-
 #PROJECT_CODE = "MDW029_S_E_05"
-#PROJECT_NAME = '''
-#Prolungamento della rete ferroviaria nella tratta metropolitana di Catania
-#dalla stazione centrale f.s. all'aeroporto tratta stesicoro-aeroporto lotto 1"
-#'''
 
 def import_all_data(project_code, project_name):
     '''
@@ -38,17 +28,16 @@ def import_all_data(project_code, project_name):
     logged_in, mongodb = helpers.init_db(smt_config, True)
     importdir = os.path.join(helpers.get_project_basedir(project_code), "in")
 
-    # TODO: come preservare gli altri progetti? aggiungere attributi a oggetti per legarli tra loro
-    Building.delete_all(mongodb)
-    BuildingClass.delete_all(mongodb)
-    Alignment.delete_all(mongodb)
-    AlignmentSet.delete_all(mongodb)
-    Domain.delete_all(mongodb)
-    Project.delete_all(mongodb)
+    pd = mongodb.Project.find_one({"project_code":project_code})
+    if pd:
+        logger.info("Deleting project %s", pd["project_name"])
+        p = Project(mongodb, pd)
+        p.delete()
 
     Project.ImportFromCSVFile(os.path.join(importdir, "project.csv"), mongodb)
     pd = mongodb.Project.find_one({"project_code":project_code})
     p = None
+    # TODO: questo pezzo di codice non dovrebbe servire se imposto bene i CSV!
     if not pd:
         p = Project(mongodb, {"project_name":project_name, "project_code":project_code})
         p.item["created"] = datetime.datetime.utcnow()
@@ -56,17 +45,21 @@ def import_all_data(project_code, project_name):
     else:
         p = Project(mongodb, pd)
     # Import domain inside the project: one-to-many relationship by references
-    p.import_domains(os.path.join(importdir, "domain.csv"))
+    p.import_objects("Domain", os.path.join(importdir, "domain.csv"))
     cr = Domain.find(mongodb, {"project_id": p._id})
     # Import Buildings
-    Building.ImportFromCSVFile(os.path.join(importdir, "buildings-tun.csv"), mongodb)
-    Building.import_building_pks(mongodb, os.path.join(importdir, "buildings-tun.csv"))
-    BuildingClass.ImportFromCSVFile(os.path.join(importdir, "building_class.csv"), mongodb)
-    UndergroundStructureClass.ImportFromCSVFile(os.path.join(importdir, "underground_structure_class.csv"), mongodb)
-    UndergroundUtilityClass.ImportFromCSVFile(os.path.join(importdir, "underground_utility_class.csv"), mongodb)
-    OvergroundInfrastructureClass.ImportFromCSVFile(os.path.join(importdir, "overground_infrastructure_class.csv"), mongodb)
-    VibrationClass.ImportFromCSVFile(os.path.join(importdir, "vibration_class.csv"), mongodb)
-    bldgs = Building.find(mongodb, {})
+    p.import_buildings(os.path.join(importdir, "buildings.csv"))
+    # Import Classes
+    p.import_objects("BuildingClass", os.path.join(importdir, "building_class.csv"))
+    p.import_objects("UndergroundStructureClass",
+                     os.path.join(importdir, "underground_structure_class.csv"))
+    p.import_objects("UndergroundUtilityClass",
+                     os.path.join(importdir, "underground_utility_class.csv"))
+    p.import_objects("OvergroundInfrastructureClass",
+                     os.path.join(importdir, "overground_infrastructure_class.csv"))
+    p.import_objects("VibrationClass", os.path.join(importdir, "vibration_class.csv"))
+
+    bldgs = Building.find(mongodb, {"project_id": p._id})
     for bl in bldgs:
         b = Building(mongodb, bl)
         b.assign_class()
@@ -93,6 +86,8 @@ def import_all_data(project_code, project_name):
             a_set.import_sezioni(os.path.join(importdir, "sezioni_progetto-%s.csv" % sRelCsvCode))
             # Import TBM inside the alignment: one-to-many relationship by embedding
             a_set.import_tbm(os.path.join(importdir, "tbm_progetto-%s.csv" % sRelCsvCode))
+            # Import buildings deistances relative to this aligmentset
+            a_set.import_building_pks(os.path.join(importdir, "buildings-%s.csv" % sRelCsvCode))
             als = Alignment.find(mongodb, {"alignment_set_id":a_set._id})
             for al in als:
                 a = Alignment(mongodb, al)

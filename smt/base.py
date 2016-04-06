@@ -14,7 +14,7 @@ class BaseStruct(object):
                 setattr(self, a, BaseStruct(b) if isinstance(b, dict) else b)
 
 
-class BaseSmtModel:
+class BaseSmtModel(object):
     @classmethod
     def ImportFromCSVFile(cls, csvFilePath, db, delete_existing=True):
         # TODO: warning se non esiste il file

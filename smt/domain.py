@@ -10,15 +10,15 @@ import datetime
 class Domain(BaseSmtModel):
     def _init_utils(self,**kwargs):
         self.logger.debug('created an instance of %s' % self.__class__.__name__)
-    
+
     def delete_referencing(self):
         a_collection = self.db["Alignment"]
         a_collection.remove({"domain_id":self._id})
-    
+
     def delete(self):
         super(Domain,self).delete()
         self.delete_referencing()
-    
+
     def import_alignment_set(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
             rows = []
@@ -35,7 +35,7 @@ class Domain(BaseSmtModel):
             collection = self.db["AlignmentSet"]
             collection.remove({"domain_id":self._id})
             collection.insert(rows)
-    
+
     def import_alignment(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
             rows = []
@@ -53,11 +53,10 @@ class Domain(BaseSmtModel):
             self.delete_referencing()
             a_collection = self.db["Alignment"]
             a_collection.insert(rows)
-    
-    
+
+
     def import_strata(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
-            rows = []
             strata_reader = csv.DictReader(csvfile, delimiter=';')
             pk = -1.0
             a_collection = self.db["Alignment"]
@@ -93,7 +92,6 @@ class Domain(BaseSmtModel):
 
     def import_falda(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
-            rows = []
             falda_reader = csv.DictReader(csvfile, delimiter=';')
             pk = -1.0
             a_collection = self.db["Alignment"]
@@ -101,7 +99,7 @@ class Domain(BaseSmtModel):
             falda_list = list(falda_reader)
             self.logger.debug('import_falda - starting reading %d rows from %s' % (len(falda_list),csvFilePath))
             for row in falda_list:
-                pk = float(row["PK"])                                    
+                pk = float(row["PK"])
                 ac = a_collection.find_one({"PK":pk,"domain_id":self._id})
                 if ac:
                     ac["FALDA"] = { "type": "Point", "coordinates": [toFloat(row["x"]), toFloat(row["y"]), toFloat(row["z"])] }
@@ -113,7 +111,6 @@ class Domain(BaseSmtModel):
 
     def import_sezioni(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
-            rows = []
             sezioni_reader = csv.DictReader(csvfile, delimiter=';')
             pk = -1.0
             a_collection = self.db["Alignment"]
@@ -121,17 +118,16 @@ class Domain(BaseSmtModel):
             sezioni_list = list(sezioni_reader)
             self.logger.debug('import_sezioni - starting reading %d rows from %s' % (len(sezioni_list),csvFilePath))
             for row in sezioni_list:
-                pk = float(row["PK"])                                    
+                pk = float(row["PK"])
                 ac = a_collection.find_one({"PK":pk,"domain_id":self._id})
                 if ac:
                     ac["SECTIONS"] = { "Excavation":{"Radius":toFloat(row["Excavation Radius"])}, "Lining":{"Internal_Radius":toFloat(row["Lining Internal Radius"]), "Thickness":toFloat(row["Lining Thickness"]), "Offset":toFloat(row["Lining Offset"])}}
                     align = Alignment(self.db,ac)
                     align.save()
-    
+
     #tbm_progetto.csv
     def import_tbm(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
-            rows = []
             tbm_reader = csv.DictReader(csvfile, delimiter=';')
             pk = -1.0
             a_collection = self.db["Alignment"]
@@ -139,20 +135,17 @@ class Domain(BaseSmtModel):
             tbm_list = list(tbm_reader)
             self.logger.debug('import_tbm - starting reading %d rows from %s' % (len(tbm_list),csvFilePath))
             for row in tbm_list:
-                pk = float(row["PK"])                                    
+                pk = float(row["PK"])
                 ac = a_collection.find_one({"PK":pk,"domain_id":self._id})
                 if ac:
                     #excav_diameter	bead_thickness	taper	tail_skin_thickness	delta	gamma_muck shield_length
                     ac["TBM"] = {"excav_diameter":toFloat(row["excav_diameter"]),"bead_thickness":toFloat(row["bead_thickness"]),"taper":toFloat(row["taper"]),"tail_skin_thickness":toFloat(row["tail_skin_thickness"]),"delta":toFloat(row["delta"]),"gamma_muck":toFloat(row["gamma_muck"]),"shield_length":toFloat(row["shield_length"])}
                     align = Alignment(self.db,ac)
-                    align.save()    
-    
+                    align.save()
+
     def import_reference_strata(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
-            rows = []
             reference_strata_reader = csv.DictReader(csvfile, delimiter=';')
-            a_collection = self.db["Alignment"]
-            ac = None
             reference_strata_list = list(reference_strata_reader)
             geocodes = {}
             self.logger.debug('import_reference_strata - starting reading %d rows from %s' % (len(reference_strata_list),csvFilePath))
@@ -167,9 +160,9 @@ class Domain(BaseSmtModel):
                 geocodes[code.upper()] = items
             self.item["REFERENCE_STRATA"] = geocodes
             self.save()
-                    
+
     def doit (self,parm):
         pass
 
 
-    
+

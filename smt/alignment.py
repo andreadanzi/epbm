@@ -49,9 +49,9 @@ class Alignment(BaseSmtModel):
         retVal = "XXX"
         pk = self.item["PK"]
         # danzi.tn@20160315 nuovo criterio di ricerca: ci possono essere più PK per ogni building (tun02, tun04, sim)
-        # {"PK_INFO.pk_array":{ "$elemMatch": { "$and":[{"pk_min":{"$lte":2150690}},{"pk_max":{"$gt":2150690}} ]}} }
-        # TODO: nel caso di 2 canne posso avere pk_array con stesse pk ma distanze diverse! bisogna aggiungere id tracciato in ogni elemento di pk_array
-        bcurr = self.db.Building.find({"PK_INFO.pk_array":{"$elemMatch": {"$and":[{"pk_min":{"$lte":pk+buff}}, {"pk_max":{"$gt":pk-buff}}]}}})
+        # {"PK_INFO":{"$elemMatch": {"$and":[{"pk_min":{"$lte":2150690}},{"pk_max":{"$gt":2150690}}]}}}
+        # aghensi#20160406: rimosso livello pk_array, aggiunto filtro per alignment set per gestire più tracciati
+        bcurr = self.db.Building.find({"PK_INFO":{"$elemMatch": {"$and":[{"alignment_set_id":self.item["alignment_set_id"]}, {"pk_min":{"$lte":pk+buff}}, {"pk_max":{"$gt":pk-buff}}]}}})
         building_array = []
         for b in bcurr:
             building_array.append(b)
@@ -378,7 +378,7 @@ class Alignment(BaseSmtModel):
                         x_max = None
                         pk_min = None
                         pk_max = None
-                        for pk_item in b.PK_INFO.pk_array:
+                        for pk_item in b.PK_INFO:
                             if pk_item.pk_min <= align.PK +buff and pk_item.pk_max > align.PK-buff:
                                 x_min = pk_item.d_min
                                 x_max = pk_item.d_max

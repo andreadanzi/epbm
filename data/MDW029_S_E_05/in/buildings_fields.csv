@@ -10,7 +10,7 @@ vulnerability;vuln;Vulnerabilità;1
 settlement_max;sett_max;Settlement max;1000
 tilt_max;tilt_max;Tilt max;1000
 esp_h_max;esph_max;Esp h max;1000
-eps_0;eps_0;eps_0;1
+eps_0;eps_0;eps_0;100
 p_tbm;p_tbm;Pressione al fronte;1
 blowup;blowup;Blowup;1
 k_peck;k_peck;k_peck;1

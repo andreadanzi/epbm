@@ -11,6 +11,7 @@ import logging
 import logging.handlers
 import csv
 
+from project import Project
 from building import Building
 import helpers
 
@@ -40,10 +41,16 @@ def export_buildings_data(project_code, authenticate, csv_name, shp_name, fields
         with open(csv_path, 'wb') as out_csvfile:
             writer = csv.writer(out_csvfile, delimiter=";")
             writer.writerow([x["csv_field"] for x in dati])
-            # TODO: filtrare edifici relativi al progetto!
-            bcurr = Building.find(mongodb, {"PK_INFO":{"$exists":True}})
-            if bcurr.count == 0:
-                logger.error("Nessun Edificio Trovato!")
+            # aghensi@20160406 aggiunto filtro per progetto
+            projdb = mongodb.Project.find_one({"project_code":project_code})
+            project = None
+            if not projdb:
+                logger.error("Il progetto dal codice %s non esiste!", project_code)
+                return
+            project = Project(mongodb, projdb)
+            bcurr = Building.find(mongodb, {"project_id": project._id})
+            if bcurr.count() == 0:
+                logger.error("Nessun Edificio Trovato per il progetto %s!", project_code)
                 return
             if shp_name:
                 shp_path = os.path.join(data_basedir, "gis", shp_name)
@@ -59,7 +66,7 @@ def export_buildings_data(project_code, authenticate, csv_name, shp_name, fields
                 if layer:
                     bldg_feature = helpers.find_first_feature(layer, "bldg_code", bldg_code)
                     if not bldg_feature:
-                        logger.warn("No feature with bldg_code %s found", bldg_code)
+                        logger.warning("No feature with bldg_code %s found", bldg_code)
                 logger.debug("Processing building %s", bldg_code)
                 row = []
                 for dato in dati:
@@ -68,13 +75,9 @@ def export_buildings_data(project_code, authenticate, csv_name, shp_name, fields
                         field_value = building.item["bldg_code"]
                     elif dato["field"].split("_", 1)[0] in ["d", "pk"]:
                         field, align = dato["field"].split("-", 1)
-                        pk_array = building.item["PK_INFO"]["pk_array"]
-                        # TODO: aggiungere intelligenza quando ho più tracciati
-#                       if align == "smi":
-#                           field_value = next((l[field] for l in pk_array if l['pk_min'] > 2150000), None)
-#                       else:
-#                            field_value = next((l[field] for l in pk_array if l['pk_min'] < 2150000), None)
-                        field_value = next((l[field] for l in pk_array), None)
+                        # aghensi@20160406 uso alignment_code per mettere in colonna giusta
+                        pk_array = building.item["PK_INFO"]
+                        field_value = next((l[field] for l in pk_array if l['alignment_code'] == align), None)
                     else:
                         # logger.debug("processing attribute %s of building %s",
                         #              dato["field"], bldg_code)
