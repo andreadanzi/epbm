@@ -27,3 +27,4 @@ data/gis/smt_*
 data/gis/mask*
 data/smt_qgis.qgs~
 *.dxf
+smt/test_buosinnesq.py
