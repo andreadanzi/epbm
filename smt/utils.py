@@ -342,6 +342,37 @@ def vibration_speed_Boucliers(d):
     vs=10.43*d**(-1.3825)
     return vs
 
+#Gabriele@20160407 Carico boussinesq - inizio
+# z >=0 distanza verticale tra calotta tunnel e piano di imposta fondazione
+# x >=0 distanza orizzontale tra asse tunnel e centro fondazione
+# qs = carico equivalente all'edificio
+# Bqs = larghezza impronta di carico
+def boussinesq(qs, Bqs, x, z):
+    if x<0 or z<0:
+        print ("Errore, valutazione Boussinesq con valori negativi: x=%f, z=%f" % (x, z))
+        delta_qs = 1.
+    else:
+        if z == 0:
+            if x > Bqs/2.:
+                delta_qs = 0.
+            else:
+                delta_qs = 1.
+        else:
+            if x == 0:
+                alfa = -math.atan((Bqs / 2.) / z)
+                beta = -2. * alfa
+            elif x > 0:
+                if x > (Bqs / 2.):
+                    alfa = math.atan((x - Bqs / 2.) / z)
+                    beta = math.atan((x + Bqs / 2.) / z) - alfa
+                else:
+                    alfa = -math.atan((Bqs / 2. - x) / z)
+                    beta = math.atan((Bqs / 2. + x) / z) - alfa
+            delta_qs = 1./math.pi*(beta+math.sin(beta)*math.cos(beta+2.*alfa))
+    delta_qs = max(delta_qs, 0.)
+    return delta_qs*qs
+#Gabriele@20160407 Carico boussinesq - fine
+
 """        
 def latLonToProjection(lat, lon, epsg):
     '''
