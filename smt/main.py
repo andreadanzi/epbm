@@ -46,6 +46,8 @@ def import_all_data(project_code, project_name):
         p = Project(mongodb, pd)
     # Import domain inside the project: one-to-many relationship by references
     p.import_objects("Domain", os.path.join(importdir, "domain.csv"))
+    # danzi.tn@20160407 nuova collection ReferenceStrata
+    p.import_objects("ReferenceStrata", os.path.join(importdir, "reference_strata-valori minimi.csv"))
     cr = Domain.find(mongodb, {"project_id": p._id})
     # Import Buildings
     p.import_buildings(os.path.join(importdir, "buildings.csv"))

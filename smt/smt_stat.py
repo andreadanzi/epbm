@@ -18,13 +18,19 @@ class CNorm:
     mean=0
     def __init__(self, mean):
         self.mean = mean
-    def rvs(self):
+    def rvs(self, size=1):
+        if size > 1:
+            return np.full(size,self.mean)
         return self.mean
 
 #danzi.tn@20160407 norma troncata sulla base del 99% 
 def get_truncnorm(vmin,vmax,name='',p=99.,nIter=1000):
-    if vmin==-1 or vmax==-1:
+    vmin = float(vmin)
+    vmax = float(vmax)
+    if vmin <= 0 or vmax <= 0:
         return CNorm(0.0)
+    elif vmin == vmax:
+        return CNorm(vmin)
     elif nIter<2:
         return CNorm((vmin+vmax)/2.0)
     elif nIter < 4:
@@ -41,14 +47,16 @@ def get_truncnorm(vmin,vmax,name='',p=99.,nIter=1000):
         upper = vmax
         if lower < 0:
             lower = mean - std
-            upper = mean + std
+            upperupper = mean + std
         a, b = (lower - mean) / std, (upper - mean) / std
         myNorm = truncnorm(a, b, loc=mean, scale=std)
         return myNorm
         
 #danzi.tn@20160407 distribuzione triangolare
 def get_triang(minVal,avgVal,maxVal):
-    
+    minVal = float(minVal)
+    avgVal = float(avgVal)
+    maxVal = float(maxVal)
     c = (avgVal-minVal)/(maxVal-minVal)
     loc = minVal
     scale = maxVal-minVal
@@ -59,8 +67,8 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(1, 1)
     # restituisce la truncnorm calcolata tra minimo e massimo, default è 99%
-    rn95 = get_truncnorm(12., 28.,"95trunc",95.)
-    rn99 = get_truncnorm(12., 28.,"99trunc")
+    rn95 = get_truncnorm(17., 19.,"95trunc",95.)
+    rn99 = get_truncnorm(17., 19.,"99trunc")
     # restituisce la funzione di distribuzione triangolare calcolata tra minimo e massimo con moda
     tri = get_triang(12., 26.,28.)
     # genero un array con 1000 valori random calcolati sulla base della truncnorm al 95%
@@ -69,7 +77,7 @@ if __name__ == '__main__':
     min_samples = np.min(samples)
     max_samples = np.max(samples)
     print "%d campioni compreso tra %f e %f" % (nSize,min_samples,max_samples)
-    custom_bins = (min_samples,14.0,16.0,18.0,20.0,max_samples)
+    custom_bins = (min_samples,17.4,17.8,18.2,18.6,max_samples)
     # histogram restituisce i bin
     print "############# histogram"
     res = np.histogram(samples, bins =5) # se bins è un intero => crea bin uguali per cui sum=numerosità
@@ -103,7 +111,7 @@ if __name__ == '__main__':
         print "%f percentile the value is %f" %(p, val)
     # Percentili sotto soglia
     print "############# ercentili sotto soglia"
-    soglie = [16.0,18.0,20.0,22.0,24.,26.]
+    soglie = [17.2,17.8,18.2,18.6]
     for s in  soglie:
         print u"Sotto %f c'è il %f percento del campione" % (s,percentileofscore(samples,s))
         
@@ -111,7 +119,7 @@ if __name__ == '__main__':
     # valori per asse x
     x = np.linspace(0, 50, 100)
     # per fare un confronto creo la funzione distribuzione gaussiana al 99%
-    loc,sigma = get_sigma(12,28)
+    loc,sigma = get_sigma(17.,19.)
     rv = norm(loc,sigma)
     ax.plot(x, rv.pdf(x), 'r-', lw=2, label='Norma')
     ax.plot(x, tri.pdf(x), 'b-', lw=2, label='Tri')

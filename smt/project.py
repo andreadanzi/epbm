@@ -19,9 +19,10 @@ class Project(BaseSmtModel):
                 a_collection.remove({"alignment_set_id":als["_id"]})
             as_collection.remove({"domain_id":d["_id"]})
         d_collection.remove({"project_id":self._id})
+        # danzi.tn@20160407 nuova collection ReferenceStrata
         for db_collection in ["Building", "BuildingClass", "UndergroundStructureClass",
                               "UndergroundUtilityClass", "OvergroundInfrastructureClass",
-                              "VibrationClass"]:
+                              "VibrationClass", "ReferenceStrata"]:
             self.db[db_collection].remove({"project_id":self._id})
 
     def delete(self):

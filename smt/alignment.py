@@ -8,6 +8,7 @@ from utils import *
 from building import Building
 # danzi.tn@20160310 refactoring per separare calc da setup
 # danzi.tn@20160322 clacolati dati _base insieme a gabriele
+# danzi.tn@20160407 set samples degli strati ed esempio per l'utilizzo
 class Alignment(BaseSmtModel):
 
     def _init_utils(self, **kwargs):
@@ -16,7 +17,11 @@ class Alignment(BaseSmtModel):
 
     def setProject(self, projectItem):
         self.project = BaseStruct(projectItem)
-
+    
+    # danzi.tn@20160407 set samples degli strati
+    def setSamples(self, samples):
+        self.strata_samples = samples
+        
     def assign_reference_strata(self):
         retVal = "XXX"
         # BaseStruct converte un dizionario in un oggetto la cui classe ha come attributi gli elementi del dizionario
@@ -123,7 +128,7 @@ class Alignment(BaseSmtModel):
         phi_wg = 0.
         ci_wg = 0.
         wg_tot = 0.
-        th_tot = 0.
+        th_tot = 0.            
         for ref_stratus in ref_strata:
             if ref_stratus.POINTS.top.coordinates[2] > z_base - r_excav:
                 z_max = ref_stratus.POINTS.top.coordinates[2]
@@ -218,6 +223,25 @@ class Alignment(BaseSmtModel):
         z_base = z_tun - r_excav
         z_dem = align.DEM.coordinates[2]
         self.logger.debug("Analisi alla PK %f" % (align.PK))
+        # danzi.tn@20160407 samples degli strati
+        for strata_name, ref_strata_samples in self.strata_samples.iteritems():
+            """
+            strata_name è il nome dello strato
+            ref_strata_samples è una lista di oggetti con le proprietà seguenti
+            for sample in ref_strata_samples:
+                i = sample.i
+                e = sample.e
+                phi = sample.phi
+                c = sample.c
+                k0 = sample.k0
+            """
+            self.logger.debug("strata_name=%s" % strata_name)
+            self.logger.debug("Primo campione (indice=0) di i = %f" % ref_strata_samples[0].i)
+            self.logger.debug("Primo campione (indice=0) di e = %f" % ref_strata_samples[0].e)
+            self.logger.debug("Primo campione (indice=0) di phi = %f" % ref_strata_samples[0].phi)
+            self.logger.debug("Primo campione (indice=0) di c = %f" % ref_strata_samples[0].c)
+            self.logger.debug("Primo campione (indice=0) di k0 = %f" % ref_strata_samples[0].k0)
+        # danzi.tn@20160407-end
         try:
             if align.z == align.PH.coordinates[2] and z_dem > z_top:
                 ##### Verifica strato di riferimento per le sezioni di riferimento per pressione minima di stabilità
