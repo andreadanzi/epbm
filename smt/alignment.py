@@ -5,6 +5,7 @@ import csv
 
 from base import BaseSmtModel, BaseStruct
 from utils import *
+from smt_stat import get_truncnorm_avg
 from building import Building
 # danzi.tn@20160310 refactoring per separare calc da setup
 # danzi.tn@20160322 clacolati dati _base insieme a gabriele
@@ -223,8 +224,14 @@ class Alignment(BaseSmtModel):
         z_base = z_tun - r_excav
         z_dem = align.DEM.coordinates[2]
         self.logger.debug("Analisi alla PK %f" % (align.PK))
+        # danzi.tn@20160407 samples di progetto
+        my_avg = 150 # sostituire con il valore corrente
+        my_sigma = 10. # per fare in modo che 99 percentile 3*sigma = 30 kPa
+        # restituisce campioni tra vmin = my_avg - 30 kPa e vmax = my_avg + kPa e con il 99 precentile pari a vmax.
+        std_norm_samples = get_truncnorm_avg(my_avg, 10.).rvs(size=self.strata_samples["len"])
+        vloss_tail_samples = self.strata_samples["project"]["vloss_tail"]
         # danzi.tn@20160407 samples degli strati
-        for strata_name, ref_strata_samples in self.strata_samples.iteritems():
+        for strata_name, ref_strata_samples in self.strata_samples["strata"].iteritems():
             """
             strata_name è il nome dello strato
             ref_strata_samples è una lista di oggetti con le proprietà seguenti

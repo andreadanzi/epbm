@@ -14,6 +14,9 @@ from alignment_set import AlignmentSet
 from project import Project
 from domain import Domain
 from reference_strata import ReferenceStrata
+from smt_stat import get_triang
+from scipy.stats import truncnorm
+
 # danzi.tn@20160407 set della nuova collection ReferenceStrata per il Sampling
 def process_calc(project_code, bAuthenticate,nSamples):
     logger = helpers.init_logger('smt_main', 'process_calc.log', logging.DEBUG)
@@ -29,14 +32,19 @@ def process_calc(project_code, bAuthenticate,nSamples):
             # danzi.tn@20160407 recupero dei dati presenti in ReferenceStrata
             rs_items = ReferenceStrata.find(mongodb, {"project_id": p._id}) 
             if rs_items:
-                samples = {}
-                for rs_item in rs_items:
-                    rs = ReferenceStrata(mongodb,rs_item)
-                    rs.load()                
-                    if nSamples > 0:
-                        samples[rs_item["code"]] = rs.gen_samples(nSamples)
-                    else:
-                        print "no sampling required"
+                
+                samples = {"len":nSamples}
+                # vloss_tail_min	vloss_tail_mode	vloss_tail_max	p_tbm_loc	p_tbm_sigma_factor
+                # danzi.tn@20160407 uso i dati presenti in Project per i campioni di volume perso vloss_tail
+                if nSamples > 0:
+                    samples["project"] = {"vloss_tail": get_triang(p.item["vloss_tail_min"],p.item["vloss_tail_mode"],p.item["vloss_tail_max"]).rvs(size=nSamples)}
+                    for rs_item in rs_items:
+                        rs = ReferenceStrata(mongodb,rs_item)
+                        rs.load()                
+                        samples["strata"] = {rs_item["code"]: rs.gen_samples(nSamples)}
+                else:
+                    print "no sampling required"
+                # danzi.tn@20160407e
                 found_domains = Domain.find(mongodb, {"project_id": p._id})         
                 for dom in found_domains:
                     d = Domain(mongodb, dom)

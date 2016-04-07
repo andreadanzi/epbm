@@ -27,7 +27,7 @@ class CNorm:
 def get_truncnorm(vmin,vmax,name='',p=99.,nIter=1000):
     vmin = float(vmin)
     vmax = float(vmax)
-    if vmin <= 0 or vmax <= 0:
+    if vmin < 0 or vmax < 0:
         return CNorm(0.0)
     elif vmin == vmax:
         return CNorm(vmin)
@@ -51,7 +51,17 @@ def get_truncnorm(vmin,vmax,name='',p=99.,nIter=1000):
         a, b = (lower - mean) / std, (upper - mean) / std
         myNorm = truncnorm(a, b, loc=mean, scale=std)
         return myNorm
-        
+
+def get_truncnorm_avg(your_avg, your_sigma, p=99):
+    scale = 3.0
+    if p == 95:
+        scale = 2.0
+    lower = your_avg - scale*your_sigma
+    upper = your_avg + scale*your_sigma
+    a, b = (lower - your_avg) / your_sigma, (upper - your_avg) / your_sigma
+    myNorm = truncnorm(a, b, loc=your_avg, scale=your_sigma)
+    return myNorm
+
 #danzi.tn@20160407 distribuzione triangolare
 def get_triang(minVal,avgVal,maxVal):
     minVal = float(minVal)
@@ -62,7 +72,8 @@ def get_triang(minVal,avgVal,maxVal):
     scale = maxVal-minVal
     return triang(c, loc=loc,scale=scale)
 
-        
+  
+    
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(1, 1)
@@ -123,9 +134,22 @@ if __name__ == '__main__':
     rv = norm(loc,sigma)
     ax.plot(x, rv.pdf(x), 'r-', lw=2, label='Norma')
     ax.plot(x, tri.pdf(x), 'b-', lw=2, label='Tri')
-    #ax.plot(x, rn95.pdf(x), 'k-', lw=2, label='Trunc')
+    # ax.plot(x, rn95.pdf(x), 'k-', lw=2, label='Trunc')
     ax.plot(x, rn99.pdf(x), 'y-', lw=2, label='Trunc')
     ax.hist(samples,5, normed=True, histtype='stepfilled', alpha=0.2)
     ax.legend(loc='best', frameon=False)
     plt.show()
-        
+    # 
+    lower = 0.0
+    upper = 2.0
+    mean = 1.0
+    std = 1./3.
+    a, b = (lower - mean) / std, (upper - mean) / std
+    print a
+    print b
+    rn99 = truncnorm(a, b, loc=mean, scale=std) 
+    rn99 = truncnorm(-3, 3, loc=1,scale=1./3.) 
+    fig, ax = plt.subplots()
+    samples = rn99.rvs(size=nSize)
+    ax.hist(samples,nSize/10, normed=True, histtype='stepfilled', alpha=0.2)
+    plt.show()
