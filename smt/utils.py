@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # import ogr, osr
 import math
+import sys
 
 def toFloat(s):
         try:
@@ -373,6 +374,31 @@ def boussinesq(qs, Bqs, x, z):
     return delta_qs*qs
 #Gabriele@20160407 Carico boussinesq - fine
 
+#Gabriele@20160407 esp critico Burland and Wroth 1974 - inizio
+#h_bldg altezza edificio in m
+#str_type tipo di struttura M/F Masonry/Framed
+#L_hog_l, L_sag, L_hog_r lunghezza edificio in hogging a sinistra, sagging e hogging a destra
+#delta_hog_l , delta_sag, delta_hog_r massimo cedimento relativo nei tratti di hogging a sinistra, sagging e hogging a destra
+#eps_hog_l, eps_sag, eps_hog_r deformazione orizzontale nei tratti di hogging a sinistra, sagging e hogging a destra
+def eps_crit_burland_wroth(h_bldg, str_type, L_hog_l, L_sag, L_hog_r, delta_hog_l, delta_sag, delta_hog_r, eps_hog_l, eps_sag, eps_hog_r):
+    if str_type == "M":
+        E_G = 2.6
+    elif str_type == "F":
+        E_G = 12.5
+    else:
+        print ("Errore selezione tipo di struttura")
+        E_G = 2.6
+    I_sag = (h_bldg**3)/12.
+    I_Hog = (h_bldg**3)/3.
+    t_sag = h_bldg/2.
+    t_hog = h_bldg
+    # RIPRENDERE DA QUI
+    if L_hog_l>0:
+        L = L_hog_l
+        stiff_b = 1
+        eps_b_hog_l=stiff_b
+    
+#Gabriele@20160407 esp critico Burland and Wroth 1974 - fine
 """        
 def latLonToProjection(lat, lon, epsg):
     '''

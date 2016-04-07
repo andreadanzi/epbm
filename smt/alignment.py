@@ -891,11 +891,13 @@ class Alignment(BaseSmtModel):
                                 z_min = max(z_dem-z, ref_stratus.POINTS.base.coordinates[2])
                                 p_soil=(z_max-z_min)*ref_stratus.PARAMETERS.inom
                         p_bldg = 5.*h_bldg #+7.5
+                        #Gabriele@20160407 Carico boussinesq - inizio
                         qs = max(0., p_bldg-p_soil)
                         Bqs = x_max - x_min
                         x_bou = abs((x_min+x_max)/2.)
                         z_bou = z_dem-z-z_top
                         extra_load = boussinesq(qs, Bqs, x_bou, z_bou)
+                        #Gabriele@20160407 Carico boussinesq - fine
                         s_v_bldg = s_v+extra_load
                         step = (x_max-x_min)/1000.
                         self.logger.debug("\t\textra carico in galleria %f kN/m2" % (extra_load))
