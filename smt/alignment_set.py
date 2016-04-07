@@ -12,9 +12,20 @@ class AlignmentSet(BaseSmtModel):
     def _init_utils(self, **kwargs):
         self.logger.debug('created an instance of %s', self.__class__.__name__)
 
-    def delete_referencing(self):
-        a_collection = self.db["Alignment"]
-        a_collection.remove({"alignment_set_id":self._id})
+    def delete_referencing(self, alignments=False, buildings=False):
+        if alignments:
+            a_collection = self.db["Alignment"]
+            a_collection.remove({"alignment_set_id":self._id})
+        # aghensi@20160407 eliminazione della PK_INFO relativa a quell'allineamento
+        if buildings:
+            bldg_collection = self.db["Building"]
+            for bldg in bldg_collection.find({"alignment_set_id":self._id}):
+                building = Building(self.db, bldg)
+                building.load()
+                building.item["PK_INFO"][:] = [x for x
+                                               in building.item["PK_INFO"]
+                                               if x["alignment_set_id"] != self._id]
+                building.save()
 
     def delete(self):
         super(AlignmentSet, self).delete()
@@ -38,7 +49,7 @@ class AlignmentSet(BaseSmtModel):
                 row["created"] = datetime.datetime.utcnow()
                 row["updated"] = datetime.datetime.utcnow()
                 rows.append(row)
-            self.delete_referencing()
+            self.delete_referencing(alignments=True)
             a_collection = self.db["Alignment"]
             a_collection.insert(rows)
 
@@ -67,25 +78,62 @@ class AlignmentSet(BaseSmtModel):
                     ac = a_collection.find_one({"PK":pk, "alignment_set_id":self._id})
                 if ac:
                     if row["Descrizione"] == "DEM":
-                        ac["DEM"] = {"type": "Point", "coordinates": [toFloat(row["x"]),
-                                                                      toFloat(row["y"]),
-                                                                      toFloat(row["top"])]}
+                        ac["DEM"] = {
+                            "type": "Point",
+                            "coordinates": [
+                                toFloat(row["x"]),
+                                toFloat(row["y"]),
+                                toFloat(row["top"])
+                                ]
+                            }
                     else:
                         geoparameters = self.item["REFERENCE_STRATA"][row["Descrizione"].upper()]
                         if "STRATA" in ac:
-                            ac["STRATA"].append({"CODE":row["Descrizione"].upper(),
-                                                 "PARAMETERS":geoparameters,
-                                                 "POINTS":{"top":{"type":"Point",
-                                                                  "coordinates":[toFloat(row["x"]), toFloat(row["y"]), toFloat(row["top"])]},
-                                                           "base": {"type":"Point",
-                                                                    "coordinates":[toFloat(row["x"]), toFloat(row["y"]), toFloat(row["base"])]}}})
+                            ac["STRATA"].append({
+                                "CODE":row["Descrizione"].upper(),
+                                "PARAMETERS":geoparameters,
+                                "POINTS":{
+                                    "top":{
+                                        "type":"Point",
+                                        "coordinates":[
+                                            toFloat(row["x"]),
+                                            toFloat(row["y"]),
+                                            toFloat(row["top"])
+                                            ]
+                                        },
+                                    "base": {
+                                        "type":"Point",
+                                        "coordinates":[
+                                            toFloat(row["x"]),
+                                            toFloat(row["y"]),
+                                            toFloat(row["base"])
+                                            ]
+                                        }
+                                    }
+                                })
                         else:
-                            ac["STRATA"] = [{"CODE":row["Descrizione"].upper(),
-                                             "PARAMETERS":geoparameters,
-                                             "POINTS":{"top":{"type":"Point",
-                                                              "coordinates":[toFloat(row["x"]), toFloat(row["y"]), toFloat(row["top"])]},
-                                                       "base":{"type":"Point",
-                                                               "coordinates":[toFloat(row["x"]), toFloat(row["y"]), toFloat(row["base"])]}}}]
+                            ac["STRATA"] = [{
+                                "CODE":row["Descrizione"].upper(),
+                                "PARAMETERS":geoparameters,
+                                "POINTS":{
+                                    "top":{
+                                        "type":"Point",
+                                        "coordinates":[
+                                            toFloat(row["x"]),
+                                            toFloat(row["y"]),
+                                            toFloat(row["top"])
+                                            ]
+                                        },
+                                    "base":{
+                                        "type":"Point",
+                                        "coordinates":[
+                                            toFloat(row["x"]),
+                                            toFloat(row["y"]),
+                                            toFloat(row["base"])
+                                            ]
+                                        }
+                                    }
+                                }]
             if ac:
                 ac["updated"] = datetime.datetime.utcnow()
                 align = Alignment(self.db, ac)
@@ -128,10 +176,12 @@ class AlignmentSet(BaseSmtModel):
                 pk = float(row["PK"])
                 ac = a_collection.find_one({"PK":pk, "alignment_set_id":self._id})
                 if ac:
-                    ac["SECTIONS"] = {"Excavation":{"Radius": toFloat(row["Excavation Radius"])},
-                                      "Lining":{"Internal_Radius": toFloat(row["Lining Internal Radius"]),
-                                      "Thickness": toFloat(row["Lining Thickness"]),
-                                      "Offset": toFloat(row["Lining Offset"])}}
+                    ac["SECTIONS"] = {
+                        "Excavation":{"Radius": toFloat(row["Excavation Radius"])},
+                        "Lining":{"Internal_Radius": toFloat(row["Lining Internal Radius"]),
+                                  "Thickness": toFloat(row["Lining Thickness"]),
+                                  "Offset": toFloat(row["Lining Offset"])}
+                        }
                     align = Alignment(self.db, ac)
                     align.save()
 
@@ -149,14 +199,16 @@ class AlignmentSet(BaseSmtModel):
                 pk = float(row["PK"])
                 ac = a_collection.find_one({"PK":pk, "alignment_set_id":self._id})
                 if ac:
-                    ac["TBM"] = {"excav_diameter": toFloat(row["excav_diameter"]),
-                                 "bead_thickness": toFloat(row["bead_thickness"]),
-                                 "taper": toFloat(row["taper"]),
-                                 "tail_skin_thickness": toFloat(row["tail_skin_thickness"]),
-                                 "delta": toFloat(row["delta"]),
-                                 "gamma_muck": toFloat(row["gamma_muck"]),
-                                 "shield_length": toFloat(row["shield_length"]),
-                                 "pressure_max": toFloat(row["pressure_max"])}
+                    ac["TBM"] = {
+                        "excav_diameter": toFloat(row["excav_diameter"]),
+                        "bead_thickness": toFloat(row["bead_thickness"]),
+                        "taper": toFloat(row["taper"]),
+                        "tail_skin_thickness": toFloat(row["tail_skin_thickness"]),
+                        "delta": toFloat(row["delta"]),
+                        "gamma_muck": toFloat(row["gamma_muck"]),
+                        "shield_length": toFloat(row["shield_length"]),
+                        "pressure_max": toFloat(row["pressure_max"])
+                        }
                     align = Alignment(self.db, ac)
                     align.save()
 
@@ -202,7 +254,7 @@ class AlignmentSet(BaseSmtModel):
                     self.logger.debug("Buliding %s found", building_code)
                     building = Building(self.db, bItem)
                     building.load()
-                    # aghensi@20160406 tolto livello pk_array da PK_INFO e valori fuori da pk_info?
+                    # aghensi@20160406 tolto livello pk_array da PK_INFO e valori fuori da PK_INFO
                     if "PK_INFO" in building.item:
                         pk_array = building.item["PK_INFO"]
                         building.item["PK_INFO"] = pk_array + prop_array
@@ -212,10 +264,14 @@ class AlignmentSet(BaseSmtModel):
 #                        building.item["pk_max"] = pk_max
 #                        building.item["d_min"] = d_min
 #                        building.item["d_max"] = d_max
-                        building.item["updated"] = datetime.datetime.utcnow()
+                    # aghensi@20160407 memorizzo geometria impronta edificio in formato WKT in db
+                    if "WKT" in row:
+                        if not "WKT" in building.item:
+                            building.item["WKT"] = row["WKT"]
+                    building.item["updated"] = datetime.datetime.utcnow()
                     building.save()
                     b_num = b_num + 1
-            self.logger.info("%d Buildings found" % b_num)
+            self.logger.info("%d Buildings found", b_num)
 
     def doit(self, parm):
         pass

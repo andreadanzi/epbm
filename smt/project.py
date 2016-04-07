@@ -12,9 +12,12 @@ class Project(BaseSmtModel):
     def delete_referencing(self):
         # aghensi@20160406 aggiunta eliminazione di edifici e classi relativi al progetto
         d_collection = self.db["Domain"]
+        as_collection = self.db["AlignmentSet"]
         a_collection = self.db["Alignment"]
         for d in d_collection.find({"project_id":self._id}):
-            a_collection.remove({"domain_id":d["_id"]})
+            for als in as_collection.find({"domain_id":d["_id"]}):
+                a_collection.remove({"alignment_set_id":als["_id"]})
+            as_collection.remove({"domain_id":d["_id"]})
         d_collection.remove({"project_id":self._id})
         for db_collection in ["Building", "BuildingClass", "UndergroundStructureClass",
                               "UndergroundUtilityClass", "OvergroundInfrastructureClass",

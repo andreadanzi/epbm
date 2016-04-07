@@ -25,7 +25,7 @@ def import_all_data(project_code, project_name):
     '''
     logger = helpers.init_logger('smt_main', 'main.log', logging.DEBUG)
     smt_config = helpers.get_config('smt.cfg')
-    logged_in, mongodb = helpers.init_db(smt_config, True)
+    mongodb = helpers.init_db(smt_config, True)[1]
     importdir = os.path.join(helpers.get_project_basedir(project_code), "in")
 
     pd = mongodb.Project.find_one({"project_code":project_code})
@@ -106,7 +106,7 @@ def main(argv):
     project_name = None
     syntax = os.path.basename(__file__) + " -c <project code> -n <project name>"
     try:
-        opts, ignorethis = getopt.getopt(argv, "hc:n:", ["code=", "name="])
+        opts = getopt.getopt(argv, "hc:n:", ["code=", "name="])[0]
     except getopt.GetoptError:
         print syntax
         sys.exit(1)
