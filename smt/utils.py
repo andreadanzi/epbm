@@ -7,11 +7,11 @@ def toFloat(s):
             s = s.replace(",",".")
             s=float(s)
         except ValueError:
-            pass 
+            pass
         except TypeError:
-            pass     
+            pass
         except AttributeError:
-            pass             
+            pass
         return s
 
 
@@ -60,7 +60,7 @@ def p_min_tamez(H, W, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_f
         Hp = 1.7 * D
     else:
         Hp = H
-    
+
     if Hp < H-W:
         gamma_hp = (gamma_tun-9.81)*Hp
     else:
@@ -68,7 +68,7 @@ def p_min_tamez(H, W, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_f
     # gamma z generalizzato di tamez
     u = (H-W)*9.81
     gamma_D_2 = (gamma_tun-9.81)*D/2.
-    if W<0.:	
+    if W<0.:
         gamma_z = -W*9.81+H*(gamma_tun-9.81) # non mi torna prendere il sovraccarico dell'acqua come tensione efficace
     elif W<H:
         gamma_z = W*gamma_tun+(H-W)*(gamma_tun-9.81)
@@ -84,9 +84,9 @@ def p_min_tamez(H, W, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_f
     else:
         tau_m_3 = ci_tun
         tau_m_2 = ci_tun+k0/2.*(3.4*ci_face/math.sqrt(ka)-gamma_D_2)
-    
 
-    
+
+
     # coefficienti k0 e ka semplificati in base alla coperutra
 #    Hp = min(1.7 * D, H)
 #    if H_D > 5.:
@@ -111,7 +111,7 @@ def p_min_tamez(H, W, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_f
 #    # TODO CASO FALDA SOPRA DEM
 #        if W<H:
 #            tau_m_2 = ci_tun+k0/2.*(3.4*ci_face/math.sqrt(ka)-(gamma_face-9.81)*D/2.)
-#        else:	
+#        else:
 #            tau_m_2 = ci_tun+k0/2.*(3.4*ci_face/math.sqrt(ka)-gamma_face*D/2.)
 #        tau_m_3 = ci_tun
 #
@@ -122,7 +122,7 @@ def p_min_tamez(H, W, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_f
             p_3 = gamma_z-((2*tau_m_3)/req_safety_factor)*(Hp/D)*(1+D/a)
         else:
             p_3 = 0.
-            
+
         fs_f=((2*(tau_m_2-tau_m_3)/(1+a/Lp)**2+2*tau_m_3)*(Hp/D)+(2*tau_m_3/((1+a/Lp)*math.sqrt(ka)))*(Hp/D)+3.4*ci_face/((1+a/Lp)**2*math.sqrt(ka)))/((1+2*D/(3*H*(1+a/Lp)**2))*gamma_z)
         if fs_f < req_safety_factor:
             p_f = gamma_z-((2*(tau_m_2-tau_m_3)/(1+a/Lp)**2+2*tau_m_3)*(Hp/D)+(2*tau_m_3/((1+a/Lp)*math.sqrt(ka)))*(Hp/D)+3.4*ci_face/((1+a/Lp)**2*math.sqrt(ka)))/(req_safety_factor*(1+2*D/(3*H*(1+a/Lp)**2)))
@@ -141,7 +141,7 @@ def p_min_tamez(H, W, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_f
             p_f = 0.
     p_wt = max (0., max(0., (H-W)*9.81)+D/2.*gamma_muck) #*gamma_muck) # la riporto all'asse galeria
     p_min = max(p_3, p_f) + p_wt + additional_pressure
-        
+
     return p_min
 
 
@@ -232,7 +232,7 @@ def k_eq(R, H, beta_deg):
     tan_23 = math.pow(math.tan(beta), .23)
     k=R/H*1.15/tan_35*math.pow(H/(2.*R), .9/tan_23)
     return k
-    
+
 # definizione di Volume loss a partire dal gap (Laganathan Paulos 1998)
 # coincide con eps0 della trattazione sulla subsidenza
 # gap = gap sul raggio totale
@@ -269,7 +269,7 @@ def gap_tail(ui,  tail_skin_thickness, delta):
 # s_v = tensione verticale totale all'asse geometrico dello scavo
 # nu, young sono coefficiente di poisson e modulo di young rappresentativi del cavo
 # r_excav = raggio di scavo
-# shield_taper = conicita' dello scudo 
+# shield_taper = conicita' dello scudo
 # cutter_bead_thickness = spessore del sovrascavo
 def gap_shield(ui, shield_taper, cutter_bead_thickness):
     g_s = .5*min(ui, shield_taper+cutter_bead_thickness)
@@ -307,7 +307,7 @@ def gap_front(p_tbm, p_wt, s_v, k0, young, ci, phi, r_excav):
     return g_f
 
 # Curva caratteristica con c' e phi'
-# per congruenza con i risulati di loganathan, utilizzo: 
+# per congruenza con i risulati di loganathan, utilizzo:
 # p0 come tensione totale e dovro' depurare la pi con la pressione dell'acqua
 def ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav):
     p0 = sigma_v-p_wt
@@ -342,7 +342,38 @@ def vibration_speed_Boucliers(d):
     vs=10.43*d**(-1.3825)
     return vs
 
-"""        
+#Gabriele@20160407 Carico boussinesq - inizio
+# z >=0 distanza verticale tra calotta tunnel e piano di imposta fondazione
+# x >=0 distanza orizzontale tra asse tunnel e centro fondazione
+# qs = carico equivalente all'edificio
+# Bqs = larghezza impronta di carico
+def boussinesq(qs, Bqs, x, z):
+    if x<0 or z<0:
+        print ("Errore, valutazione Boussinesq con valori negativi: x=%f, z=%f" % (x, z))
+        delta_qs = 1.
+    else:
+        if z == 0:
+            if x > Bqs/2.:
+                delta_qs = 0.
+            else:
+                delta_qs = 1.
+        else:
+            if x == 0:
+                alfa = -math.atan((Bqs / 2.) / z)
+                beta = -2. * alfa
+            elif x > 0:
+                if x > (Bqs / 2.):
+                    alfa = math.atan((x - Bqs / 2.) / z)
+                    beta = math.atan((x + Bqs / 2.) / z) - alfa
+                else:
+                    alfa = -math.atan((Bqs / 2. - x) / z)
+                    beta = math.atan((Bqs / 2. + x) / z) - alfa
+            delta_qs = 1./math.pi*(beta+math.sin(beta)*math.cos(beta+2.*alfa))
+    delta_qs = max(delta_qs, 0.)
+    return delta_qs*qs
+#Gabriele@20160407 Carico boussinesq - fine
+
+"""
 def latLonToProjection(lat, lon, epsg):
     '''
     Converte le coordinate nel formato latitudine, longitudine (EPSG 4326)
@@ -359,5 +390,5 @@ def latLonToProjection(lat, lon, epsg):
     coordTransform = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
     point.Transform(coordTransform)
     return (point.GetX(), point.GetY())
-    
+
 """

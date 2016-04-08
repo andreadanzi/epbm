@@ -8,6 +8,7 @@ import logging.handlers
 import ConfigParser
 import csv
 import osgeo.ogr as ogr
+import osgeo.osr as osr
 from pymongo import MongoClient
 
 from utils import toFloat
@@ -90,7 +91,32 @@ def open_shapefile(path, logger):
         else:
             return shape_data
 
-def append_fields_to_shapefile(shape_data, fields, logger):
+def create_shapefile(output_shp, layername, epsg, fields_dicts, logger):
+    '''
+    crea uno shape con le informazioni degli edifici del progetto presenti nel database
+    funziona solo per oggetti buildings che hanno la definizione della geometria
+    salvata come parametro "WKT"
+    '''
+    driver = ogr.GetDriverByName("ESRI Shapefile")
+    data_source = driver.CreateDataSource(output_shp)
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(epsg)
+    layer = data_source.CreateLayer(layername, srs, ogr.wkbPoint)
+    for field_dict in fields_dicts:
+        field_name = field_dict["shp_field"][:10]
+        field_type = field_dict["field_type"]
+        if field_type in ["string", "text"]:
+            cur_field = ogr.FieldDefn(field_name, ogr.OFTString)
+            cur_field.SetWidth(254)
+            layer.CreateField(cur_field)
+        elif field_type in ["float", "real", "decimal"]:
+            layer.CreateField(ogr.FieldDefn(field_name, ogr.OFTReal))
+        elif field_type in ["int", "integer"]:
+            layer.CreateField(ogr.FieldDefn(field_name, ogr.OFTInteger))
+        logger.debug("field %s created", field_name)
+    return data_source, layer
+
+def append_fields_to_shapefile(shape_data, fields_dicts, logger):
     '''
     adds new fields of type real to a shapefile datasource from a string list
     '''
@@ -98,10 +124,19 @@ def append_fields_to_shapefile(shape_data, fields, logger):
     layer_defn = layer.GetLayerDefn()
     shp_fields = [layer_defn.GetFieldDefn(i).GetName() for i in range(layer_defn.GetFieldCount())]
     # se non esistono creo i campi
-    for field_abbr in [field[:10] for field in fields]:
-        if field_abbr not in shp_fields:
-            layer.CreateField(ogr.FieldDefn(field_abbr, ogr.OFTReal))
-            logger.debug("field %s created", field_abbr)
+    for field_dict in fields_dicts:
+        field_name = field_dict["shp_field"][:10]
+        if field_name not in shp_fields:
+            field_type = field_dict["field_type"]
+            if field_type in ["string", "text"]:
+                cur_field = ogr.FieldDefn(field_name, ogr.OFTString)
+                cur_field.SetWidth(254)
+                layer.CreateField(cur_field)
+            elif field_type in ["float", "real", "decimal"]:
+                layer.CreateField(ogr.FieldDefn(field_name, ogr.OFTReal))
+            elif field_type in ["int", "integer"]:
+                layer.CreateField(ogr.FieldDefn(field_name, ogr.OFTInteger))
+            logger.debug("field %s created", field_name)
     return layer
 
 def find_first_feature(layer, field, value):
@@ -114,3 +149,13 @@ def find_first_feature(layer, field, value):
         return layer.GetNextFeature()
     else:
         return None
+
+def create_feature_from_wkt(layer, wkt):
+    '''
+    create a new feature starting from WKT string
+    '''
+    feature = ogr.Feature(layer.GetLayerDefn())
+    shape = ogr.CreateGeometryFromWkt(wkt)
+    feature.SetGeometry(shape)
+    layer.CreateFeature(feature)
+    return feature
