@@ -32,18 +32,7 @@ def process_calc(project_code, bAuthenticate,nSamples):
             # danzi.tn@20160407 recupero dei dati presenti in ReferenceStrata
             rs_items = ReferenceStrata.find(mongodb, {"project_id": p._id}) 
             if rs_items:
-                
-                samples = {"len":nSamples}
-                # vloss_tail_min	vloss_tail_mode	vloss_tail_max	p_tbm_loc	p_tbm_sigma_factor
-                # danzi.tn@20160407 uso i dati presenti in Project per i campioni di volume perso vloss_tail
-                if nSamples > 0:
-                    samples["project"] = {"vloss_tail": get_triang(p.item["vloss_tail_min"],p.item["vloss_tail_mode"],p.item["vloss_tail_max"]).rvs(size=nSamples)}
-                    for rs_item in rs_items:
-                        rs = ReferenceStrata(mongodb,rs_item)
-                        rs.load()                
-                        samples["strata"] = {rs_item["code"]: rs.gen_samples(nSamples)}
-                else:
-                    print "no sampling required"
+                samples = ReferenceStrata.gen_samples_strata(mongodb, nSamples, project_code)
                 # danzi.tn@20160407e
                 found_domains = Domain.find(mongodb, {"project_id": p._id})         
                 for dom in found_domains:
@@ -77,8 +66,8 @@ def process_calc(project_code, bAuthenticate,nSamples):
 def main(argv):
     bAuthenticate = False
     project_code = None
-    nSamples = 0
-    sSyntax = os.path.basename(__file__) +" -c <project code> [-a for authentication] [-n <number_of_samples>]"
+    nSamples = 1
+    sSyntax = os.path.basename(__file__) +" -c <project code> [-a for authentication] [-n <positive number_of_samples>]"
     try:
         opts, args = getopt.getopt(argv, "hac:n:", ["code=","nsamples="])
     except getopt.GetoptError:
@@ -95,6 +84,9 @@ def main(argv):
             bAuthenticate = True
         elif opt in ("-n", "--nsamples"):
             nSamples = int(arg)
+            if nSamples <= 0:
+                print sSyntax
+                sys.exit()
         elif opt in ("-c", "--code"):
             project_code = arg
     if project_code:

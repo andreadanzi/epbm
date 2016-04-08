@@ -24,7 +24,8 @@ class Domain(BaseSmtModel):
             rows = []
             align_reader = csv.DictReader(csvfile, delimiter=';')
             for row in align_reader:
-                if row["domain_code"] == self.item["code"]:
+                # danzi.tn@20160408 i codici sono sempre UPPERCASE
+                if row["domain_code"].upper() == self.item["code"]:
                     for key, value in row.iteritems():
                         row[key] = toFloat(value)
                     row["created"] = datetime.datetime.utcnow()

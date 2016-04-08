@@ -16,19 +16,21 @@ def toFloat(s):
 
 
 # inom	imin	imax	elt	esout	etounnel	phi_dr	c_dr	phi_tr	c_tr	phi_un	c_un	k0	n
-def cob_step_1(z_ref, ref_stratus, sigma_v ):
-    th = ref_stratus.POINTS.top.coordinates[2] - z_ref
-    sigma_v += th*ref_stratus.PARAMETERS.inom
+# danzi.tn@20160408 cambiato firma methodo ref_stratus.POINTS.top.coordinates[2] ref_stratus.PARAMETERS.inom
+def cob_step_1(z_ref, z_top_ref_stratus,inom_ref_stratus, sigma_v ):
+    th = z_top_ref_stratus - z_ref
+    sigma_v += th*inom_ref_stratus
     return sigma_v
 
 # inom	imin	imax	elt	esout	etounnel	phi_dr	c_dr	phi_tr	c_tr	phi_un	c_un	k0	n
-def cob_step_2(z_ref, ref_stratus,sigma_v,z_wt, z_tun, gamma_muck,  p_safety_cob):
+# danzi.tn@20160408 cambiato firma methodo ref_stratus.PARAMETERS.phi_tr, ref_stratus.PARAMETERS.c_tr
+def cob_step_2(z_ref, phi_tr_ref_stratus,c_tr_ref_stratus,sigma_v,z_wt, z_tun, gamma_muck,  p_safety_cob):
     pCob = 0.0
     # se non ho falda
     p_wt  = max((0,(z_wt - z_ref)*9.81))
     sigma_v_eff = sigma_v - p_wt
-    phi = math.radians(ref_stratus.PARAMETERS.phi_tr)
-    ci = ref_stratus.PARAMETERS.c_tr
+    phi = math.radians(phi_tr_ref_stratus)
+    ci = c_tr_ref_stratus
     ka = (1.- math.sin(phi))/(1.+math.sin(phi))
     sigma_ha_eff = sigma_v_eff * ka - 2.*ci*math.sqrt(ka)
     pCob = max(0., sigma_ha_eff) + p_wt + p_safety_cob + (z_ref-z_tun)*gamma_muck
@@ -258,8 +260,8 @@ def u_tun(p_tbm, p_wt, s_v, nu, young, r_excav):
 # da esperienza il gap residuo varia dal 7% al 10% del gap complessivo
 # per considerare la bonta' del materiale in coda applico lo stesso principio usato per calcolare il gap sullo shield, ui, considerando come dalta sigma p_tbm
 # todo fare variare statisticamente tale %
-def gap_tail(ui,  tail_skin_thickness, delta):
-    g_max = .1*(tail_skin_thickness+delta)
+def gap_tail(ui,  tail_skin_thickness, delta,v_loss):
+    g_max = v_loss*(tail_skin_thickness+delta)
     g_t = min(g_max, ui)
     return g_t
 

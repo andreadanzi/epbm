@@ -140,16 +140,9 @@ if __name__ == '__main__':
     ax.legend(loc='best', frameon=False)
     plt.show()
     # 
-    lower = 0.0
-    upper = 2.0
-    mean = 1.0
-    std = 1./3.
-    a, b = (lower - mean) / std, (upper - mean) / std
-    print a
-    print b
-    rn99 = truncnorm(a, b, loc=mean, scale=std) 
-    rn99 = truncnorm(-3, 3, loc=1,scale=1./3.) 
     fig, ax = plt.subplots()
-    samples = rn99.rvs(size=nSize)
-    ax.hist(samples,nSize/10, normed=True, histtype='stepfilled', alpha=0.2)
+    std_norm_samples = get_truncnorm_avg(0, 10.).rvs(size=1000)
+    print min(std_norm_samples)
+    print max(std_norm_samples)
+    ax.hist(std_norm_samples,nSize/10, normed=True, histtype='stepfilled', alpha=0.2)
     plt.show()

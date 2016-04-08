@@ -58,6 +58,9 @@ class Project(BaseSmtModel):
             for row in csv_reader:
                 for key, value in row.iteritems():
                     row[key] = toFloat(value)
+                    # danzi.tn@20160408 i codici sono sempre UPPERCASE
+                    if key == "code":
+                        row[key] = value.upper()
                 row["project_id"] = self._id
                 row["created"] = datetime.datetime.utcnow()
                 row["updated"] = datetime.datetime.utcnow()
