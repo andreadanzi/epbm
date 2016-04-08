@@ -101,7 +101,7 @@ def create_shapefile(output_shp, layername, epsg, fields_dicts, logger):
     data_source = driver.CreateDataSource(output_shp)
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(epsg)
-    layer = data_source.CreateLayer(layername, srs, ogr.wkbPoint)
+    layer = data_source.CreateLayer(layername, srs, ogr.wkbPolygon)
     for field_dict in fields_dicts:
         field_name = field_dict["shp_field"][:10]
         field_type = field_dict["field_type"]
