@@ -374,13 +374,28 @@ def boussinesq(qs, Bqs, x, z):
     return delta_qs*qs
 #Gabriele@20160407 Carico boussinesq - fine
 
-#Gabriele@20160407 esp critico Burland and Wroth 1974 - inizio
+#Gabriele@20160408 esp critico Burland and Wroth 1974 - inizio
+# funzione di appoggio a eps_crit_burland_wroth
+def eps_b_burland_wroth(L, t, I, E_G, H, delta):
+    eps_b = delta / L / ( L/(12.*t) +3*I*E_G/(2.*t*L*H) )
+    return eps_b
+
+# funzione di appoggio a eps_crit_burland_wroth
+def eps_d_burland_wroth(L, t, I, E_G, H, delta):
+    eps_d = delta / L / ( H*L**2/(E_G*18.*I) + 1. )
+    return eps_d
+
+# funzione di appoggio a eps_crit_burland_wroth
+def eps_h_burland_wroth(L, delta_h):
+    eps_h = delta_h / L
+    return eps_h
+
 #h_bldg altezza edificio in m
 #str_type tipo di struttura M/F Masonry/Framed
 #L_hog_l, L_sag, L_hog_r lunghezza edificio in hogging a sinistra, sagging e hogging a destra
 #delta_hog_l , delta_sag, delta_hog_r massimo cedimento relativo nei tratti di hogging a sinistra, sagging e hogging a destra
 #eps_hog_l, eps_sag, eps_hog_r deformazione orizzontale nei tratti di hogging a sinistra, sagging e hogging a destra
-def eps_crit_burland_wroth(h_bldg, str_type, L_hog_l, L_sag, L_hog_r, delta_hog_l, delta_sag, delta_hog_r, eps_hog_l, eps_sag, eps_hog_r):
+def eps_crit_burland_wroth(h_bldg, str_type, L_hog_l, L_sag, L_hog_r, delta_hog_l, delta_sag, delta_hog_r, delta_h_hog_l, delta_h_sag, delta_h_hog_r):
     if str_type == "M":
         E_G = 2.6
     elif str_type == "F":
@@ -389,16 +404,57 @@ def eps_crit_burland_wroth(h_bldg, str_type, L_hog_l, L_sag, L_hog_r, delta_hog_
         print ("Errore selezione tipo di struttura")
         E_G = 2.6
     I_sag = (h_bldg**3)/12.
-    I_Hog = (h_bldg**3)/3.
+    I_hog = (h_bldg**3)/3.
     t_sag = h_bldg/2.
     t_hog = h_bldg
-    # RIPRENDERE DA QUI
+    L = []
+    t = []
+    I = []
+    delta = []
+    delta_h = []
     if L_hog_l>0:
-        L = L_hog_l
-        stiff_b = 1
-        eps_b_hog_l=stiff_b
+        L.append(L_hog_l)
+        t.append(t_hog)
+        I.append(I_hog)
+        delta.append(delta_hog_l)
+        delta_h.append(delta_h_hog_l)        
+    if L_hog_r>0:
+        L.append(L_hog_r)
+        t.append(t_hog)
+        I.append(I_hog)
+        delta.append(delta_hog_r)
+        delta_h.append(delta_h_hog_r)        
+    if L_sag>0:
+        L.append(L_sag)
+        t.append(t_sag)
+        I.append(I_sag)
+        delta.append(delta_sag)
+        delta_h.append(delta_h_sag)
     
-#Gabriele@20160407 esp critico Burland and Wroth 1974 - fine
+    e_crit = 0.
+    for i, l_curr in enumerate(L):
+        eb = eps_b_burland_wroth(L[i], t[i], I[i], E_G, h_bldg, delta[i])
+        ed = eps_d_burland_wroth(L[i], t[i], I[i], E_G, h_bldg, delta[i])
+        eh = eps_h_burland_wroth(L[i], delta_h[i])
+        e_bs = eb+eh
+        e_ds = .35*eh+math.sqrt((.65*eh)**2+ed**2)
+        e_crit = max(e_crit, e_bs, e_ds)
+    
+    return e_crit
+
+# distanza flesso i equivalente della curva di laganthan
+# R = raggio di scavo in metri
+# H = profondita' asse tunnel dalla superficie
+# beta = 45° + coeff. di attrito/2 mediato dall'asse alla superficie. Per argille coeff attrito = 0 (in gradi)
+def i_eq(R, H, beta_deg):
+    beta = math.radians(beta_deg)
+    tan_35 = math.pow(math.tan(beta), .35)
+    tan_23 = math.pow(math.tan(beta), .23)
+    i=R*1.15/tan_35*math.pow(H/(2.*R), .9/tan_23)
+    return i
+
+#Gabriele@20160408 esp critico Burland and Wroth 1974 - fine    
+
 """        
 def latLonToProjection(lat, lon, epsg):
     '''

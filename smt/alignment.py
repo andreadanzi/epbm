@@ -927,6 +927,22 @@ class Alignment(BaseSmtModel):
                                 vulnerability_class_b = dl.vc_lev
                                 damage_class_b = dl.dc_lev
                                 break
+                        #Gabriele@20160408 esp critico Burland and Wroth 1974 - inizio
+                        
+                        str_type = "M" # TODO leggerlo da info sul building
+                        # definisco i
+                        i_curr = i_eq(r_excav, depth_tun, beta_tun)
+                        # definisco le lunghezze L_hog_l, L_sag, L_hog_r
+                        L_hog_l = 0.
+                        if x_min<-i_curr:
+                            x_left = x_min
+                            x_right = min(-i_curr, x_max)
+                            L_hog_l = max(0., x_right - x_left)
+                        L_sag = 0.
+                            
+                        #eps_crit_burland_wroth(h_bldg, str_type, L_hog_l, L_sag, L_hog_r, delta_hog_l, delta_sag, delta_hog_r, delta_h_hog_l, delta_h_sag, delta_h_hog_r)
+                        
+                        #Gabriele@20160408 esp critico Burland and Wroth 1974 - fine
                         self.item["BUILDINGS"][idx]["vulnerability_base"] = vulnerability_class_b
                         self.item["BUILDINGS"][idx]["damage_class_base"] = damage_class_b
                         self.item["BUILDINGS"][idx]["settlement_max_base"] = s_max_ab_b
