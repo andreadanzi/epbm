@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 #import logging, sys
 import math
-import csv
-
+import csv, datetime
+import numpy as np
 from base import BaseSmtModel, BaseStruct
 from utils import *
 from smt_stat import get_truncnorm_avg
@@ -213,23 +213,79 @@ class Alignment(BaseSmtModel):
         buff = .5*k_peck*depth_tun
         return buff
 
-        
-    # danzi.tn@20160408 samples degli strati e di progetto
-    def doit(self, parm):
-        retVal = {}
-        for i, sample in enumerate(self.strata_samples["items"]):
-            retVal = self.doit_sample(parm, sample)        
-        # i valori calcolati per i buildings vengono riportati
+    def init_dtype_array(self,retVal):
+        b_dtype = None
+        a_dtype = None
+        s_dtype = None
+        b_len = 0
+        s_len = 0
+        a_names = []
+        a_formats = []
+        b_names = []
+        b_formats = []
+        s_names = []
+        s_formats = []
+        for key, val in retVal.iteritems():
+            if key not in ["BUILDINGS","SETTLEMENTS"]:
+                if isinstance(val, float):
+                    a_formats.append('f4')
+                    a_names.append(key)
+                if isinstance(val, int):
+                    a_formats.append('i4')
+                    a_names.append(key)
         for idx, b in enumerate(retVal["BUILDINGS"]):
             for key, val in b.iteritems():
                 if key not in ["bldg_code"]:
-                    self.item["BUILDINGS"][idx][key] = val
-                    self.assign_parameter(b["bldg_code"], key, val)
-        # i valori calcolati per quello che non era buildings vengono riportati
-        for key, val in retVal.iteritems():
-            if key not in ["BUILDINGS"]:
-                self.item[key] = val
-        # danzi.tn@20160407-end
+                    if isinstance(val, float):
+                        b_formats.append('f4')
+                        b_names.append(key)
+                    if isinstance(val, int):
+                        b_formats.append('i4')
+                        b_names.append(key)
+            b_dtype = {'names':b_names, 'formats':b_formats}
+            b_len = len(retVal["BUILDINGS"])
+            break
+        for s in retVal["SETTLEMENTS"]:
+            s_names.append("%d"% s["code"])
+            s_formats.append("f4")
+        s_dtype = {'names':s_names, 'formats':s_formats}
+        a_dtype = {'names':a_names, 'formats':a_formats}
+        return a_dtype, b_dtype, b_len, s_dtype
+        
+    # danzi.tn@20160409 samples degli strati e di progetto
+    def doit(self, parm):
+        retVal = {}
+        s_dtype = s_values = b_dtype = a_dtype = a_values = b_values = None
+        updated = datetime.datetime.utcnow()
+        retValList = []
+        b_list = []
+        for i, sample in enumerate(self.strata_samples["items"]):
+            retVal = self.doit_sample(parm, sample)
+            # per il primo giro definisco la struttura degli array
+            if i==0:
+                a_dtype, b_dtype, b_len, s_dtype = self.init_dtype_array(retVal)
+                # dichiaro le matrici a_values, s_values con tutti i samples degli alignment e relativi settlements
+                a_values = np.zeros(len(self.strata_samples["items"]),dtype=a_dtype)
+                s_values = np.zeros(len(self.strata_samples["items"]),dtype=s_dtype)
+                if b_dtype:
+                    # dichiaro la matrice b_values con tutti i samples dei building
+                    b_values = np.zeros((len(self.strata_samples["items"]),b_len,),dtype=b_dtype)
+            # assegno ad a_values i valori del campione i-esimo (corrente)
+            for key in a_values.dtype.names:
+                a_values[i][key] = retVal[key]            
+            # per ogni settlement
+            for s in retVal["SETTLEMENTS"]:
+                s_values[i]["%d" % s["code"]] = s["value"]            
+            # se ci sono buildings (non è detto)
+            if b_dtype:
+                # per ogni building
+                for idx, b in enumerate(retVal["BUILDINGS"]):
+                    # assegno a b_values i valori del campione i-esimo (corrente)b
+                    for key in b_values.dtype.names:
+                        b_values[i][idx][key] = b[key]
+        self.item["updated_by"] = "doit"
+        # danzi.tn@20160409-end
+        # qui sotto bisogna decidere cosa salvare dei samples che stanno in a_values, b_values e s_values
         self.save()
         
     def doit_sample(self, parm, strata_sample):
@@ -271,39 +327,6 @@ class Alignment(BaseSmtModel):
                                                     z_top,
                                                     sigma_v, 
                                                     fCob)
-                """
-                danzi.tn@20160408 Refactoring
-                fCob1 = fCob
-                sigma_v1 = sigma_v
-                fCob = 0.0
-                sigma_v = 0.0
-                for ref_stratus in ref_strata:
-                    fTempCOB = 0.0
-                    retVal = ref_stratus.CODE
-                    # se la base dello strato è sotto allora sono sulla base del tunnel
-                    if ref_stratus.POINTS.base.coordinates[2] <= z_base:
-                        sigma_v = cob_step_1(z_base, ref_stratus.POINTS.top.coordinates[2] , ref_stratus.PARAMETERS.inom, sigma_v)
-                        fTempCOB = cob_step_2(z_base, ref_stratus.PARAMETERS.phi_tr, ref_stratus.PARAMETERS.c_tr, sigma_v, z_wt, z_tun, gamma_muck, self.project.p_safe_cob_kpa)
-                        self.logger.debug(u"\t\tstrato di base %s con gamma = %f, c'= %f, phi'= %f e spessore = %f" % (ref_stratus.CODE, ref_stratus.PARAMETERS.inom, ref_stratus.PARAMETERS.c_tr, ref_stratus.PARAMETERS.phi_tr, ref_stratus.POINTS.top.coordinates[2]-ref_stratus.POINTS.base.coordinates[2]))
-                    # se la base dello strato è sotto il top del tunnell allora sono negli strati intermedi
-                    elif ref_stratus.POINTS.base.coordinates[2] <= z_top:
-                        sigma_v = cob_step_1(ref_stratus.POINTS.base.coordinates[2], ref_stratus.POINTS.top.coordinates[2] , ref_stratus.PARAMETERS.inom, sigma_v)
-                        fTempCOB = cob_step_2(ref_stratus.POINTS.base.coordinates[2], ref_stratus.PARAMETERS.phi_tr, ref_stratus.PARAMETERS.c_tr, sigma_v, z_wt, z_tun, gamma_muck, self.project.p_safe_cob_kpa)
-                        self.logger.debug(u"\t\tstrato intermedio %s con gamma = %f, c'= %f, phi'= %f e spessore = %f" % (ref_stratus.CODE, ref_stratus.PARAMETERS.inom, ref_stratus.PARAMETERS.c_tr, ref_stratus.PARAMETERS.phi_tr, ref_stratus.POINTS.top.coordinates[2]-ref_stratus.POINTS.base.coordinates[2]))
-                    # altrimenti sono sempre sopra
-                    else:
-                        sigma_v = cob_step_1(ref_stratus.POINTS.base.coordinates[2], ref_stratus.POINTS.top.coordinates[2] , ref_stratus.PARAMETERS.inom, sigma_v)
-                        self.logger.debug(u"\t\tstrato superiore %s con gamma = %f, c'= %f, phi'= %f e spessore = %f" % (ref_stratus.CODE, ref_stratus.PARAMETERS.inom, ref_stratus.PARAMETERS.c_tr, ref_stratus.PARAMETERS.phi_tr, ref_stratus.POINTS.top.coordinates[2]-ref_stratus.POINTS.base.coordinates[2]))
-                    # Verifica del massimo
-                    if fTempCOB > fCob:
-                        fCob = fTempCOB
-                if fCob != fCob1:
-                    print "error on fCob"
-                    exit(-1)
-                if sigma_v1 != sigma_v:
-                    print "error on sigma_v"
-                    exit(-1)
-                """
                 # 20160309@Gabriele Aggiunta valutazione blowup - inizio
                 fBlowUp = 0.0
                 sigma_v = 0.0
@@ -423,7 +446,7 @@ class Alignment(BaseSmtModel):
                 vulnerability_pk_base = 0.
 
 #                """
-                if "BUILDINGS" in self.item:
+                if "BUILDINGS" in self.item:                    
                     for idx, b in enumerate(align.BUILDINGS):
                         building_item = {"bldg_code":b.bldg_code}
                         self.logger.debug("\tAnalisi edificio %s con classe di sensibilita' %s" % (b.bldg_code, b.sc_lev))
@@ -660,6 +683,7 @@ class Alignment(BaseSmtModel):
                     sett_list.append({"code":fstep, "value": s_calc})
 
                 # Assegno il valore COB alla PK
+                # {'col1':('i1',0,'title 1'), 'col2':('f4',1,'title 2')}
                 retVal["COB"] = fCob
                 retVal["P_TAMEZ"] = p_tamez
                 retVal["P_WT"] = p_wt
@@ -682,15 +706,6 @@ class Alignment(BaseSmtModel):
                 retVal["VULNERABILITY"] = vulnerability_pk
                 retVal["DAMAGE_CLASS_BASE"] = damage_class_pk_base
                 retVal["VULNERABILITY_BASE"] = vulnerability_pk_base
-                """
-                sensibility_pk = 0.
-                damage_class_pk = 0.
-                damage_class_pk_base = 0.
-                vulnerability_pk = 0.
-                vulnerability_pk_base = 0.
-
-                """
-
                 self.logger.debug("\tAnalisi di volume perso")
                 self.logger.debug("\tParametri geomeccanici mediati:")
                 self.logger.debug("\t\tTensione totale verticale =%f kPa e pressione falda =%f kPa" % (s_v, p_wt))

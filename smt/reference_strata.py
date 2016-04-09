@@ -65,9 +65,6 @@ class ReferenceStrata(BaseSmtModel):
                     samples["items"].append({"vloss_tail":vloss_tail_sample, "p_tbm":std_norm_samples[i]})
                 rs_items = mongodb.ReferenceStrata.find({"project_id": pd["_id"]}) 
                 for rs_item in rs_items:
-                    rs = ReferenceStrata(mongodb,rs_item)
-                    rs.load()                
-                    samples["strata"] = {rs_item["code"]: rs.gen_samples(nSamples)}
                     rstrata = BaseStruct(rs_item)
                     i_func = get_truncnorm(rstrata.imin,rstrata.imax,name='i_func',p=99.,nIter=nSamples)
                     e_func = get_truncnorm(rstrata.Emin,rstrata.Emax,name='e_func',p=99.,nIter=nSamples)
