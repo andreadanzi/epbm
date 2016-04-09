@@ -899,27 +899,30 @@ class Alignment(BaseSmtModel):
                         extra_load = boussinesq(qs, Bqs, x_bou, z_bou)
                         #Gabriele@20160407 Carico boussinesq - fine
                         s_v_bldg = s_v+extra_load
-                        step = (x_max-x_min)/1000.
                         self.logger.debug("\t\textra carico in galleria %f kN/m2" % (extra_load))
 
 
                         # primo calcolo di base con p_min
                         # calcolo gap e volume perso
-                        gf=gap_front(p_tbm_base, p_wt, s_v_bldg, k0_face, young_face, ci_face, phi_face, r_excav)
-                        ui_shield = .5*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
-                        #ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)
-                        gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
-                        ui_tail = max(0., .5*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
-                        gt=gap_tail(ui_tail, tail_skin_thickness, delta)
-                        gap=gf+gs+gt
-                        eps0_b=volume_loss(gap, r_excav)
-                        s_max_ab_b = abs(uz_laganathan(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
-                        beta_max_ab_b = abs(d_uz_dx_laganathan(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
-                        esp_h_max_ab_b = abs(d_ux_dx_laganathan(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
-                        for i in range(1, 1000):
-                            s_max_ab_b = max(s_max_ab_b, abs(uz_laganathan(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
-                            beta_max_ab_b = max(beta_max_ab_b, abs(d_uz_dx_laganathan(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
-                            esp_h_max_ab_b = max(esp_h_max_ab_b, abs(d_ux_dx_laganathan(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+                        VL_base = VolumeLoss(p_tbm_base, p_tbm_shield_base, p_wt, s_v_bldg, \
+                                        k0_face, young_face, ci_face, phi_face, \
+                                        phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, \
+                                        r_excav, shield_taper, cutter_bead_thickness, tail_skin_thickness, delta)
+                        #TODO ripulire le variabili scalari e usare direttamente la classe dove serve
+                        gf=VL_base.gf
+                        ui_shield = VL_base.ui_shield
+                        gs=VL_base.gs
+                        ui_tail = VL_base.ui_tail
+                        gt=VL_base.gt
+                        gap=VL_base.gap
+                        eps0_b=VL_base.eps0
+                        
+                        # ricerca massimi french-way
+                        damage_base = DamageParametersFrench(eps0_b, r_excav, depth_tun, nu_tun, beta_tun, x_min, x_max, z)
+                        #TODO ripulive variabili scalari e usare quelle di classe
+                        s_max_ab_b = damage_base.s_max
+                        beta_max_ab_b = damage_base.beta_max
+                        esp_h_max_ab_b = damage_base.esp_h_max
                         vulnerability_class_b = 0.
                         damage_class_b = 0.
                         for dl in b.DAMAGE_LIMITS:
@@ -927,22 +930,18 @@ class Alignment(BaseSmtModel):
                                 vulnerability_class_b = dl.vc_lev
                                 damage_class_b = dl.dc_lev
                                 break
-                        #Gabriele@20160408 esp critico Burland and Wroth 1974 - inizio
+                        
+                        ###Gabriele@20160409 esp critico Burland and Wroth 1974 - inizio
                         
                         str_type = "M" # TODO leggerlo da info sul building
-                        # definisco i
-                        i_curr = i_eq(r_excav, depth_tun, beta_tun)
-                        # definisco le lunghezze L_hog_l, L_sag, L_hog_r
-                        L_hog_l = 0.
-                        if x_min<-i_curr:
-                            x_left = x_min
-                            x_right = min(-i_curr, x_max)
-                            L_hog_l = max(0., x_right - x_left)
-                        L_sag = 0.
-                            
-                        #eps_crit_burland_wroth(h_bldg, str_type, L_hog_l, L_sag, L_hog_r, delta_hog_l, delta_sag, delta_hog_r, delta_h_hog_l, delta_h_sag, delta_h_hog_r)
+                        bldg_curr = BurlandWroth(x_min, x_max, str_type, bldg_h, z)
+                        bldg_curr.update_geo(r_excav, depth_tun, beta_tun, nu_tun)
+                        bldg_curr.update_stress(eps0_b)
+                        self.item["BUILDINGS"][idx]["esp_crit_base"] = bldg_curr.esp_crit
+                        self.assign_parameter(b.bldg_code, "esp_crit_base",  bldg_curr.esp_crit)
                         
-                        #Gabriele@20160408 esp critico Burland and Wroth 1974 - fine
+                        ###Gabriele@20160409 esp critico Burland and Wroth 1974 - fine
+                        
                         self.item["BUILDINGS"][idx]["vulnerability_base"] = vulnerability_class_b
                         self.item["BUILDINGS"][idx]["damage_class_base"] = damage_class_b
                         self.item["BUILDINGS"][idx]["settlement_max_base"] = s_max_ab_b
@@ -963,21 +962,31 @@ class Alignment(BaseSmtModel):
                         # da qui refactor on parameter min vs actual
                         while True :
                             # calcolo gap e volume perso
-                            gf=gap_front(p_tbm, p_wt, s_v_bldg, k0_face, young_face, ci_face, phi_face, r_excav)
-                            ui_shield = .5*2.*ur_max(s_v_bldg, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
-                            #ui_shield = u_tun(p_tbm_shield, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)
-                            gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
-                            ui_tail = max(0., .5*2.*ur_max(s_v_bldg, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
-                            gt=gap_tail(ui_tail, tail_skin_thickness, delta)
-                            gap=gf+gs+gt
-                            eps0=volume_loss(gap, r_excav)
-                            s_max_ab = abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
-                            beta_max_ab = abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
-                            esp_h_max_ab = abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, z))
-                            for i in range(1, 1000):
-                                s_max_ab = max(s_max_ab, abs(uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
-                                beta_max_ab = max(beta_max_ab, abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
-                                esp_h_max_ab = max(esp_h_max_ab, abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, z)))
+                            VL = VolumeLoss(p_tbm, p_tbm_shield, p_wt, s_v_bldg, \
+                                                    k0_face, young_face, ci_face, phi_face, \
+                                                    phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, \
+                                                    r_excav, shield_taper, cutter_bead_thickness, tail_skin_thickness, delta)
+                            #TODO ripulire le variabili scalari e usare direttamente la classe dove serve
+                            gf=VL.gf
+                            ui_shield = VL.ui_shield
+                            gs=VL.gs
+                            ui_tail = VL.ui_tail
+                            gt=VL.gt
+                            gap=VL.gap
+                            eps0=VL.eps0
+
+                            # ricerca massimi french-way
+                            damage = DamageParametersFrench(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, x_max, z)
+                            #TODO ripulive variabili scalari e usare quelle di classe
+                            s_max_ab = damage.s_max
+                            beta_max_ab = damage.beta_max
+                            esp_h_max_ab = damage.esp_h_max
+
+                            ###Gabriele@20160409 esp critico Burland and Wroth 1974 - inizio
+                            
+                            bldg_curr.update_stress(eps0)
+                            
+                            ###Gabriele@20160409 esp critico Burland and Wroth 1974 - fine
 
                             vulnerability_class = 0.
                             damage_class = 0.
@@ -1010,6 +1019,14 @@ class Alignment(BaseSmtModel):
                         n_found=self.assign_parameter(b.bldg_code, "settlement_max",  s_max_ab)
                         n_found=self.assign_parameter(b.bldg_code, "tilt_max",  beta_max_ab)
                         n_found=self.assign_parameter(b.bldg_code, "esp_h_max",  esp_h_max_ab)
+
+                        ###Gabriele@20160409 esp critico Burland and Wroth 1974 - inizio
+
+                        self.item["BUILDINGS"][idx]["esp_crit"] = bldg_curr.esp_crit
+                        self.assign_parameter(b.bldg_code, "esp_crit",  bldg_curr.esp_crit)
+                        
+                        ###Gabriele@20160409 esp critico Burland and Wroth 1974 - fine
+
                         
                         #Gabriele@20160330 Vibration analysis
                         if x_min*x_max <0:
@@ -1052,29 +1069,27 @@ class Alignment(BaseSmtModel):
 #                """
                 
                 # calcolo finale per greenfield
-                gf=gap_front(p_tbm, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
-                # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
-                ui_shield = .5*2.*ur_max(s_v, p_wt, p_tbm_shield, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
-                #ui_shield = u_tun(p_tbm_shield, p_wt, s_v, nu_tun, young_tun, r_excav)
-                # gap_shield(ui, shield_taper, cutter_bead_thickness)
-                gs=gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
-                ui_tail = max(0., .5*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
-                #ui_tail = u_tun(0., p_wt, s_v, nu_tun, young_tun, r_excav)
-                # gap_tail(ui, gs,  tail_skin_thickness, delta)
-                gt=gap_tail(ui_tail, tail_skin_thickness, delta)
-                gap=gf+gs+gt
-                eps0=volume_loss(gap, r_excav)
-
-                # calcolo cedimento massimo in asse, beta max e esps_h max al greenfield
-                s_max_pk = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, 0., 0.)
+                VL_pk = VolumeLoss(p_tbm, p_tbm_shield, p_wt, s_v, \
+                                k0_face, young_face, ci_face, phi_face, \
+                                phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, \
+                                r_excav, shield_taper, cutter_bead_thickness, tail_skin_thickness, delta)
+                #TODO ripulire le variabili scalari e usare direttamente la classe dove serve
+                gf=VL_pk.gf
+                ui_shield = VL_pk.ui_shield
+                gs=VL_pk.gs
+                ui_tail = VL_pk.ui_tail
+                gt=VL_pk.gt
+                gap=VL_pk.gap
+                eps0=VL_pk.eps0
+                
+                # ricerca massimi french-way
                 x_min = -2.5*depth_tun
                 x_max = - x_min
-                step = (x_max-x_min) / 1000.
-                beta_max_pk = abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, 0.))
-                esp_h_max_pk = abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, 0.))
-                for i in range(1, 1000):
-                    beta_max_pk = max(beta_max_pk, abs(d_uz_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, 0.)))
-                    esp_h_max_pk = max(esp_h_max_pk, abs(d_ux_dx_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min+i*step, 0.)))
+                damage_pk = DamageParametersFrench(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min, x_max, z)
+                #TODO ripulive variabili scalari e usare quelle di classe
+                s_max_pk = damage_base.s_max
+                beta_max_pk = damage_base.beta_max
+                esp_h_max_pk = damage_base.esp_h_max
 
                 s_calc = 0.
                 sett_list=[]
