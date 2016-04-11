@@ -243,6 +243,7 @@ class Alignment(BaseSmtModel):
                     if isinstance(val, int):
                         b_formats.append('i4')
                         b_names.append(key)
+                    
             b_dtype = {'names':b_names, 'formats':b_formats}
             b_len = len(retVal["BUILDINGS"])
             break
@@ -260,12 +261,12 @@ class Alignment(BaseSmtModel):
         s_dtype = s_values = b_dtype = a_dtype = a_values = b_values = None
         updated = datetime.datetime.utcnow()
         retValList = []
-        b_list = []
+        b_codes = []
         for i, sample in enumerate(self.strata_samples["items"]):
             retVal = self.doit_sample(parm, sample)
             # per il primo giro definisco la struttura degli array
             if i==0:
-                a_dtype, b_dtype, b_len, s_dtype = self.init_dtype_array(retVal)
+                a_dtype, b_dtype, b_len, s_dtype  = self.init_dtype_array(retVal)
                 # dichiaro le matrici a_values, s_values con tutti i samples degli alignment e relativi settlements
                 a_values = np.zeros(len(self.strata_samples["items"]),dtype=a_dtype)
                 s_values = np.zeros(len(self.strata_samples["items"]),dtype=s_dtype)
@@ -282,6 +283,7 @@ class Alignment(BaseSmtModel):
             if b_len > 0:
                 # per ogni building
                 for idx, b in enumerate(retVal["BUILDINGS"]):
+                    b_codes.append(b["bldg_code"])
                     # assegno a b_values i valori del campione i-esimo (corrente)b
                     for key in b_values.dtype.names:
                         b_values[i][idx][key] = b[key]
@@ -292,7 +294,7 @@ class Alignment(BaseSmtModel):
         if len(self.strata_samples["items"]) == 1:
             self._map_aitems(0,a_values)
             if b_len > 0:
-                self._map_bitems(0,b_values, b_len)
+                self._map_bitems(0,b_values, b_len, b_codes)
             self._map_sitems(0,s_values)
         self.save()
 
@@ -300,10 +302,12 @@ class Alignment(BaseSmtModel):
         for key in a_values.dtype.names:
             self.item[key]= float(a_values[i][key])
     
-    def _map_bitems(self,i,b_values,b_len):
+    def _map_bitems(self,i,b_values,b_len, b_codes):
         for idx in range(b_len):
             for key in b_values.dtype.names:
-                self.item["BUILDINGS"][idx][key] = float(b_values[i][idx][key])
+                val = float(b_values[i][idx][key])
+                self.item["BUILDINGS"][idx][key] = val
+                self.assign_parameter(b_codes[idx], key, val)
     
     def _map_sitems(self,i,s_values):
         sett_list = []
