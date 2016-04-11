@@ -375,7 +375,197 @@ def boussinesq(qs, Bqs, x, z):
     return delta_qs*qs
 #Gabriele@20160407 Carico boussinesq - fine
 
+###Gabriele@20160409 esp critico Burland and Wroth 1974 - inizio
+# funzione di appoggio a eps_crit_burland_wroth
+def eps_b_burland_wroth(L, t, I, E_G, H, delta):
+    eps_b = delta / L / ( L/(12.*t) +3*I*E_G/(2.*t*L*H) )
+    return eps_b
+
+# funzione di appoggio a eps_crit_burland_wroth
+def eps_d_burland_wroth(L, t, I, E_G, H, delta):
+    eps_d = delta / L / ( H*L**2/(E_G*18.*I) + 1. )
+    return eps_d
+
+# funzione di appoggio a eps_crit_burland_wroth
+def eps_h_burland_wroth(L, delta_h):
+    eps_h = delta_h / L
+    return eps_h
+
+#h_bldg altezza edificio in m
+#str_type tipo di struttura M/F Masonry/Framed
+#L_hog_l, L_sag, L_hog_r lunghezza edificio in hogging a sinistra, sagging e hogging a destra
+#delta_hog_l , delta_sag, delta_hog_r massimo cedimento relativo nei tratti di hogging a sinistra, sagging e hogging a destra
+#eps_hog_l, eps_sag, eps_hog_r deformazione orizzontale nei tratti di hogging a sinistra, sagging e hogging a destra
+def eps_crit_burland_wroth(h_bldg, str_type, L_hog_l, L_sag, L_hog_r, delta_hog_l, delta_sag, delta_hog_r, delta_h_hog_l, delta_h_sag, delta_h_hog_r):
+    if str_type == "M":
+        E_G = 2.6
+    elif str_type == "F":
+        E_G = 12.5
+    else:
+        print ("Errore selezione tipo di struttura")
+        E_G = 2.6
+    I_sag = (h_bldg**3)/12.
+    I_hog = (h_bldg**3)/3.
+    t_sag = h_bldg/2.
+    t_hog = h_bldg
+    L = []
+    t = []
+    I = []
+    delta = []
+    delta_h = []
+    if L_hog_l>0:
+        L.append(L_hog_l)
+        t.append(t_hog)
+        I.append(I_hog)
+        delta.append(delta_hog_l)
+        delta_h.append(delta_h_hog_l)        
+    if L_hog_r>0:
+        L.append(L_hog_r)
+        t.append(t_hog)
+        I.append(I_hog)
+        delta.append(delta_hog_r)
+        delta_h.append(delta_h_hog_r)        
+    if L_sag>0:
+        L.append(L_sag)
+        t.append(t_sag)
+        I.append(I_sag)
+        delta.append(delta_sag)
+        delta_h.append(delta_h_sag)
+    
+    e_crit = 0.
+    for i, l_curr in enumerate(L):
+        eb = eps_b_burland_wroth(L[i], t[i], I[i], E_G, h_bldg, delta[i])
+        ed = eps_d_burland_wroth(L[i], t[i], I[i], E_G, h_bldg, delta[i])
+        eh = eps_h_burland_wroth(L[i], delta_h[i])
+        e_bs = eb+eh
+        e_ds = .35*eh+math.sqrt((.65*eh)**2+ed**2)
+        e_crit = max(e_crit, e_bs, e_ds)
+    
+    return e_crit
+
+# distanza flesso i equivalente della curva di laganthan
+# R = raggio di scavo in metri
+# H = profondita' asse tunnel dalla superficie
+# beta = 45° + coeff. di attrito/2 mediato dall'asse alla superficie. Per argille coeff attrito = 0 (in gradi)
+def i_eq(R, H, beta_deg):
+    beta = math.radians(beta_deg)
+    tan_35 = math.pow(math.tan(beta), .35)
+    tan_23 = math.pow(math.tan(beta), .23)
+    i=R*1.15/tan_35*math.pow(H/(2.*R), .9/tan_23)
+    return i
+
+# delta cedimento tra due punti rispetto al cedimento lineare tra i due punti stessi
+def delta_uz_laganathan(n_dx, L, eps0, R, H, nu, beta_deg, xl, xr, z):
+    delta_uz = 0.
+    if L>0:
+        dx = L/n_dx
+        s_left = uz_laganathan(eps0, R, H, nu, beta_deg, xl, z)
+        s_right = uz_laganathan(eps0, R, H, nu, beta_deg, xr, z)
+        delta_uz= 0.
+        for i in range(1, n_dx):
+            delta_curr = abs(uz_laganathan(eps0, R, H, nu, beta_deg, xl+i*dx, z)-(s_right-s_left)/L*i*dx)
+            # la curva e' regolare, prima cresce, raggiunge il max e decresce
+            if delta_curr<delta_uz:
+                break
+            else:
+                delta_uz = delta_curr
+    return delta_uz
+
+# delta spostamento orizzontale tra due punti rispetto
+# attenzione, lo restituisco con segno:
+# + trazione
+# - compressione
+def delta_ux_laganathan(L, eps0, R, H, nu, beta_deg, xl, xr, z):
+    delta_h = 0.
+    if L>0.:
+        delta_h = ux_laganathan(eps0, R, H, nu, beta_deg, xr, z) - ux_laganathan(eps0, R, H, nu, beta_deg, xl, z)
+    return delta_h
+
+class DamageParametersBurlandWroth():
+    # in init solo info strettamente legate all'edificio, invariabili nelle analisi
+    def __init__(self, x_min, x_max, str_type, bldg_h, z):
+        self.x_min = x_min
+        self.x_max = x_max
+        self.str_type = str_type
+        self.bldg_h = bldg_h
+        self.z = z
+        
+    # qui aggiorno tutte le variabili dipendendi dalla  variabilita' statistica geologica e variabili con pk
+    def update_geo(self, r_excav, depth, beta_deg, nu):
+        self.r_excav = r_excav
+        self.depth = depth
+        self.beta_deg = beta_deg
+        self.nu = nu
+        self.i = i_eq(r_excav, depth, beta_deg)
+        self.L_hog_l = 0.
+        if self.x_min<=-self.i:
+            x_left = self.x_min
+            x_right = min(-self.i, self.x_max)
+            self.L_hog_l = max(0., x_right - x_left)
+            self.x_left_L_hog_l=x_left
+            self.x_right_L_hog_l=x_right
+        self.L_sag = 0.
+        if self.x_min<=self.i and self.x_max>-self.i:
+            x_left = max(self.x_min, -self.i)
+            x_right = min(self.i, self.x_max)
+            self.L_sag = max(0., x_right - x_left)
+            self.x_left_L_sag=x_left
+            self.x_right_L_sag=x_right                            
+        self.L_hog_r = 0.
+        if self.x_max>self.i:
+            x_left = max(self.x_min, self.i)
+            x_right = self.x_max
+            self.L_hog_r = max(0., x_right - x_left)
+            self.x_left_L_hog_r=x_left
+            self.x_right_L_hog_r=x_right
+    
+    # qui definisco le tensioni dipendenti da:
+    # n_dx livello di discretizzazione nell'analisi
+    # eps0 volume perso
+    def update_stress(self, eps0):
+        n_dx = 333.
+        delta_hog_l = delta_uz_laganathan(n_dx, self.L_hog_l, eps0, self.r_excav, self.depth, self.nu, self.beta_deg, self.x_left_L_hog_l, self.x_right_L_hog_l, self.self.z)
+        delta_sag = delta_uz_laganathan(n_dx, self.L_sag, eps0, self.r_excav, self.depth, self.nu, self.beta_deg, self.x_left_L_sag, self.x_right_L_sag, self.z)
+        delta_hog_r = delta_uz_laganathan(n_dx, self.L_hog_r, eps0, self.r_excav, self.depth, self.nu, self.beta_deg, self.x_left_L_hog_r, self.x_right_L_hog_r, self.z)
+        # definisco delta_h_hog_l, delta_h_sag, delta_h_hog_r
+        delta_h_hog_l = delta_ux_laganathan(self.L_hog_l, eps0, self.r_excav, self.depth, self.nu, self.beta_deg, self.x_left_L_hog_l, self.x_right_L_hog_l, self.z)
+        delta_h_sag = delta_ux_laganathan(self.L_sag, eps0, self.r_excav, self.depth, self.nu, self.beta_deg, self.x_left_L_sag, self.x_right_L_sag, self.z)
+        delta_h_hog_r = delta_ux_laganathan(self.L_hog_r, eps0, self.r_excav, self.depth, self.nu, self.beta_deg, self.x_left_L_hog_r, self.x_right_L_hog_r, self.z)
+        # definisco la espilon critica
+        self.eps_crit = eps_crit_burland_wroth(self.h_bldg, self.str_type, self.L_hog_l, self.L_sag, self.L_hog_r, delta_hog_l, delta_sag, delta_hog_r, delta_h_hog_l, delta_h_sag, delta_h_hog_r)
+
+class VolumeLoss():
+    def __init__(self, p_front, p_shield, p_wt, s_v, \
+                    k0_face, young_face, ci_face, phi_face, \
+                    phi_tun, phi_tun_res, ci_tun, ci_tun_res, psi, young_tun, nu_tun, \
+                    r_excav, shield_taper, cutter_bead_thickness, tail_skin_thickness, delta, v_loss):
+        self.gf=gap_front(p_front, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
+        self.ui_shield = .5*2.*ur_max(s_v, p_wt, p_shield, phi_tun, phi_tun_res, ci_tun, ci_tun_res, psi, young_tun, nu_tun, r_excav)-self.gf
+        #ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)
+        self.gs=gap_shield(self.ui_shield, shield_taper, cutter_bead_thickness)
+        self.ui_tail = max(0., .5*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun_res, ci_tun, ci_tun_res, psi, young_tun, nu_tun, r_excav) - self.gf - self.gs)
+        self.gt=gap_tail(self.ui_tail, tail_skin_thickness, delta, v_loss)
+        self.gap=self.gf+self.gs+self.gt
+        self.eps0=volume_loss(self.gap, r_excav)
+
+class DamageParametersFrench():
+    def __init__(self, eps0, r_excav, depth, nu, beta_deg, x_min, x_max, z):
+        step = (x_max-x_min)/1000.
+        s_max = abs(uz_laganathan(eps0, r_excav, depth, nu, beta_deg, x_min, z))
+        beta_max = abs(d_uz_dx_laganathan(eps0, r_excav, depth, nu, beta_deg, x_min, z))
+        esp_h_max = abs(d_ux_dx_laganathan(eps0, r_excav, depth, nu, beta_deg, x_min, z))
+        for i in range(1, 1000):
+            s_max = max(s_max, abs(uz_laganathan(eps0, r_excav, depth, nu, beta_deg, x_min+i*step, z)))
+            beta_max = max(beta_max, abs(d_uz_dx_laganathan(eps0, r_excav, depth, nu, beta_deg, x_min+i*step, z)))
+            esp_h_max = max(esp_h_max, abs(d_ux_dx_laganathan(eps0, r_excav, depth, nu, beta_deg, x_min+i*step, z)))
+        self.s_max = s_max
+        self.beta_max = beta_max
+        self.esp_h_max = esp_h_max
+
+###Gabriele@20160409 esp critico Burland and Wroth 1974 - fine    
+
 """
+
 def latLonToProjection(lat, lon, epsg):
     '''
     Converte le coordinate nel formato latitudine, longitudine (EPSG 4326)
@@ -392,5 +582,5 @@ def latLonToProjection(lat, lon, epsg):
     coordTransform = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
     point.Transform(coordTransform)
     return (point.GetX(), point.GetY())
-
+    
 """
