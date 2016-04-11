@@ -98,7 +98,9 @@ def import_all_data(project_code, project_name):
                 a.assign_reference_strata()
                 a.define_tun_param()
                 a.define_face_param()
-                a.assign_buildings(a.define_buffer())
+                # TODO buffer_size deve essere un parametr di progetto
+                buff, k_peck = a.define_buffer(0.5)
+                a.assign_buildings(buff)
 
 def main(argv):
     '''

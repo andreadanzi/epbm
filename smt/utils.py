@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # import ogr, osr
 import math
+import numpy as np
 
 def toFloat(s):
         try:
@@ -462,7 +463,7 @@ def delta_uz_laganathan(n_dx, L, eps0, R, H, nu, beta_deg, xl, xr, z):
         s_left = uz_laganathan(eps0, R, H, nu, beta_deg, xl, z)
         s_right = uz_laganathan(eps0, R, H, nu, beta_deg, xr, z)
         delta_uz= 0.
-        for i in range(1, n_dx):
+        for i in np.arange(1, n_dx):
             delta_curr = abs(uz_laganathan(eps0, R, H, nu, beta_deg, xl+i*dx, z)-(s_right-s_left)/L*i*dx)
             # la curva e' regolare, prima cresce, raggiunge il max e decresce
             if delta_curr<delta_uz:
@@ -481,14 +482,20 @@ def delta_ux_laganathan(L, eps0, R, H, nu, beta_deg, xl, xr, z):
         delta_h = ux_laganathan(eps0, R, H, nu, beta_deg, xr, z) - ux_laganathan(eps0, R, H, nu, beta_deg, xl, z)
     return delta_h
 
-class DamageParametersBurlandWroth():
+class DamageParametersBurlandWroth:
     # in init solo info strettamente legate all'edificio, invariabili nelle analisi
-    def __init__(self, x_min, x_max, str_type, bldg_h, z):
+    def __init__(self, x_min, x_max, str_type, h_bldg, z):
         self.x_min = x_min
         self.x_max = x_max
         self.str_type = str_type
-        self.bldg_h = bldg_h
+        self.h_bldg = h_bldg
         self.z = z
+        self.x_left_L_sag=0.0
+        self.x_right_L_sag=0.0         
+        self.x_left_L_hog_r=0.0
+        self.x_right_L_hog_r=0.0     
+        self.x_left_L_hog_l=0.0
+        self.x_right_L_hog_l=0.0
         
     # qui aggiorno tutte le variabili dipendendi dalla  variabilita' statistica geologica e variabili con pk
     def update_geo(self, r_excav, depth, beta_deg, nu):
@@ -524,7 +531,7 @@ class DamageParametersBurlandWroth():
     # eps0 volume perso
     def update_stress(self, eps0):
         n_dx = 333.
-        delta_hog_l = delta_uz_laganathan(n_dx, self.L_hog_l, eps0, self.r_excav, self.depth, self.nu, self.beta_deg, self.x_left_L_hog_l, self.x_right_L_hog_l, self.self.z)
+        delta_hog_l = delta_uz_laganathan(n_dx, self.L_hog_l, eps0, self.r_excav, self.depth, self.nu, self.beta_deg, self.x_left_L_hog_l, self.x_right_L_hog_l, self.z)
         delta_sag = delta_uz_laganathan(n_dx, self.L_sag, eps0, self.r_excav, self.depth, self.nu, self.beta_deg, self.x_left_L_sag, self.x_right_L_sag, self.z)
         delta_hog_r = delta_uz_laganathan(n_dx, self.L_hog_r, eps0, self.r_excav, self.depth, self.nu, self.beta_deg, self.x_left_L_hog_r, self.x_right_L_hog_r, self.z)
         # definisco delta_h_hog_l, delta_h_sag, delta_h_hog_r
@@ -534,7 +541,7 @@ class DamageParametersBurlandWroth():
         # definisco la espilon critica
         self.eps_crit = eps_crit_burland_wroth(self.h_bldg, self.str_type, self.L_hog_l, self.L_sag, self.L_hog_r, delta_hog_l, delta_sag, delta_hog_r, delta_h_hog_l, delta_h_sag, delta_h_hog_r)
 
-class VolumeLoss():
+class VolumeLoss:
     def __init__(self, p_front, p_shield, p_wt, s_v, \
                     k0_face, young_face, ci_face, phi_face, \
                     phi_tun, phi_tun_res, ci_tun, ci_tun_res, psi, young_tun, nu_tun, \
@@ -548,7 +555,7 @@ class VolumeLoss():
         self.gap=self.gf+self.gs+self.gt
         self.eps0=volume_loss(self.gap, r_excav)
 
-class DamageParametersFrench():
+class DamageParametersFrench:
     def __init__(self, eps0, r_excav, depth, nu, beta_deg, x_min, x_max, z):
         step = (x_max-x_min)/1000.
         s_max = abs(uz_laganathan(eps0, r_excav, depth, nu, beta_deg, x_min, z))

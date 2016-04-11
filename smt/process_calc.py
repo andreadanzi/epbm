@@ -53,7 +53,7 @@ def process_calc(project_code, bAuthenticate,nSamples):
                             a.setSamples(samples)
                             a.load()
                             cnt += 1.
-                            sys.stdout.write("\r{:5s} pk= {:.0f} progress= {:.0%}".format(a_set.item["code"], a.item["PK"], cnt/cnt_tot))
+                            sys.stdout.write("\r{:5s} pk= {:.02f} progress= {:.0%}".format(a_set.item["code"], a.item["PK"], cnt/cnt_tot))
                             sys.stdout.flush()
                             a.perform_calc(str(datetime.now()))
             else:
