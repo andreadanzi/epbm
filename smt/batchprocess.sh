@@ -45,3 +45,12 @@ python export_building_data.py -a -c MDW029_S_E_05 -o buildings_export_data-min.
 python plot_data_ccg.py -c MDW029_S_E_05 -a
 rm -rf ../data/MDW029_S_E_05/out-min
 mv ../data/MDW029_S_E_05/out ../data/MDW029_S_E_05/out-min
+# Medi
+mkdir ../data/MDW029_S_E_05/out
+cp ../data/MDW029_S_E_05/in/reference_strata-medi.csv ../data/MDW029_S_E_05/in/reference_strata.csv
+python main.py -c MDW029_S_E_05
+python process_calc.py -a -c MDW029_S_E_05
+python export_building_data.py -a -c MDW029_S_E_05 -o buildings_export_data-medi.csv -f buildings_out_settings.csv
+python plot_data_ccg.py -c MDW029_S_E_05 -a
+rm -rf ../data/MDW029_S_E_05/out-medi
+mv ../data/MDW029_S_E_05/out ../data/MDW029_S_E_05/out-medi

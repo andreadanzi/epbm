@@ -87,8 +87,7 @@ bldg_code;depth_fondation;z_fondation;elev_med;height_overground;typology;sc_lev
 73;0;41.1;40.20032088;5.5;building;1
 74;0;39.95;38.63791741;12;building;1
 75;2.06;35.48;37.54164559;6;building;1
-76_1;2.83;35.75;38.58447008;35.75;building;1
-76_2;1.64;35.75;37.38525487;35.75;building;1
+76;1.876148457;35.75;37.63061854;35.75;building;1
 76B;4.68;35.75;40.43446501;6.5;building;1
 77;0;35.65;35.60913515;4.5;building;1
 78;1.6;39.7;41.29838972;26;building;1
@@ -107,3 +106,8 @@ bldg_code;depth_fondation;z_fondation;elev_med;height_overground;typology;sc_lev
 91;2.44;38.4;40.84011359;5.5;building;1
 92;1.6;38.15;39.75363929;18.5;building;1
 93;1.22;37.5;38.71767646;4;building;1
+94;2.2;39;41.2132725;7.5;building;1
+95;1.65;39;40.65458769;6.5;building;1
+96;0.6;39.65;40.2586014;9.5;building;1
+97;0;40.25;40.24568935;6;building;1
+98;2.4;40.25;42.65544465;17.5;building;1

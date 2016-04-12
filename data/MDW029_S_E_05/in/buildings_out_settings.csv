@@ -1,21 +1,21 @@
-field;shp_field;csv_field;multiplier
-bldg_code;bldg_code;Codice Edificio;0
-pk_min-tun;pk_min-tun;PK inizio;1
-pk_max-tun;pk_max-tun;PK fine;1
-d_min-tun;d_min-tun;Distanza minima dall'asse tracciato;1
-d_max-tun;d_max-tun;Distanza massima dall'asse tracciato;1
-sc_lev;sc_lev;Classe sensibilità;1
-damage_class;dmg_cls;Classe di danno;1
-vulnerability;vuln;Vulnerabilità;1
-settlement_max;sett_max;Settlement max;1000
-tilt_max;tilt_max;Tilt max;1000
-esp_h_max;esph_max;Esp h max;1000
-eps_0;eps_0;eps_0;100
-p_tbm;p_tbm;Pressione al fronte;1
-blowup;blowup;Blowup;1
-k_peck;k_peck;k_peck;1
-damage_class_base;dmg_cls_b;Classe di danno base;1
-vulnerability_base;vuln_b;Vulnerabilità  base;1
-settlement_max_base;sett_max_b;Settlement max base;1000
-tilt_max_base;tilt_max_b;Tilt max base;1000
-esp_h_max_base;esph_max_b;Esp h max base;1000
+field;shp_field;csv_field;multiplier;field_type
+bldg_code;bldg_code;Codice Edificio;0;text
+pk_min-tun;pk_min-tun;PK inizio;1;float
+pk_max-tun;pk_max-tun;PK fine;1;float
+d_min-tun;d_min-tun;Distanza minima dall'asse tracciato;1;float
+d_max-tun;d_max-tun;Distanza massima dall'asse tracciato;1;float
+sc_lev;sc_lev;Classe sensibilità;1;float
+damage_class;dmg_cls;Classe di danno;1;float
+vulnerability;vuln;Vulnerabilità;1;float
+settlement_max;sett_max;Settlement max;1000;float
+tilt_max;tilt_max;Tilt max;1000;float
+esp_h_max;esph_max;Esp h max;1000;float
+eps_0;eps_0;eps_0;100;float
+p_tbm;p_tbm;Pressione al fronte;1;float
+blowup;blowup;Blowup;1;float
+k_peck;k_peck;k_peck;1;float
+damage_class_base;dmg_cls_b;Classe di danno base;1;float
+vulnerability_base;vuln_b;Vulnerabilità  base;1;float
+settlement_max_base;sett_max_b;Settlement max base;1000;float
+tilt_max_base;tilt_max_b;Tilt max base;1000;float
+esp_h_max_base;esph_max_b;Esp h max base;1000;float
