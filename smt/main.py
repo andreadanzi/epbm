@@ -47,7 +47,7 @@ def import_all_data(project_code, project_name):
     # Import domain inside the project: one-to-many relationship by references
     p.import_objects("Domain", os.path.join(importdir, "domain.csv"))
     # danzi.tn@20160407 nuova collection ReferenceStrata
-    p.import_objects("ReferenceStrata", os.path.join(importdir, "reference_strata-valori minimi.csv"))
+    p.import_objects("ReferenceStrata", os.path.join(importdir, "reference_strata.csv"))
     cr = Domain.find(mongodb, {"project_id": p._id})
     # Import Buildings
     p.import_buildings(os.path.join(importdir, "buildings.csv"))
@@ -99,7 +99,7 @@ def import_all_data(project_code, project_name):
                 a.define_tun_param()
                 a.define_face_param()
                 # TODO buffer_size deve essere un parametr di progetto
-                buff, k_peck = a.define_buffer(0.5)
+                buff, k_peck = a.define_buffer(0.1)
                 a.assign_buildings(buff)
 
 def main(argv):

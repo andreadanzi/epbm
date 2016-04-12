@@ -261,7 +261,7 @@ def u_tun(p_tbm, p_wt, s_v, nu, young, r_excav):
 # da esperienza il gap residuo varia dal 7% al 10% del gap complessivo
 # per considerare la bonta' del materiale in coda applico lo stesso principio usato per calcolare il gap sullo shield, ui, considerando come dalta sigma p_tbm
 # todo fare variare statisticamente tale %
-def gap_tail(ui,  tail_skin_thickness, delta,v_loss):
+def gap_tail(ui,  tail_skin_thickness, delta, v_loss):
     g_max = v_loss*(tail_skin_thickness+delta)
     g_t = min(g_max, ui)
     return g_t

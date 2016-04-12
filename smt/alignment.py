@@ -426,7 +426,6 @@ class Alignment(BaseSmtModel):
             p_tamez = p_min_tamez(copertura, W, gamma_tun, ci_tun, phi_tun, gamma_face, ci_face, phi_face, k0_face, 2*r_excav, a, tamez_safety_factor, self.project.p_safe_cob_kpa, gamma_muck)
 
             # pressione al fronte,  danzi.tn@20160408 strata_sample["p_tbm"] varia da -30 a +30
-            # p_max = min(round(align.TBM.pressure_max/10.)*10., round(fBlowUp/10.)*10. -30.+ strata_sample["p_tbm"])
             p_max = min(round(align.TBM.pressure_max/10.)*10., round((fBlowUp-30.+ strata_sample["p_tbm"])/10.)*10. )
             # forzo la pressione della macchina di massimo 0.5 bar oltre il limite
 #                if p_tamez+30. > p_max:
@@ -441,7 +440,6 @@ class Alignment(BaseSmtModel):
             # p_tbm=min(p_max, round(p_tamez/10.)*10., round(fCob/10.)*10., round(fBlowUp/10.)*10.)
 #                p_tbm = min(p_max, round(p_tamez/10.)*10.+30.)
             # danzi.tn@20160408 strata_sample["p_tbm"] varia da -30 a +30
-            # p_tbm = min(p_max, round(fCob/10.)*10.+strata_sample["p_tbm"])
             p_tbm = min(p_max, round((fCob+30+strata_sample["p_tbm"])/10.)*10.)
             p_tbm = max(p_tbm, 170.)
 

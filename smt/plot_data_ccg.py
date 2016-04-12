@@ -9,6 +9,7 @@ from collections import defaultdict
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import csv
 
 from alignment_set import AlignmentSet
 from project import Project
@@ -228,6 +229,7 @@ def plot_alignset_data(a_list, sCode, outputdir, logger):
                     "campi":[{"label":"CONSOLIDATION (0-1)", "valori":consolidations}]}]
     for options in all_options:
         plot_single_graph(sCode, pks, pkxticks, pklabel, options, outputdir, logger)
+        export_to_csv(sCode, pks, options, outputdir)
     logger.info("plot_data terminated!")
 
 def plot_single_graph(sCode, pks, pkxticks, pklabel, options, outputdir, logger):
@@ -256,7 +258,20 @@ def plot_single_graph(sCode, pks, pkxticks, pklabel, options, outputdir, logger)
     #fig.set_dpi(1600)
     outputFigure(outputdir, "{}_{}.svg".format(options["name"], sCode))
     logger.info("profilo_pressioni.svg plotted in %s", outputdir)
-    plt.show()
+    #plt.show()
+
+def export_to_csv(sCode, pks, options, outputdir):
+    headers = ["pk"]
+    values = [pks]
+    outputpath = os.path.join(outputdir, "{}-{}.csv".format(options["name"], sCode))
+    for campo in options["campi"]:
+        headers.append(campo["label"])
+        values.append(campo["valori"])
+    with open(outputpath, 'wb') as out_csvfile:
+        writer = csv.writer(out_csvfile, delimiter=";")
+        writer.writerow(headers)
+        for row in zip(*values):
+            writer.writerow(row)
 
 def main(argv):
     project_code = None
