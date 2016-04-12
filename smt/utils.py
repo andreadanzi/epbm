@@ -287,6 +287,7 @@ def gap_shield(ui, shield_taper, cutter_bead_thickness):
 # ci coesione in kPa rappresentativa del comportamento dell'asse geometrico di scavo
 # phi in gradi rappresentativo del comportamento dell'asse geometrico di scavo
 # r_excav = raggio di scavo
+# p_tbm_base=170.000000, p_wt=0.000000, s_v=272.854191, k0_face=0.494974, young_face=31698.113208, ci_face=0.000000, phi_face=30.339623, r_excav=5.300000
 def gap_front(p_tbm, p_wt, s_v, k0, young, ci, phi, r_excav):
     cu = ci*math.cos(math.radians(phi))/(1.-math.sin(math.radians(phi)))
     qu = 2.*cu

@@ -97,7 +97,8 @@ def import_all_data(project_code, project_name):
                 a.load()
                 a.assign_reference_strata()
                 a.define_tun_param()
-                a.define_face_param()
+                # danzi.tn@20160412 define_face_param spostato in alignment.doit con la chiamata a define_face_param_sample prima di processare l'iterazione
+                # a.define_face_param()
                 # TODO buffer_size deve essere un parametr di progetto
                 buff, k_peck = a.define_buffer(0.1)
                 a.assign_buildings(buff)

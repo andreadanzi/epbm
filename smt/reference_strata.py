@@ -54,6 +54,8 @@ class ReferenceStrata(BaseSmtModel):
     
     @classmethod
     def gen_samples_strata(cls,mongodb,nSamples, project_code, type_of_analysis, custom_type_tuple):
+        log = logging.getLogger('smt_main')
+        log.debug('gen_samples_strata starting with %s and %s' % (type_of_analysis,str(custom_type_tuple)))
         samples = {"len":nSamples, "type":type_of_analysis, "custom_type_tuple":custom_type_tuple, "items":[]}
         std_norm_samples = []
         vloss_tail_samples = []
@@ -70,6 +72,7 @@ class ReferenceStrata(BaseSmtModel):
                     samples["items"].append({"vloss_tail":vloss_tail_sample, "p_tbm":std_norm_samples[i]})
                 for rs_item in rs_items:
                     rstrata = BaseStruct(rs_item)
+                    log.debug('gen_samples_strata standard for %s', rstrata.code)
                     i_func = get_truncnorm(rstrata.imin,rstrata.imax,name='i_func',p=99.,nIter=nSamples)
                     e_func = get_truncnorm(rstrata.Emin,rstrata.Emax,name='e_func',p=99.,nIter=nSamples)
                     phi_func = get_truncnorm(rstrata.phimin,rstrata.phimax,name='phi_func',p=99.,nIter=nSamples)
@@ -83,6 +86,12 @@ class ReferenceStrata(BaseSmtModel):
                     if nSamples > 1:
                         for i, sample in enumerate(i_samples):
                             samples["items"][i][rs_item["code"]]= BaseStruct({"inom":sample, "e": e_samples[i] , "phi_tr" : phi_samples[i], "c_tr" : c_samples[i], "k0" : k0_samples[i] } )
+                            if i < 10:
+                                log.debug('\ti_sample=%f ' % sample)
+                                log.debug('\te_sample=%f ' % e_samples[i])
+                                log.debug('\tphi_sample=%f ' %  phi_samples[i])
+                                log.debug('\tc_sample=%f ' % c_samples[i])
+                                log.debug('\tk0_sample=%f ' % k0_samples[i] )
                     else:
                         samples["items"][0][rs_item["code"]]= BaseStruct({"inom":i_samples, "e": e_samples , "phi_tr" : phi_samples, "c_tr" : c_samples, "k0" : k0_samples })
             elif type_of_analysis == 'c' and len(custom_type_tuple) >= 0:
@@ -92,7 +101,9 @@ class ReferenceStrata(BaseSmtModel):
                     samples["items"].append({"vloss_tail":vloss_tail_sample, "p_tbm":std_norm_samples[i], "type":str(custom_type_tuple[i])})
                 for rs_item in rs_items:
                     rstrata = BaseStruct(rs_item)
+                    log.debug('gen_samples_strata custom for %s', rstrata.code)
                     for i, a in enumerate(custom_type_tuple):
+                        log.debug('\t%s' %str(a))
                         if a =='avg':
                             i_sample = np.mean((rstrata.imin,rstrata.imax))
                             e_sample = np.mean((rstrata.Emin,rstrata.Emax))
@@ -112,18 +123,23 @@ class ReferenceStrata(BaseSmtModel):
                             c_sample = np.min((rstrata.cmin,rstrata.cmax))
                             k0_sample = np.min((rstrata.k0min,rstrata.k0max))
                         else:
-                            rstrata = BaseStruct(rs_item)
-                            i_func = get_truncnorm(rstrata.imin,rstrata.imax,name='i_func')
-                            e_func = get_truncnorm(rstrata.Emin,rstrata.Emax,name='e_func')
-                            phi_func = get_truncnorm(rstrata.phimin,rstrata.phimax,name='phi_func')
-                            c_func = get_truncnorm(rstrata.cmin,rstrata.cmax,name='c_func')
-                            k0_func = get_truncnorm(rstrata.k0min,rstrata.k0max,name='k0_func')
+                            i_func = get_truncnorm(rstrata.imin,rstrata.imax,name='i_func',p=99.,nIter=1)
+                            e_func = get_truncnorm(rstrata.Emin,rstrata.Emax,name='e_func',p=99.,nIter=1)
+                            phi_func = get_truncnorm(rstrata.phimin,rstrata.phimax,name='phi_func',p=99.,nIter=1)
+                            c_func = get_truncnorm(rstrata.cmin,rstrata.cmax,name='c_func',p=99.,nIter=1)
+                            k0_func = get_truncnorm(rstrata.k0min,rstrata.k0max,name='k0_func',p=99.,nIter=1)
                             i_sample = i_func.ppf(float(a))
                             e_sample =  e_func.ppf(float(a))
                             phi_sample =  phi_func.ppf(float(a))
                             c_sample =  c_func.ppf(float(a))
                             k0_sample =  k0_func.ppf(float(a))
                         samples["items"][i][rs_item["code"]]= BaseStruct({"inom":i_sample, "e": e_sample , "phi_tr" : phi_sample, "c_tr" : c_sample, "k0" : k0_sample })
+                        log.debug('\t\ti_sample=%f ' % i_sample)
+                        log.debug('\t\te_sample=%f ' % e_sample)
+                        log.debug('\t\tphi_sample=%f ' % phi_sample)
+                        log.debug('\t\tc_sample=%f ' % c_sample)
+                        log.debug('\t\tk0_sample=%f ' % k0_sample)
+        log.debug('gen_samples_strata terminated with %d samples' % len( samples["items"]))
         return samples
         
     def doit (self,parm):

@@ -88,26 +88,42 @@ class Alignment(BaseSmtModel):
             bldg.item[param] = val
             bldg.save()
             retVal = retVal + 1
-#
-#        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{"damage_class":{"$lt":damage_class}} ]})
-#        for b in bcurr:
-#            bldg = Building(self.db, b)
-#            bldg.load()
-#            bldg.item["damage_class"]=damage_class
-#            bldg.save()
-#            retVal =  retVal + 1
-#
-#        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
-#        bcurr = self.db.Building.find({ "$and":[{"bldg_code":bcode},{"damage_class":{"$exists":False}} ]})
-#        for b in bcurr:
-#            bldg = Building(self.db, b)
-#            bldg.load()
-#            bldg.item["damage_class"]=damage_class
-#            bldg.save()
-#            retVal =  retVal + 1
 
         return retVal
+    
+    def assign_parameter_by_code(self, bcode, param, val, p_code): #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
+        retVal = 0
+        #2129458 94076BC0006_01
+        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
+        bcurr = self.db.Building.find({"$and":[{"bldg_code":bcode}, {"%s.%s" % (p_code,param):{"$lte":val}}]})
+        for b in bcurr:
+            bldg = Building(self.db, b)
+            bldg.load()
+            try:
+                bldg.item[param][p_code] = val
+            except TypeError as te:
+                 bldg.item[param] = {p_code:val}
+            except KeyError as ke:
+                 bldg.item[param] = {p_code:val}
+            bldg.save()
+            retVal = retVal + 1
 
+        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
+        bcurr = self.db.Building.find({"$and":[{"bldg_code":bcode}, {"%s.%s" % (p_code,param):{"$exists":False}}]})
+        for b in bcurr:
+            bldg = Building(self.db, b)
+            bldg.load()
+            try:
+                bldg.item[param][p_code] = val
+            except TypeError as te:
+                 bldg.item[param] = {p_code:val}
+            except KeyError as ke:
+                 bldg.item[param] = {p_code:val}
+            bldg.save()
+            retVal = retVal + 1
+
+        return retVal
+        
     # parametri geomeccanici relativi al cavo, utilizzati sia per il calcolo volume perso lungo
     # lo scudo, che per il calcolo della curva dei cedimenti. I parametri sono:
     # young_tun, nu_tun, phi_tun
@@ -203,6 +219,45 @@ class Alignment(BaseSmtModel):
         self.save()
         return retVal
 
+    def define_face_param_sample(self,strata_sample):
+        retVal = "XXX"
+        align = BaseStruct(self.item)
+        r_excav = align.TBM.excav_diameter/2.0
+        z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + r_excav
+        z_base = z_top - align.TBM.excav_diameter
+        z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
+        ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > z_tun - align.TBM.excav_diameter]
+        # parametri relativi all'estrusione del fronte (k0, modulo di young, coesione e attrito)
+        # come media sull'altezza del fronte piu' mezzo raggio sopra e sotto
+        gamma_th = 0.
+        k0_th = 0.
+        young_th = 0.
+        phi_th = 0.
+        ci_th = 0.
+        th = 0.
+        for ref_stratus in ref_strata:
+            if ref_stratus.POINTS.base.coordinates[2] < z_top + r_excav/2.:
+                z_max = min(z_top + r_excav/2., ref_stratus.POINTS.top.coordinates[2])
+                z_min = max(z_base - r_excav/2., ref_stratus.POINTS.base.coordinates[2])
+                tmp_th = max(0., z_max - z_min)
+                th += tmp_th
+                gamma_th += tmp_th * strata_sample[ref_stratus.CODE].inom
+                k0_th += tmp_th * strata_sample[ref_stratus.CODE].k0
+                young_th += tmp_th * strata_sample[ref_stratus.CODE].e
+                ci_th += tmp_th * strata_sample[ref_stratus.CODE].c_tr
+                phi_th += tmp_th * strata_sample[ref_stratus.CODE].phi_tr
+        gamma_face = gamma_th /th
+        k0_face = k0_th/th
+        young_face = 1000.*young_th/th
+        ci_face = ci_th/th
+        phi_face = phi_th/th
+        self.item["gamma_face"] = gamma_face
+        self.item["k0_face"] = k0_face
+        self.item["young_face"] = young_face
+        self.item["phi_face"] = phi_face
+        self.item["ci_face"] = ci_face
+        return retVal        
+
     def define_buffer(self, buffer_size=1.0):
         buff = 0.
         align = BaseStruct(self.item)
@@ -211,7 +266,8 @@ class Alignment(BaseSmtModel):
         depth_tun = align.DEM.coordinates[2] - z_tun
         beta_tun = align.beta_tun
         k_peck = k_eq(r_excav, depth_tun, beta_tun)
-        buff = buffer_size*k_peck*depth_tun
+        # danzi.tn@20160412 modifica sul buffer
+        buff = max(buffer_size*k_peck*depth_tun, self.project.align_scan_length/2)
         return buff, k_peck
 
     def init_dtype_array(self,retVal):
@@ -233,6 +289,7 @@ class Alignment(BaseSmtModel):
                 if isinstance(val, int):
                     a_formats.append('i4')
                     a_names.append(key)
+                self.item[key] = {}
         for idx, b in enumerate(retVal["BUILDINGS"]):
             for key, val in b.iteritems():
                 if key not in ["bldg_code"]:
@@ -242,13 +299,16 @@ class Alignment(BaseSmtModel):
                     if isinstance(val, int):
                         b_formats.append('i4')
                         b_names.append(key)
-                    
+                    # devo pulire tutti i valori assegnati prima
+                    if key in self.item["BUILDINGS"][idx]:
+                        self.item["BUILDINGS"][idx][key] = {}
             b_dtype = {'names':b_names, 'formats':b_formats}
             b_len = len(retVal["BUILDINGS"])
             break
         for s in retVal["SETTLEMENTS"]:
             s_names.append("%d"% s["code"])
             s_formats.append("f4")
+        self.item["SETTLEMENTS"] = {}
         s_dtype = {'names':s_names, 'formats':s_formats}
         a_dtype = {'names':a_names, 'formats':a_formats}
         return a_dtype, b_dtype, b_len, s_dtype
@@ -260,6 +320,10 @@ class Alignment(BaseSmtModel):
         s_dtype = s_values = b_dtype = a_dtype = a_values = b_values = None
         b_codes = []
         for i, sample in enumerate(self.strata_samples["items"]):
+            self.logger.debug("doit (%s) on iter %d" % (self.strata_samples["type"], i))
+            if self.strata_samples["type"] == "c":
+                self.logger.debug("iteration type = %s " % str(self.strata_samples["custom_type_tuple"][i]))
+            self.define_face_param_sample(sample)
             retVal = self.doit_sample(parm, sample)
             # per il primo giro definisco la struttura degli array
             if i==0:
@@ -289,32 +353,55 @@ class Alignment(BaseSmtModel):
         # TODO qui sotto bisogna decidere cosa salvare dei samples che stanno in a_values, b_values e s_values
         # per ora con un campione salva il valore nel DB
         # qui bisogna salvare nel DB sulla base di quanto specificato a livello di focnfigurazione in INPUT_DATA_ANALYSIS e se il tipo di analisi è standard o custom
-        """
-        {"ANALYSIS":{ key:{ 'avg':valore,'max': valore ...etc}}
-        """
-        if len(self.strata_samples["items"]) == 1:
-            self._map_aitems(0,a_values)
-            if b_len > 0:
-                self._map_bitems(0,b_values, b_len, b_codes)
-            self._map_sitems(0,s_values)
-        self.save()
+        if self.strata_samples["type"] == "c":
+            custom_type_tuple = self.strata_samples["custom_type_tuple"]
+            for i, ct in enumerate(custom_type_tuple):
+                self._map_aitems(i,a_values,str(ct))
+                if b_len > 0:
+                    self._map_bitems(i,b_values, b_len, b_codes,str(ct))
+                self._map_sitems(i,s_values,str(ct))
+            self.save()
+        else:
+            percentiles = [5.,10.,15.,20.,50.,95.,99.]
+            for key in a_values.dtype.names:
+                for p in percentiles:
+                    val = np.percentile(a_values[key],p)
+                    print "%s(%f) = %f" % (key,p,val)
+            #self.save()
 
-    def _map_aitems(self,i,a_values):
+    def _map_aitems(self,i,a_values,sCode):
         for key in a_values.dtype.names:
-            self.item[key]= float(a_values[i][key])
+            try:
+                self.item[key][sCode] = float(a_values[i][key])
+            except TypeError as te:
+                self.item[key] = {sCode:float(a_values[i][key])}
+            except KeyError as ke:
+                self.item[key] = {sCode:float(a_values[i][key])}
     
-    def _map_bitems(self,i,b_values,b_len, b_codes):
+    def _map_bitems(self,i,b_values,b_len, b_codes,sCode):
         for idx in range(b_len):
             for key in b_values.dtype.names:
                 val = float(b_values[i][idx][key])
-                self.item["BUILDINGS"][idx][key] = val
-                self.assign_parameter(b_codes[idx], key, val)
+                try:
+                    self.item["BUILDINGS"][idx][key][sCode] = val
+                except TypeError as te:
+                    self.item["BUILDINGS"][idx][key] = {sCode:val}
+                except KeyError as ke:
+                    self.item["BUILDINGS"][idx][key] = {sCode:val}
+                self.assign_parameter_by_code(b_codes[idx], key, val, sCode)
     
-    def _map_sitems(self,i,s_values):
-        sett_list = []
+    def _map_sitems(self,i,s_values,sCode):
+        sett_list = []     
         for key in s_values.dtype.names:
             sett_list.append({"code":int(key),"value":float(s_values[i][key])})
-        self.item["SETTLEMENTS"] = sett_list
+        try:
+            self.item["SETTLEMENTS"][sCode] = sett_list
+        except TypeError as te:
+            self.item["SETTLEMENTS"] = {sCode:sett_list}
+        except KeyError as ke:
+            self.item["SETTLEMENTS"] = {sCode:sett_list}
+            
+            
         
     def doit_sample(self, parm, strata_sample):
         retVal = {"BUILDINGS":[]}
@@ -449,7 +536,9 @@ class Alignment(BaseSmtModel):
             p_tbm_shield = max(p_tbm-50., p_wt)
             p_tbm_shield_base = p_tbm_shield
             # calcolo iniziale per greenfield
-            gf = gap_front(p_tbm_base, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
+            self.logger.debug("\t calcolo iniziale per greenfield gap_front(p_tbm_base=%f, p_wt=%f, s_v=%f, k0_face=%f, young_face=%f, ci_face=%f, phi_face=%f, r_excav=%f)" % (p_tbm_base, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav))
+            gf = gap_front(p_tbm_base, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)  
+            self.logger.debug("\t si ha gap_front gp = %f" % gf)
             # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
             ui_shield = .5*2.*ur_max(s_v, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
             #ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v, nu_tun, young_tun, r_excav)
@@ -474,7 +563,6 @@ class Alignment(BaseSmtModel):
             damage_class_vbr_pk = 0.
             vulnerability_vbr_pk = 0.
 
-#                """
             if "BUILDINGS" in self.item:                    
                 for idx, b in enumerate(align.BUILDINGS):
                     building_item = {"bldg_code":b.bldg_code}
@@ -512,7 +600,7 @@ class Alignment(BaseSmtModel):
                         if ref_stratus.POINTS.top.coordinates[2] > z_dem-b.depth_fondation:
                             z_max = min(z_dem, ref_stratus.POINTS.top.coordinates[2])
                             z_min = max(z_dem-b.depth_fondation, ref_stratus.POINTS.base.coordinates[2])
-                            p_soil = (z_max-z_min)*strata_sample[ref_stratus.CODE].inom
+                            p_soil += (z_max-z_min)*strata_sample[ref_stratus.CODE].inom
                     p_bldg = 5.*h_bldg #+7.5
                     #Gabriele@20160407 Carico boussinesq - inizio
                     qs = max(0., p_bldg-p_soil)
@@ -520,6 +608,7 @@ class Alignment(BaseSmtModel):
                     x_bou = abs((x_min+x_max)/2.)
                     z_bou = z_dem-b.depth_fondation-z_top
                     extra_load = boussinesq(qs, Bqs, x_bou, z_bou)
+                    self.logger.debug("extra_load=%f = boussinesq(qs=%f, Bqs=%f, x_bou=%f, z_bou=%f)  p_soil=%f" % (extra_load, qs, Bqs, x_bou, z_bou, p_soil))
                     #Gabriele@20160407 Carico boussinesq - fine
                     s_v_bldg = s_v+extra_load
                     self.logger.debug("\t\textra carico in galleria %f kN/m2" % (extra_load))
@@ -572,15 +661,7 @@ class Alignment(BaseSmtModel):
                     building_item["k_peck"] = k_peck
 
                     
-                    # assign_vulnerability(self, bcode, param, value):
-                    """
-                    n_found = self.assign_parameter(b.bldg_code, "vulnerability_base", vulnerability_class_b)
-                    n_found = self.assign_parameter(b.bldg_code, "damage_class_base", damage_class_b)
-                    n_found = self.assign_parameter(b.bldg_code, "settlement_max_base", s_max_ab_b)
-                    n_found = self.assign_parameter(b.bldg_code, "tilt_max_base", beta_max_ab_b)
-                    n_found = self.assign_parameter(b.bldg_code, "esp_h_max_base", esp_h_max_ab_b)
-                    n_found = self.assign_parameter(b.bldg_code, "k_peck", k_peck)
-                    """
+                   
                     self.logger.debug("\t\tp_tbm_base = %f, s_max_ab_base = %f, beta_max_ab_base = %f, esp_h_max_ab_base = %f, vul_base = %f" % (p_tbm_base, s_max_ab_b, beta_max_ab_b, esp_h_max_ab_b, vulnerability_class_b))
 
                     # aggiorno i parametri di base della pk
