@@ -14,11 +14,10 @@ from alignment_set import AlignmentSet
 from project import Project
 from domain import Domain
 from reference_strata import ReferenceStrata
-from smt_stat import get_triang
-from scipy.stats import truncnorm
 
 # danzi.tn@20160407 set della nuova collection ReferenceStrata per il Sampling
-def process_calc(project_code, bAuthenticate,nSamples):
+# python process_calc.py -c MDW029_S_E_05 -a -n 1 -t s
+def process_calc(project_code, bAuthenticate,nSamples, type_of_analysis):
     logger = helpers.init_logger('smt_main', 'process_calc.log', logging.DEBUG)
     smt_config = helpers.get_config('smt.cfg')
     logged_in, mongodb = helpers.init_db(smt_config, True)
@@ -32,7 +31,10 @@ def process_calc(project_code, bAuthenticate,nSamples):
             # danzi.tn@20160407 recupero dei dati presenti in ReferenceStrata
             rs_items = ReferenceStrata.find(mongodb, {"project_id": p._id}) 
             if rs_items:
-                samples = ReferenceStrata.gen_samples_strata(mongodb, nSamples, project_code)
+                custom_type = smt_config.get('INPUT_DATA_ANALYSIS', 'CUSTOM_TYPE')                    
+                sCustom_type = "(%s)" % custom_type
+                custom_type_tuple = eval(sCustom_type)
+                samples = ReferenceStrata.gen_samples_strata(mongodb, nSamples, project_code, type_of_analysis, custom_type_tuple)
                 # danzi.tn@20160407e
                 found_domains = Domain.find(mongodb, {"project_id": p._id})         
                 for dom in found_domains:
@@ -66,10 +68,11 @@ def process_calc(project_code, bAuthenticate,nSamples):
 def main(argv):
     bAuthenticate = False
     project_code = None
+    type_of_analysis = 's'
     nSamples = 1
-    sSyntax = os.path.basename(__file__) +" -c <project code> [-a for authentication] [-n <positive number_of_samples>]"
+    sSyntax = os.path.basename(__file__) +" -c <project code> [-a for authentication] [-n <positive number_of_samples>] [-t s for standard, c for custom]"
     try:
-        opts, args = getopt.getopt(argv, "hac:n:", ["code=","nsamples="])
+        opts, args = getopt.getopt(argv, "hac:n:t:", ["code=","nsamples=","type="])
     except getopt.GetoptError:
         print sSyntax
         sys.exit(1)
@@ -82,6 +85,8 @@ def main(argv):
             sys.exit()
         elif opt == '-a':
             bAuthenticate = True
+        elif opt in ("-t", "--type"):
+            type_of_analysis = arg
         elif opt in ("-n", "--nsamples"):
             nSamples = int(arg)
             if nSamples <= 0:
@@ -90,7 +95,7 @@ def main(argv):
         elif opt in ("-c", "--code"):
             project_code = arg
     if project_code:
-        process_calc(project_code, bAuthenticate,nSamples)
+        process_calc(project_code, bAuthenticate,nSamples, type_of_analysis)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
