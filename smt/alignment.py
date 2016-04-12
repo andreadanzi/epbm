@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 #import logging, sys
 import math
-import csv, datetime
+import csv
 import numpy as np
 from base import BaseSmtModel, BaseStruct
-from utils import *
-from smt_stat import get_truncnorm_avg
+from utils import toFloat, k_eq, blowup, cob_step_1, cob_step_2, p_min_tamez, gap_front, gap_shield, ur_max, gap_tail, volume_loss, boussinesq, VolumeLoss, DamageParametersBurlandWroth, DamageParametersFrench, vibration_speed_Boucliers, uz_laganathan
 from building import Building
 # danzi.tn@20160310 refactoring per separare calc da setup
 # danzi.tn@20160322 clacolati dati _base insieme a 
 # danzi.tn@20160407 set samples degli strati ed esempio per l'utilizzo
 # danzi.tn@20160410 Merge delle modifiche eseguite da Gabriele su Master Gabriele@2016040 esp critico Burland and Wroth 1974
+# danzi.tn@20160412 
 class Alignment(BaseSmtModel):
 
     def _init_utils(self, **kwargs):
@@ -219,7 +219,6 @@ class Alignment(BaseSmtModel):
         a_dtype = None
         s_dtype = None
         b_len = 0
-        s_len = 0
         a_names = []
         a_formats = []
         b_names = []
@@ -259,8 +258,6 @@ class Alignment(BaseSmtModel):
         retVal = {}
         b_len = 0
         s_dtype = s_values = b_dtype = a_dtype = a_values = b_values = None
-        updated = datetime.datetime.utcnow()
-        retValList = []
         b_codes = []
         for i, sample in enumerate(self.strata_samples["items"]):
             retVal = self.doit_sample(parm, sample)
@@ -291,6 +288,10 @@ class Alignment(BaseSmtModel):
         # danzi.tn@20160409-end
         # TODO qui sotto bisogna decidere cosa salvare dei samples che stanno in a_values, b_values e s_values
         # per ora con un campione salva il valore nel DB
+        # qui bisogna salvare nel DB sulla base di quanto specificato a livello di focnfigurazione in INPUT_DATA_ANALYSIS e se il tipo di analisi è standard o custom
+        """
+        {"ANALYSIS":{ key:{ 'avg':valore,'max': valore ...etc}}
+        """
         if len(self.strata_samples["items"]) == 1:
             self._map_aitems(0,a_values)
             if b_len > 0:
@@ -425,7 +426,8 @@ class Alignment(BaseSmtModel):
             p_tamez = p_min_tamez(copertura, W, gamma_tun, ci_tun, phi_tun, gamma_face, ci_face, phi_face, k0_face, 2*r_excav, a, tamez_safety_factor, self.project.p_safe_cob_kpa, gamma_muck)
 
             # pressione al fronte,  danzi.tn@20160408 strata_sample["p_tbm"] varia da -30 a +30
-            p_max = min(round(align.TBM.pressure_max/10.)*10., round(fBlowUp/10.)*10. -30.+ strata_sample["p_tbm"])
+            # p_max = min(round(align.TBM.pressure_max/10.)*10., round(fBlowUp/10.)*10. -30.+ strata_sample["p_tbm"])
+            p_max = min(round(align.TBM.pressure_max/10.)*10., round((fBlowUp-30.+ strata_sample["p_tbm"])/10.)*10. )
             # forzo la pressione della macchina di massimo 0.5 bar oltre il limite
 #                if p_tamez+30. > p_max:
 #                    consolidation="front"
@@ -439,7 +441,8 @@ class Alignment(BaseSmtModel):
             # p_tbm=min(p_max, round(p_tamez/10.)*10., round(fCob/10.)*10., round(fBlowUp/10.)*10.)
 #                p_tbm = min(p_max, round(p_tamez/10.)*10.+30.)
             # danzi.tn@20160408 strata_sample["p_tbm"] varia da -30 a +30
-            p_tbm = min(p_max, round(fCob/10.)*10.+strata_sample["p_tbm"])
+            # p_tbm = min(p_max, round(fCob/10.)*10.+strata_sample["p_tbm"])
+            p_tbm = min(p_max, round((fCob+30+strata_sample["p_tbm"])/10.)*10.)
             p_tbm = max(p_tbm, 170.)
 
             # p_tbm = round(p_wt/10.)*10. + 50.
@@ -461,7 +464,7 @@ class Alignment(BaseSmtModel):
             gap = gf + gs + gt
             eps0_base = volume_loss(gap, r_excav)
             # TODO buffer_size deve essere un parametro di progetto
-            buff, k_peck = self.define_buffer( 0.5)
+            buff, k_peck = self.define_buffer( 0.1)
 
             sensibility_pk = 0.
             damage_class_pk = 0.
@@ -715,7 +718,7 @@ class Alignment(BaseSmtModel):
             VL_pk = VolumeLoss(p_tbm, p_tbm_shield, p_wt, s_v, \
                             k0_face, young_face, ci_face, phi_face, \
                             phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, \
-                            r_excav, shield_taper, cutter_bead_thickness, tail_skin_thickness, delta,strata_sample["vloss_tail"])
+                            r_excav, shield_taper, cutter_bead_thickness, tail_skin_thickness, delta, strata_sample["vloss_tail"])
             #TODO ripulire le variabili scalari e usare direttamente la classe dove serve
             gf=VL_pk.gf
             ui_shield = VL_pk.ui_shield
@@ -847,9 +850,6 @@ class Alignment(BaseSmtModel):
                 for re in res:
                     bDone = True
                     align = BaseStruct(re)
-                    z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + align.TBM.excav_diameter/2.0
-                    # TODO/FIXME: questa variabile non viene mai usata!
-                    z_base = z_top - align.TBM.excav_diameter
                     z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
                     for strata in align.STRATA:
                         item = [align.PK, z_tun, align.DEM.coordinates[2], align.FALDA.coordinates[2],
