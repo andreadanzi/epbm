@@ -28,3 +28,7 @@ data/gis/mask*
 data/smt_qgis.qgs~
 *.dxf
 smt/keys.txt
+data/20160413_MDW029_S_E_05/*
+data/MDW029_S_E_05/out*
+data/MDW029_S_E_05/gis
+data/MDW029_S_E_05/mongo-smt-20160413-044929.gz
