@@ -52,6 +52,7 @@ def export_buildings_data(project_code, authenticate, csv_name, shp_name, fields
     if shp_name:
         shp_path = os.path.join(data_basedir, "gis", shp_name)
         update_bldg_shp(shp_path, shp_headers, shp_data, logger)
+    helpers.destroy_logger(logger)
 
 def get_bldg_data(quali_dati, bcurr, mongodb, logger):
     '''

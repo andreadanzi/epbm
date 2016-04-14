@@ -7,6 +7,7 @@ import logging
 import logging.handlers
 import ConfigParser
 import csv
+import collections
 import osgeo.ogr as ogr
 import osgeo.osr as osr
 from pymongo import MongoClient
@@ -37,6 +38,15 @@ def init_logger(logger_name, file_path, log_level):
         logger.handler_set = True
     return logger
 
+def destroy_logger(logger):
+    '''
+    unloads the logger closing all its handlers
+    '''
+    for handler in logger.handlers:
+        handler.close()
+        logger.removeHandler(handler)
+    logging.shutdown()
+
 def init_db(smt_config, authenticate):
     '''
     connects to mongoDB
@@ -59,6 +69,31 @@ def get_config(cfg_name):
     smt_config = ConfigParser.RawConfigParser()
     smt_config.read(cfg_name)
     return smt_config
+
+def flatten(my_dict, parent_key='', sep='_'):
+    '''
+    flattens nested dictionaries and other mappings
+    '''
+    items = []
+    for key, value in my_dict.items():
+        new_key = parent_key + sep + key if parent_key else key
+        if isinstance(value, collections.MutableMapping):
+            items.extend(flatten(value, new_key, sep=sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
+
+def flatten_dicts_list(mylist):
+    '''
+    returns a list of flattened nested dictionary
+    '''
+    return [flatten(list_item) for list_item in mylist]
+
+def get_dicts_list_keys(mylist):
+    '''
+    returns all the unique keys of a list of dictionaries
+    '''
+    return set().union(*(d.keys() for d in mylist))
 
 # CSV FUNCTIONS
 def get_csv_dict_list(path):
@@ -88,7 +123,7 @@ def write_dict_list_to_csv(csv_file, csv_columns, dict_data):
             for data in dict_data:
                 writer.writerow(data)
     except IOError as (errno, strerror):
-            print "I/O error({0}): {1}".format(errno, strerror)
+        print "I/O error({0}): {1}".format(errno, strerror)
     return
 
 # SHAPEFILE FUNCTIONS

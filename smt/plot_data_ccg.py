@@ -115,9 +115,11 @@ def fillBetweenStrata(a_list):
         y1.append(z_base)
         y2.append(z_top)
 
-def plot_data(project_code, authenticate):
+def plot_data(project_code, authenticate, type_of_analysis):
     logger = helpers.init_logger('smt_main', 'plot_data.log', logging.DEBUG)
     smt_config = helpers.get_config('smt.cfg')
+    # aghensi@20160414 aggiunto gestione percentili via smt.cfg
+    custom_type_tuple = eval(smt_config.get('INPUT_DATA_ANALYSIS', 'CUSTOM_TYPE'))
     logged_in, mongodb = helpers.init_db(smt_config, authenticate)
     outputdir = os.path.join(helpers.get_project_basedir(project_code), "out")
     mpl.rcParams.update({'font.size': 6})
@@ -138,21 +140,25 @@ def plot_data(project_code, authenticate):
                     a_set = AlignmentSet(mongodb, aset)
                     a_set.load()
                     als = mongodb.Alignment.find({"alignment_set_id":a_set._id},
-                                                 {"PK":True, "P_TAMEZ":True, "COB":True,
-                                                  "P_EPB":True, "P_WT":True, "BLOWUP":True,
-                                                  "PH":True, "DEM":True, "SETTLEMENT_MAX":True,
-                                                  "TILT_MAX":True, "EPS_H_MAX":True,
-                                                  "VOLUME_LOSS":True, "K_PECK":True,
-                                                  "REFERENCE_STRATA":True, "SETTLEMENTS":True,
+                                                 {"PK":True, "COB":True, "P_EPB":True, "P_WT":True,
+                                                  "BLOWUP":True, "VOLUME_LOSS":True, "K_PECK":True,
+                                                  "SETTLEMENT_MAX":True, "TILT_MAX":True,
+                                                  "EPS_H_MAX":True, "CONSOLIDATION_VALUE":True,
                                                   "SENSIBILITY":True, "DAMAGE_CLASS":True,
-                                                  "VULNERABILITY":True, "CONSOLIDATION_VALUE":True,
-                                                  "gamma_face":True,
-                                                  "gamma_tun":True}).sort("PK", 1)
-                    plot_alignset_data(list(als), a_set.item["code"], outputdir, logger)
+                                                  "VULNERABILITY":True}).sort("PK", 1)
+                    if type_of_analysis == 'c' and len(custom_type_tuple) >= 0:
+                        a_list = list(als)
+                        for percentile in custom_type_tuple:
+                            plot_alignset_data(a_list, str(percentile), a_set.item["code"],
+                                               outputdir, logger)
+                    elif type_of_analysis == 's':
+                        plot_alignset_data(list(als), 'avg', a_set.item["code"],
+                                           outputdir, logger)
     else:
         logger.error("Authentication failed")
+    helpers.destroy_logger(logger)
 
-def plot_alignset_data(a_list, sCode, outputdir, logger):
+def plot_alignset_data(a_list, percentile, sCode, outputdir, logger):
     pks = []
     pklabel = []
     pkxticks = []
@@ -169,28 +175,28 @@ def plot_alignset_data(a_list, sCode, outputdir, logger):
     else:
         d_press = 0.7 # bar tra calotta e asse
         d_press_wt = 0.5
-
+    suffix = "{}-{}".format(sCode, percentile)
     # scalo di fattore 100
     # p_wts =[d['P_WT']/100 - d_press_wt for d in a_list]
-    p_wts = [(max(0., d['P_WT']/100. - d_press_wt)) for d in a_list]
+    p_wts = [(max(0., d['P_WT'][percentile]/100. - d_press_wt)) for d in a_list]
     # scalo di fattore 100
-    p_epms = [max(0., d['P_EPB']/100. - d_press) for d in a_list]
+    p_epms = [max(0., d['P_EPB'][percentile]/100. - d_press) for d in a_list]
     # scalo di fattore 100
 #    p_tamezs = [max(0., d['P_TAMEZ']/100. - d_press) for d in a_list]
-    cobs = [max(0., d['COB']/100. - d_press) for d in a_list]
+    cobs = [max(0., d['COB'][percentile]/100. - d_press) for d in a_list]
     # scalo di fattore 100
-    blowups = [max(0., d['BLOWUP']/100. - d_press) for d in a_list]
+    blowups = [max(0., d['BLOWUP'][percentile]/100. - d_press) for d in a_list]
     # amplifico di fattore 100
-    volume_losss = [d['VOLUME_LOSS']*100. for d in a_list]
-    k_pecks = [d['K_PECK'] for d in a_list]
+    volume_losss = [d['VOLUME_LOSS'][percentile]*100. for d in a_list]
+    k_pecks = [d['K_PECK'][percentile] for d in a_list]
     # amplifico di fattore 1000
-    max_settlements = [d['SETTLEMENT_MAX']*1000. for d in a_list]
-    tilts = [d['TILT_MAX']*1000. for d in a_list]
-    epshs = [d['EPS_H_MAX']*1000. for d in a_list]
-    consolidations = [d['CONSOLIDATION_VALUE'] for d in a_list]
-    sensibilities = [d['SENSIBILITY'] for d in a_list]
-    damages = [d['DAMAGE_CLASS'] for d in a_list]
-    vulnerabilities = [d['VULNERABILITY'] for d in a_list]
+    max_settlements = [d['SETTLEMENT_MAX'][percentile]*1000. for d in a_list]
+    tilts = [d['TILT_MAX'][percentile]*1000. for d in a_list]
+    epshs = [d['EPS_H_MAX'][percentile]*1000. for d in a_list]
+    consolidations = [d['CONSOLIDATION_VALUE'][percentile] for d in a_list]
+    sensibilities = [d['SENSIBILITY'][percentile] for d in a_list]
+    damages = [d['DAMAGE_CLASS'][percentile] for d in a_list]
+    vulnerabilities = [d['VULNERABILITY'][percentile] for d in a_list]
 #    young_tuns = [d['gamma_tun'] for d in a_list]
 #    young_faces = [d['gamma_face'] for d in a_list]
 #                   {"name":"profilo_young", "width":30., "height":9.,
@@ -200,10 +206,10 @@ def plot_alignset_data(a_list, sCode, outputdir, logger):
 
     all_options = [{"name":"profilo_pressioni", "width":30., "height":9.,
                     "scale":50, "rounding":.5,
-                    "campi":[{"label":"COB - bar", "valori":cobs},
-                             {"label":"P_EPB - bar", "valori":p_epms},
-                             {"label":"BLOWUP - bar", "valori":blowups},
-                             {"label":"P_WT - bar", "valori":p_wts}]},
+                    "campi":[{"label":"COB (bar)", "valori":cobs},
+                             {"label":"P_EPB (bar)", "valori":p_epms},
+                             {"label":"BLOWUP (bar)", "valori":blowups},
+                             {"label":"P_WT (bar)", "valori":p_wts}]},
                    {"name":"profilo_peck", "width":30., "height":9.,
                     "scale":50, "rounding":.05,
                     "campi":[{"label":"VL percent", "valori":volume_losss},
@@ -228,11 +234,11 @@ def plot_alignset_data(a_list, sCode, outputdir, logger):
                     "scale":50, "rounding":1,
                     "campi":[{"label":"CONSOLIDATION (0-1)", "valori":consolidations}]}]
     for options in all_options:
-        plot_single_graph(sCode, pks, pkxticks, pklabel, options, outputdir, logger)
-        export_to_csv(sCode, pks, options, outputdir)
+        plot_single_graph(suffix, pks, pkxticks, pklabel, options, outputdir, logger)
+        #export_to_csv(suffix, pks, options, outputdir)
     logger.info("plot_data terminated!")
 
-def plot_single_graph(sCode, pks, pkxticks, pklabel, options, outputdir, logger):
+def plot_single_graph(suffix, pks, pkxticks, pklabel, options, outputdir, logger):
     rounding = options["rounding"]
     fig = plt.figure()
     fig.set_size_inches(options["width"]/2.54, options["height"]/2.54)
@@ -256,30 +262,32 @@ def plot_single_graph(sCode, pks, pkxticks, pklabel, options, outputdir, logger)
     #ax.grid(True)
     plt.legend()
     #fig.set_dpi(1600)
-    outputFigure(outputdir, "{}_{}.svg".format(options["name"], sCode))
+    outputFigure(outputdir, "{}_{}.svg".format(options["name"], suffix))
     logger.info("profilo_pressioni.svg plotted in %s", outputdir)
     #plt.show()
+    plt.close()
 
-def export_to_csv(sCode, pks, options, outputdir):
-    headers = ["pk"]
-    values = [pks]
-    outputpath = os.path.join(outputdir, "{}-{}.csv".format(options["name"], sCode))
-    for campo in options["campi"]:
-        headers.append(campo["label"])
-        values.append(campo["valori"])
-    with open(outputpath, 'wb') as out_csvfile:
-        writer = csv.writer(out_csvfile, delimiter=";")
-        writer.writerow(headers)
-        for row in zip(*values):
-            writer.writerow(row)
+#def export_to_csv(suffix, pks, options, outputdir):
+#    headers = ["pk"]
+#    values = [pks]
+#    outputpath = os.path.join(outputdir, "{}-{}.csv".format(options["name"], suffix))
+#    for campo in options["campi"]:
+#        headers.append(campo["label"])
+#        values.append(campo["valori"])
+#    with open(outputpath, 'wb') as out_csvfile:
+#        writer = csv.writer(out_csvfile, delimiter=";")
+#        writer.writerow(headers)
+#        for row in zip(*values):
+#            writer.writerow(row)
 
 def main(argv):
     project_code = None
     authenticate = False
+    type_of_analysis = None
     syntax = "Usage: " + os.path.basename(__file__) + \
              " -c <project code> [-a for autentication -h for help]"
     try:
-        opts, args = getopt.getopt(argv, "hac:", ["code="])
+        opts = getopt.getopt(argv, "hac:t:", ["code=", "type="])[0]
     except getopt.GetoptError:
         print syntax
         sys.exit(1)
@@ -294,7 +302,9 @@ def main(argv):
             authenticate = True
         elif opt in ("-c", "--code"):
             project_code = arg
-    plot_data(project_code, authenticate)
+        elif opt in ("-t", "--type"):
+            type_of_analysis = arg
+    plot_data(project_code, authenticate, type_of_analysis)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
