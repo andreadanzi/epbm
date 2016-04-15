@@ -1,0 +1,5 @@
+Una procedura più oculata potrebbe invece essere:
+analisi secca su tutte le pk e tutti gli edifici a partire da parametri meccanici dei terreni a basso percentile (farebbe eccezione la densità, dove dovremmo prendere invece il percentile inverso per essere prudenziali)
+identificare solo gli edifici con vulnerabilità finale superiore a una cerca soglia (es. >=3)
+isolare le pk dove sono presenti gli edifici selezionati in 2.
+eseguire analisi montecarlo completa ristretta alle pk selezionate in 3. e agli edifici selezionati in 2.

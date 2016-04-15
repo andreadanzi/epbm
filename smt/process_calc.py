@@ -32,9 +32,31 @@ def process_calc(project_code, bAuthenticate,nSamples, type_of_analysis):
             rs_items = ReferenceStrata.find(mongodb, {"project_id": p._id}) 
             if rs_items:
                 custom_type = smt_config.get('INPUT_DATA_ANALYSIS', 'CUSTOM_TYPE')                    
+                base_percentile = smt_config.getfloat('BASE_DATA_ANALYSIS', 'BASE_PERCENTILE')    
+                base_vulnerability = smt_config.getint('BASE_DATA_ANALYSIS', 'BASE_VULNERABILITY')   
+                a_data_analysis_perc = smt_config.get('A_DATA_ANALYSIS', 'PERCENTILES')      
+                a_data_analysis_bins = smt_config.get('A_DATA_ANALYSIS', 'BINS')      
+                b_data_analysis_perc = smt_config.get('B_DATA_ANALYSIS', 'PERCENTILES')      
+                b_data_analysis_bins = smt_config.get('B_DATA_ANALYSIS', 'BINS')        
+                s_data_analysis_perc = smt_config.get('S_DATA_ANALYSIS', 'PERCENTILES')      
+                s_data_analysis_bins = smt_config.get('S_DATA_ANALYSIS', 'BINS')     
                 sCustom_type = "(%s)" % custom_type
                 custom_type_tuple = eval(sCustom_type)
-                samples = ReferenceStrata.gen_samples_strata(mongodb, nSamples, project_code, type_of_analysis, custom_type_tuple)
+                samples = ReferenceStrata.gen_samples_strata(mongodb, nSamples, project_code, type_of_analysis, base_percentile,base_vulnerability, custom_type_tuple)
+                samples["DATA_ANALYSIS"] = {    
+                                               "a": {
+                                                        "per":eval(a_data_analysis_perc),
+                                                        "bins":eval(a_data_analysis_bins)
+                                                    },
+                                                "b":{
+                                                        "per":eval(b_data_analysis_perc),
+                                                        "bins":eval(b_data_analysis_bins)
+                                                    },
+                                                "s":{
+                                                        "per":eval(s_data_analysis_perc),
+                                                        "bins":eval(s_data_analysis_bins)
+                                                    }
+                                            }
                 # danzi.tn@20160407e
                 found_domains = Domain.find(mongodb, {"project_id": p._id})         
                 for dom in found_domains:

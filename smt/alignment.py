@@ -11,6 +11,8 @@ from building import Building
 # danzi.tn@20160407 set samples degli strati ed esempio per l'utilizzo
 # danzi.tn@20160410 Merge delle modifiche eseguite da Gabriele su Master Gabriele@2016040 esp critico Burland and Wroth 1974
 # danzi.tn@20160412 
+# danzi.tn@20160414 analisi standard n-iter con soglie su vulnerability
+# danzi.tn@20160415 completamento analisi con soglie per alignments e buildings, mancano  settlements
 class Alignment(BaseSmtModel):
 
     def _init_utils(self, **kwargs):
@@ -282,7 +284,7 @@ class Alignment(BaseSmtModel):
         s_names = []
         s_formats = []
         for key, val in retVal.iteritems():
-            if key not in ["BUILDINGS","SETTLEMENTS"]:
+            if key not in ["BUILDINGS","SETTLEMENTS","keep_it"]:
                 if isinstance(val, float):
                     a_formats.append('f4')
                     a_names.append(key)
@@ -292,7 +294,7 @@ class Alignment(BaseSmtModel):
                 self.item[key] = {}
         for idx, b in enumerate(retVal["BUILDINGS"]):
             for key, val in b.iteritems():
-                if key not in ["bldg_code"]:
+                if key not in ["bldg_code","keep_it"]:
                     if isinstance(val, float):
                         b_formats.append('f4')
                         b_names.append(key)
@@ -319,21 +321,44 @@ class Alignment(BaseSmtModel):
         b_len = 0
         s_dtype = s_values = b_dtype = a_dtype = a_values = b_values = None
         b_codes = []
+        base_vulnerability = self.strata_samples["base_vulnerability"]
+        bKeepAlign = False
+        buildings_to_skip = []
+        buildings_to_keep = []
+        self.item["updated_by"] = "doit"
         for i, sample in enumerate(self.strata_samples["items"]):
             self.logger.debug("doit (%s) on iter %d" % (self.strata_samples["type"], i))
             if self.strata_samples["type"] == "c":
-                self.logger.debug("iteration type = %s " % str(self.strata_samples["custom_type_tuple"][i]))
+                self.logger.debug("iteration type = %s " % str(sample["type"]))
             self.define_face_param_sample(sample)
-            retVal = self.doit_sample(parm, sample)
-            # per il primo giro definisco la struttura degli array
+            retVal = self.doit_sample(parm, sample, base_vulnerability, buildings_to_skip)
+            # per il primo giro definisco la struttura degli array, verifico e recupero i building critici
             if i==0:
+                # di base c'è un'iterazione sola, se poi viene superata la soglia di vulnerability allora si procede con monte carlo
+                samples_len = 1
+                if "keep_it" in retVal:
+                    bKeepAlign = retVal["keep_it"]
+                    self.logger.debug("keep this alignment and perform monte carlo")
+                    # tolgo il primo campione, che è quello base
+                    samples_len = len(self.strata_samples["items"])
+                    # al primo giro verifico quali buildings togliere
+                    # per ogni building
+                    for idx, b in enumerate(retVal["BUILDINGS"]):
+                        if "keep_it" in b:
+                            buildings_to_keep.append(b)
+                        else:
+                            buildings_to_skip.append(b["bldg_code"])
+                    self.item["keep_analysis"] = True
+                else:
+                    self.logger.debug("go a head widthout monte carlo")
+                    self.item["keep_analysis"] = False
                 a_dtype, b_dtype, b_len, s_dtype  = self.init_dtype_array(retVal)
                 # dichiaro le matrici a_values, s_values con tutti i samples degli alignment e relativi settlements
-                a_values = np.zeros(len(self.strata_samples["items"]),dtype=a_dtype)
-                s_values = np.zeros(len(self.strata_samples["items"]),dtype=s_dtype)
+                a_values = np.zeros(samples_len,dtype=a_dtype)
+                s_values = np.zeros(samples_len,dtype=s_dtype)
                 if b_len > 0:
-                    # dichiaro la matrice b_values con tutti i samples dei building
-                    b_values = np.zeros((len(self.strata_samples["items"]),b_len,),dtype=b_dtype)
+                    # dichiaro la matrice b_values con tutti i samples dei building, serve una dimensione in più
+                    b_values = np.zeros((samples_len,b_len,),dtype=b_dtype)
             # assegno ad a_values i valori del campione i-esimo (corrente)
             for key in a_values.dtype.names:
                 a_values[i][key] = retVal[key]            
@@ -348,26 +373,77 @@ class Alignment(BaseSmtModel):
                     # assegno a b_values i valori del campione i-esimo (corrente)b
                     for key in b_values.dtype.names:
                         b_values[i][idx][key] = b[key]
-        self.item["updated_by"] = "doit"
+            if not bKeepAlign:
+                break
         # danzi.tn@20160409-end
         # TODO qui sotto bisogna decidere cosa salvare dei samples che stanno in a_values, b_values e s_values
         # per ora con un campione salva il valore nel DB
-        # qui bisogna salvare nel DB sulla base di quanto specificato a livello di focnfigurazione in INPUT_DATA_ANALYSIS e se il tipo di analisi è standard o custom
-        if self.strata_samples["type"] == "c":
-            custom_type_tuple = self.strata_samples["custom_type_tuple"]
-            for i, ct in enumerate(custom_type_tuple):
-                self._map_aitems(i,a_values,str(ct))
-                if b_len > 0:
-                    self._map_bitems(i,b_values, b_len, b_codes,str(ct))
-                self._map_sitems(i,s_values,str(ct))
-            self.save()
-        else:
-            percentiles = [5.,10.,15.,20.,50.,95.,99.]
-            for key in a_values.dtype.names:
-                for p in percentiles:
-                    val = np.percentile(a_values[key],p)
-                    print "%s(%f) = %f" % (key,p,val)
-            #self.save()
+        # qui bisogna salvare nel DB sulla base di quanto specificato a livello di configurazione in INPUT_DATA_ANALYSIS e se il tipo di analisi è standard o custom
+        self._map_aitems(0,a_values,"base")
+        if b_len > 0:
+            self._map_bitems(0,b_values, b_len, b_codes,"base")
+        self._map_sitems(0,s_values,"base")
+        if bKeepAlign:
+            if self.strata_samples["type"] == "c":
+                custom_type_tuple = self.strata_samples["custom_type_tuple"]
+                for i, ct in enumerate(custom_type_tuple):
+                    self._map_aitems(i+1,a_values,str(ct))
+                    if b_len > 0:
+                        self._map_bitems(i+1,b_values, b_len, b_codes,str(ct))
+                    self._map_sitems(i+1,s_values,str(ct))
+            else:
+                a_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["a"]["per"]
+                a_data_analysis_bins = self.strata_samples["DATA_ANALYSIS"]["a"]["bins"]
+                b_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["b"]["per"]
+                b_data_analysis_bins = self.strata_samples["DATA_ANALYSIS"]["b"]["bins"]
+                s_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["s"]["per"]
+                s_data_analysis_bins = self.strata_samples["DATA_ANALYSIS"]["s"]["bins"]
+                # gestione campi aligment
+                std_np_func = {'avg':np.mean,'min':np.max,'max':np.min}
+                for key in a_values.dtype.names:
+                    nSize = len(a_values[1:][key])
+                    for func_names, np_func in std_np_func.iteritems():
+                        self.item[key][func_names] = float(np_func(a_values[1:][key]))
+                    pers=[]
+                    for a_p in a_data_analysis_perc:
+                        ar = np.percentile(a_values[1:][key],a_p)
+                        pers.append(float(ar))
+                    self.item[key]["PERCENTILES"] = {"samples_size":float(nSize),"p_parm":a_data_analysis_perc,"values":pers}
+                    res = np.histogram(a_values[1:][key], bins =a_data_analysis_bins)
+                    cum=0
+                    bins_info = []
+                    for i, b in enumerate(res[0]):
+                        cum += b
+                        fStart = float(res[1][i])
+                        fEnd = float(res[1][i+1])
+                        qty = float(b)
+                        perc = 100.*float(b)/float(nSize)
+                        bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
+                    self.item[key]["BINS"] = {"bin_no":float(a_data_analysis_bins),"items":bins_info}
+                # gestione campi buildings
+                for idx in range(b_len):
+                    for key in b_values.dtype.names:
+                        if self.item["BUILDINGS"][idx]["bldg_code"] in buildings_to_keep:
+                            nSize = len(b_values[1:][idx][key])
+                            for func_names, np_func in std_np_func.iteritems():
+                                self.item[key][func_names] = float(np_func(b_values[1:][idx][key]))
+                            pers=[]
+                            for a_p in b_data_analysis_perc:
+                                ar = np.percentile(b_values[1:][idx][key],a_p)
+                                pers.append(float(ar))
+                            self.item["BUILDINGS"][idx]["PERCENTILES"] = {"samples_size":float(nSize),"p_parm":b_data_analysis_perc,"values":pers}
+                            res = np.histogram(b_values[1:][idx][key], bins =b_data_analysis_bins)
+                            cum=0
+                            bins_info = []
+                            for i, b in enumerate(res[0]):
+                                cum += b
+                                fStart = float(res[1][i])
+                                fEnd = float(res[1][i+1])
+                                qty = float(b)
+                                perc = 100.*float(b)/float(nSize)
+                                bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
+                            self.item["BUILDINGS"][idx]["BINS"] = {"bin_no":float(b_data_analysis_bins),"items":bins_info}
+        self.save()
 
     def _map_aitems(self,i,a_values,sCode):
         for key in a_values.dtype.names:
@@ -403,7 +479,8 @@ class Alignment(BaseSmtModel):
             
             
         
-    def doit_sample(self, parm, strata_sample):
+    def doit_sample(self, parm, strata_sample, base_vulnerability, buildings_to_skip):
+        b_keep_pk = False
         retVal = {"BUILDINGS":[]}
         # BaseStruct converte un dizionario in un oggetto la cui classe ha come attributi gli elementi del dizionario
         # per cui se ho d={"a":2,"c":3} con o=BaseStruct(d) => d.a == 2 e d.c == 3
@@ -544,10 +621,12 @@ class Alignment(BaseSmtModel):
             #ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v, nu_tun, young_tun, r_excav)
             # gap_shield(ui, shield_taper, cutter_bead_thickness)
             gs = gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
+            self.logger.debug("\t si ha gap_shield gs = %f" % gs)
             ui_tail = max(0., .5*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav) - gf - gs)
             #ui_tail = u_tun(0., p_wt, s_v, nu_tun, young_tun, r_excav)
             # gap_tail(ui, tail_skin_thickness, delta)
             gt = gap_tail(ui_tail, tail_skin_thickness, delta, strata_sample["vloss_tail"])
+            self.logger.debug("\t si ha gap_tail gt = %f" % gt)
             gap = gf + gs + gt
             eps0_base = volume_loss(gap, r_excav)
             # TODO buffer_size deve essere un parametro di progetto
@@ -566,6 +645,7 @@ class Alignment(BaseSmtModel):
             if "BUILDINGS" in self.item:                    
                 for idx, b in enumerate(align.BUILDINGS):
                     building_item = {"bldg_code":b.bldg_code}
+                    b_keep_b = False
                     self.logger.debug("\tAnalisi edificio %s con classe di sensibilita' %s" % (b.bldg_code, b.sc_lev))
                     # leggo l'impronta dell'edificio alla pk analizzata
                     x_min = None
@@ -659,9 +739,13 @@ class Alignment(BaseSmtModel):
                     building_item["tilt_max_base"] = beta_max_ab_b
                     building_item["esp_h_max_base"] = esp_h_max_ab_b
                     building_item["k_peck"] = k_peck
-
                     
-                   
+                    if vulnerability_class_b >= base_vulnerability:
+                        building_item["keep_it"] = b_keep_b = b_keep_pk = True
+                        self.logger.debug("\t\t keep this building")
+                    else:
+                        self.logger.debug("\t\t skip this building")
+                    
                     self.logger.debug("\t\tp_tbm_base = %f, s_max_ab_base = %f, beta_max_ab_base = %f, esp_h_max_ab_base = %f, vul_base = %f" % (p_tbm_base, s_max_ab_b, beta_max_ab_b, esp_h_max_ab_b, vulnerability_class_b))
 
                     # aggiorno i parametri di base della pk
@@ -852,7 +936,8 @@ class Alignment(BaseSmtModel):
             retVal["vibration_speed_mm_s_pk"] = vibration_speed_mm_s_pk
             retVal["damage_class_vbr_pk"] = damage_class_vbr_pk
             retVal["vulnerability_vbr_pk"] = vulnerability_vbr_pk
-            
+            if b_keep_pk:
+                retVal["keep_it"] = b_keep_pk
             self.logger.debug("\tAnalisi di volume perso")
             self.logger.debug("\tParametri geomeccanici mediati:")
             self.logger.debug("\t\tTensione totale verticale =%f kPa e pressione falda =%f kPa" % (s_v, p_wt))

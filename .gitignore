@@ -28,3 +28,6 @@ data/gis/mask*
 data/smt_qgis.qgs~
 *.dxf
 smt/keys.txt
+smt/out.txt
+smt/master/alignment.py
+smt/master/utils.py
