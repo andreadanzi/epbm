@@ -7,6 +7,7 @@ import logging
 import logging.handlers
 import ConfigParser
 import csv
+import collections
 import osgeo.ogr as ogr
 import osgeo.osr as osr
 from pymongo import MongoClient
@@ -37,6 +38,15 @@ def init_logger(logger_name, file_path, log_level):
         logger.handler_set = True
     return logger
 
+def destroy_logger(logger):
+    '''
+    unloads the logger closing all its handlers
+    '''
+    for handler in logger.handlers:
+        handler.close()
+        logger.removeHandler(handler)
+    logging.shutdown()
+
 def init_db(smt_config, authenticate):
     '''
     connects to mongoDB
@@ -60,6 +70,31 @@ def get_config(cfg_name):
     smt_config.read(cfg_name)
     return smt_config
 
+def flatten(my_dict, parent_key='', sep='_'):
+    '''
+    flattens nested dictionaries and other mappings
+    '''
+    items = []
+    for key, value in my_dict.items():
+        new_key = parent_key + sep + key if parent_key else key
+        if isinstance(value, collections.MutableMapping):
+            items.extend(flatten(value, new_key, sep=sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
+
+def flatten_dicts_list(mylist):
+    '''
+    returns a list of flattened nested dictionary
+    '''
+    return [flatten(list_item) for list_item in mylist]
+
+def get_dicts_list_keys(mylist):
+    '''
+    returns all the unique keys of a list of dictionaries
+    '''
+    return set().union(*(d.keys() for d in mylist))
+
 # CSV FUNCTIONS
 def get_csv_dict_list(path):
     '''
@@ -76,6 +111,21 @@ def get_csv_dict_list(path):
             rows.append(row)
         return rows
 
+
+def write_dict_list_to_csv(csv_file, csv_columns, dict_data):
+    '''
+    writes a csv files starting from a dictionary list and a list of headers/columns names
+    '''
+    try:
+        with open(csv_file, 'w') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=csv_columns, delimiter=";")
+            writer.writeheader()
+            for data in dict_data:
+                writer.writerow(data)
+    except IOError as (errno, strerror):
+        print "I/O error({0}): {1}".format(errno, strerror)
+    return
+
 # SHAPEFILE FUNCTIONS
 
 def open_shapefile(path, logger):
@@ -91,7 +141,7 @@ def open_shapefile(path, logger):
         else:
             return shape_data
 
-def create_shapefile(output_shp, layername, epsg, fields_dicts, logger):
+def create_shapefile(output_shp, layername, epsg, logger, fields_dict=None):
     '''
     crea uno shape con le informazioni degli edifici del progetto presenti nel database
     funziona solo per oggetti buildings che hanno la definizione della geometria
@@ -102,21 +152,12 @@ def create_shapefile(output_shp, layername, epsg, fields_dicts, logger):
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(epsg)
     layer = data_source.CreateLayer(layername, srs, ogr.wkbPolygon)
-    for field_dict in fields_dicts:
-        field_name = field_dict["shp_field"][:10]
-        field_type = field_dict["field_type"]
-        if field_type in ["string", "text"]:
-            cur_field = ogr.FieldDefn(field_name, ogr.OFTString)
-            cur_field.SetWidth(254)
-            layer.CreateField(cur_field)
-        elif field_type in ["float", "real", "decimal"]:
-            layer.CreateField(ogr.FieldDefn(field_name, ogr.OFTReal))
-        elif field_type in ["int", "integer"]:
-            layer.CreateField(ogr.FieldDefn(field_name, ogr.OFTInteger))
-        logger.debug("field %s created", field_name)
+    if fields_dict:
+        for field_name, field_type in fields_dict.iteritems():
+            add_shp_field(layer, field_name, field_type, logger)
     return data_source, layer
 
-def append_fields_to_shapefile(shape_data, fields_dicts, logger):
+def append_fields_to_shapefile(shape_data, shp_headers, logger):
     '''
     adds new fields of type real to a shapefile datasource from a string list
     '''
@@ -124,20 +165,24 @@ def append_fields_to_shapefile(shape_data, fields_dicts, logger):
     layer_defn = layer.GetLayerDefn()
     shp_fields = [layer_defn.GetFieldDefn(i).GetName() for i in range(layer_defn.GetFieldCount())]
     # se non esistono creo i campi
-    for field_dict in fields_dicts:
-        field_name = field_dict["shp_field"][:10]
-        if field_name not in shp_fields:
-            field_type = field_dict["field_type"]
-            if field_type in ["string", "text"]:
-                cur_field = ogr.FieldDefn(field_name, ogr.OFTString)
-                cur_field.SetWidth(254)
-                layer.CreateField(cur_field)
-            elif field_type in ["float", "real", "decimal"]:
-                layer.CreateField(ogr.FieldDefn(field_name, ogr.OFTReal))
-            elif field_type in ["int", "integer"]:
-                layer.CreateField(ogr.FieldDefn(field_name, ogr.OFTInteger))
-            logger.debug("field %s created", field_name)
+    for field_name, field_type in shp_headers.iteritems():
+        if field_name[:10] not in shp_fields:
+            add_shp_field(layer, field_name[:10], field_type, logger)
     return layer
+
+def add_shp_field(layer, field_name, field_type, logger):
+    '''
+    aggiunge il campo del tipo appropriato al layer di un shapefile
+    '''
+    if field_type in ["string", "text"]:
+        cur_field = ogr.FieldDefn(field_name, ogr.OFTString)
+        cur_field.SetWidth(254)
+        layer.CreateField(cur_field)
+    elif field_type in ["float", "real", "decimal"]:
+        layer.CreateField(ogr.FieldDefn(field_name, ogr.OFTReal))
+    elif field_type in ["int", "integer"]:
+        layer.CreateField(ogr.FieldDefn(field_name, ogr.OFTInteger))
+    logger.debug("field %s created", field_name)
 
 def find_first_feature(layer, field, value):
     '''
