@@ -53,10 +53,10 @@ class ReferenceStrata(BaseSmtModel):
         pass
     
     @classmethod
-    def gen_samples_strata(cls,mongodb,nSamples, project_code, type_of_analysis,base_percentile,base_vulnerability, custom_type_tuple):
+    def gen_samples_strata(cls,mongodb,nSamples, project_code, type_of_analysis,base_percentile, custom_type_tuple):
         log = logging.getLogger('smt_main')
         log.debug('gen_samples_strata starting with %s and %s' % (type_of_analysis,str(custom_type_tuple)))
-        samples = {"len":nSamples, "type":type_of_analysis, "base_percentile":base_percentile, "base_vulnerability":base_vulnerability,"custom_type_tuple":custom_type_tuple, "items":[]}
+        samples = {"len":nSamples, "type":type_of_analysis, "base_percentile":base_percentile, "custom_type_tuple":custom_type_tuple, "items":[]}
         std_norm_samples = []
         vloss_tail_samples = []
         pd = mongodb.Project.find_one({"project_code":project_code})

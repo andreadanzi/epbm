@@ -13,6 +13,10 @@ from building import Building
 # danzi.tn@20160412 
 # danzi.tn@20160414 analisi standard n-iter con soglie su vulnerability
 # danzi.tn@20160415 completamento analisi con soglie per alignments e buildings, mancano  settlements
+# danzi.tn@20160416 completamento analisi per settlements
+# danzi.tn@20160416 la verifica dei parametri soglia è stata estesa nel file di configurazione, sezione BUILDINGS_LIMITS
+# danzi.tn@20160416 per verificare quanti campioni cadono entro detereminati limiti bisogna specificare le soglie in custom bins: A_BINS e B_BINS
+# danzi.tn@20160416 bisogna riportare i valori dei bins e dei percentile sui Buildings (minimo e massimo)
 class Alignment(BaseSmtModel):
 
     def _init_utils(self, **kwargs):
@@ -310,7 +314,7 @@ class Alignment(BaseSmtModel):
         for s in retVal["SETTLEMENTS"]:
             s_names.append("%d"% s["code"])
             s_formats.append("f4")
-        self.item["SETTLEMENTS"] = {}
+        self.item["SETTLEMENTS"] = []
         s_dtype = {'names':s_names, 'formats':s_formats}
         a_dtype = {'names':a_names, 'formats':a_formats}
         return a_dtype, b_dtype, b_len, s_dtype
@@ -321,44 +325,21 @@ class Alignment(BaseSmtModel):
         b_len = 0
         s_dtype = s_values = b_dtype = a_dtype = a_values = b_values = None
         b_codes = []
-        base_vulnerability = self.strata_samples["base_vulnerability"]
+        buildings_limits = self.strata_samples["DATA_ANALYSIS"]["buildings_limits"]
         bKeepAlign = False
         buildings_to_skip = []
         buildings_to_keep = []
         self.item["updated_by"] = "doit"
+        self.item["samples_size"] = float(len(self.strata_samples["items"])-1)
         for i, sample in enumerate(self.strata_samples["items"]):
             self.logger.debug("doit (%s) on iter %d" % (self.strata_samples["type"], i))
             if self.strata_samples["type"] == "c":
                 self.logger.debug("iteration type = %s " % str(sample["type"]))
             self.define_face_param_sample(sample)
-            retVal = self.doit_sample(parm, sample, base_vulnerability, buildings_to_skip)
+            retVal = self.doit_sample(parm, sample, buildings_limits, buildings_to_skip)
             # per il primo giro definisco la struttura degli array, verifico e recupero i building critici
             if i==0:
-                # di base c'è un'iterazione sola, se poi viene superata la soglia di vulnerability allora si procede con monte carlo
-                samples_len = 1
-                if "keep_it" in retVal:
-                    bKeepAlign = retVal["keep_it"]
-                    self.logger.debug("keep this alignment and perform monte carlo")
-                    # tolgo il primo campione, che è quello base
-                    samples_len = len(self.strata_samples["items"])
-                    # al primo giro verifico quali buildings togliere
-                    # per ogni building
-                    for idx, b in enumerate(retVal["BUILDINGS"]):
-                        if "keep_it" in b:
-                            buildings_to_keep.append(b)
-                        else:
-                            buildings_to_skip.append(b["bldg_code"])
-                    self.item["keep_analysis"] = True
-                else:
-                    self.logger.debug("go a head widthout monte carlo")
-                    self.item["keep_analysis"] = False
-                a_dtype, b_dtype, b_len, s_dtype  = self.init_dtype_array(retVal)
-                # dichiaro le matrici a_values, s_values con tutti i samples degli alignment e relativi settlements
-                a_values = np.zeros(samples_len,dtype=a_dtype)
-                s_values = np.zeros(samples_len,dtype=s_dtype)
-                if b_len > 0:
-                    # dichiaro la matrice b_values con tutti i samples dei building, serve una dimensione in più
-                    b_values = np.zeros((samples_len,b_len,),dtype=b_dtype)
+                bKeepAlign, a_values, b_values, b_len, s_values , buildings_to_keep, buildings_to_skip = self._prepare_samples( retVal)
             # assegno ad a_values i valori del campione i-esimo (corrente)
             for key in a_values.dtype.names:
                 a_values[i][key] = retVal[key]            
@@ -376,9 +357,6 @@ class Alignment(BaseSmtModel):
             if not bKeepAlign:
                 break
         # danzi.tn@20160409-end
-        # TODO qui sotto bisogna decidere cosa salvare dei samples che stanno in a_values, b_values e s_values
-        # per ora con un campione salva il valore nel DB
-        # qui bisogna salvare nel DB sulla base di quanto specificato a livello di configurazione in INPUT_DATA_ANALYSIS e se il tipo di analisi è standard o custom
         self._map_aitems(0,a_values,"base")
         if b_len > 0:
             self._map_bitems(0,b_values, b_len, b_codes,"base")
@@ -392,59 +370,62 @@ class Alignment(BaseSmtModel):
                         self._map_bitems(i+1,b_values, b_len, b_codes,str(ct))
                     self._map_sitems(i+1,s_values,str(ct))
             else:
-                a_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["a"]["per"]
-                a_data_analysis_bins = self.strata_samples["DATA_ANALYSIS"]["a"]["bins"]
-                b_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["b"]["per"]
-                b_data_analysis_bins = self.strata_samples["DATA_ANALYSIS"]["b"]["bins"]
-                s_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["s"]["per"]
-                s_data_analysis_bins = self.strata_samples["DATA_ANALYSIS"]["s"]["bins"]
+                std_np_func = {'avg':np.median,'min':np.max,'max':np.min}
                 # gestione campi aligment
-                std_np_func = {'avg':np.mean,'min':np.max,'max':np.min}
-                for key in a_values.dtype.names:
-                    nSize = len(a_values[1:][key])
-                    for func_names, np_func in std_np_func.iteritems():
-                        self.item[key][func_names] = float(np_func(a_values[1:][key]))
-                    pers=[]
-                    for a_p in a_data_analysis_perc:
-                        ar = np.percentile(a_values[1:][key],a_p)
-                        pers.append(float(ar))
-                    self.item[key]["PERCENTILES"] = {"samples_size":float(nSize),"p_parm":a_data_analysis_perc,"values":pers}
-                    res = np.histogram(a_values[1:][key], bins =a_data_analysis_bins)
-                    cum=0
-                    bins_info = []
-                    for i, b in enumerate(res[0]):
-                        cum += b
-                        fStart = float(res[1][i])
-                        fEnd = float(res[1][i+1])
-                        qty = float(b)
-                        perc = 100.*float(b)/float(nSize)
-                        bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
-                    self.item[key]["BINS"] = {"bin_no":float(a_data_analysis_bins),"items":bins_info}
+                self._map_a_samples( a_values, std_np_func)
+                # gestione campi settlements:
+                self._map_s_samples( s_values, std_np_func)
                 # gestione campi buildings
-                for idx in range(b_len):
-                    for key in b_values.dtype.names:
-                        if self.item["BUILDINGS"][idx]["bldg_code"] in buildings_to_keep:
-                            nSize = len(b_values[1:][idx][key])
-                            for func_names, np_func in std_np_func.iteritems():
-                                self.item[key][func_names] = float(np_func(b_values[1:][idx][key]))
-                            pers=[]
-                            for a_p in b_data_analysis_perc:
-                                ar = np.percentile(b_values[1:][idx][key],a_p)
-                                pers.append(float(ar))
-                            self.item["BUILDINGS"][idx]["PERCENTILES"] = {"samples_size":float(nSize),"p_parm":b_data_analysis_perc,"values":pers}
-                            res = np.histogram(b_values[1:][idx][key], bins =b_data_analysis_bins)
-                            cum=0
-                            bins_info = []
-                            for i, b in enumerate(res[0]):
-                                cum += b
-                                fStart = float(res[1][i])
-                                fEnd = float(res[1][i+1])
-                                qty = float(b)
-                                perc = 100.*float(b)/float(nSize)
-                                bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
-                            self.item["BUILDINGS"][idx]["BINS"] = {"bin_no":float(b_data_analysis_bins),"items":bins_info}
+                self._map_b_samples( b_values, std_np_func)
         self.save()
 
+    def _assign_values(self,retVal,a_values,b_values,b_len, s_values):
+        for key in a_values.dtype.names:
+            a_values[i][key] = retVal[key]            
+        # per ogni settlement
+        for s in retVal["SETTLEMENTS"]:
+            s_values[i]["%d" % s["code"]] = s["value"]            
+        # se ci sono buildings (non è detto)
+        if b_len > 0:
+            # per ogni building
+            for idx, b in enumerate(retVal["BUILDINGS"]):
+                b_codes.append(b["bldg_code"])
+                # assegno a b_values i valori del campione i-esimo (corrente)b
+                for key in b_values.dtype.names:
+                    b_values[i][idx][key] = b[key]
+        
+    def _prepare_samples(self, retVal):
+        # di base c'è un'iterazione sola, se poi viene superata la soglia di vulnerability allora si procede con monte carlo
+        bKeepAlign = False
+        buildings_to_keep = []
+        buildings_to_skip = []
+        samples_len = 1
+        if "keep_it" in retVal:
+            bKeepAlign = retVal["keep_it"]
+            self.logger.debug("keep this alignment and perform monte carlo")
+            # tolgo il primo campione, che è quello base
+            samples_len = len(self.strata_samples["items"])
+            # al primo giro verifico quali buildings togliere
+            # per ogni building
+            for idx, b in enumerate(retVal["BUILDINGS"]):
+                if "keep_it" in b:
+                    buildings_to_keep.append(b)
+                else:
+                    buildings_to_skip.append(b["bldg_code"])
+            self.item["keep_analysis"] = True
+        else:
+            self.logger.debug("go a head widthout monte carlo")
+            self.item["keep_analysis"] = False
+        a_dtype, b_dtype, b_len, s_dtype  = self.init_dtype_array(retVal)
+        # dichiaro le matrici a_values, s_values con tutti i samples degli alignment e relativi settlements
+        a_values = np.zeros(samples_len,dtype=a_dtype)
+        s_values = np.zeros(samples_len,dtype=s_dtype)
+        b_values = None
+        if b_len > 0:
+            # dichiaro la matrice b_values con tutti i samples dei building, serve una dimensione in più
+            b_values = np.zeros((samples_len,b_len,),dtype=b_dtype)
+        return bKeepAlign, a_values, b_values, b_len, s_values, buildings_to_keep, buildings_to_skip
+        
     def _map_aitems(self,i,a_values,sCode):
         for key in a_values.dtype.names:
             try:
@@ -467,19 +448,123 @@ class Alignment(BaseSmtModel):
                 self.assign_parameter_by_code(b_codes[idx], key, val, sCode)
     
     def _map_sitems(self,i,s_values,sCode):
-        sett_list = []     
-        for key in s_values.dtype.names:
-            sett_list.append({"code":int(key),"value":float(s_values[i][key])})
-        try:
-            self.item["SETTLEMENTS"][sCode] = sett_list
-        except TypeError as te:
-            self.item["SETTLEMENTS"] = {sCode:sett_list}
-        except KeyError as ke:
-            self.item["SETTLEMENTS"] = {sCode:sett_list}
-            
-            
+        if len(self.item["SETTLEMENTS"]) > 0:
+            for idx, item in enumerate(self.item["SETTLEMENTS"]):
+                key = str(int(item["code"]))
+                if key in list(s_values.dtype.names):
+                    self.item["SETTLEMENTS"][idx][sCode] = float(s_values[i][key])
+        else:
+            for key in s_values.dtype.names:
+                self.item["SETTLEMENTS"].append({"code":float(key),sCode:float(s_values[i][key])})
+     
+    def _map_b_samples(self, b_values, std_np_func):
+        b_bins = self.strata_samples["DATA_ANALYSIS"]["b_bins"]
+        b_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["b"]["per"]
+        b_data_analysis_bins = self.strata_samples["DATA_ANALYSIS"]["b"]["bins"]
+        for idx, b_item in enumerate(self.item["BUILDINGS"]):
+            for key in b_values.dtype.names:
+                #if self.item["BUILDINGS"][idx]["bldg_code"] in buildings_to_keep:
+                b_samples = b_values[1:][idx][key]
+                nSize = len(b_samples)
+                for func_names, np_func in std_np_func.iteritems():
+                    self.item["BUILDINGS"][idx][key][func_names] = float(np_func(b_samples))
+                pers = np.percentile(b_samples,b_data_analysis_perc)
+                self.item["BUILDINGS"][idx][key]["PERCENTILES"] = {"p_parm":b_data_analysis_perc,"values":list(pers)}
+                res = np.histogram(b_samples, bins =b_data_analysis_bins)
+                cum=0
+                bins_info = []
+                for i, b in enumerate(res[0]):
+                    cum += b
+                    fStart = float(res[1][i])
+                    fEnd = float(res[1][i+1])
+                    qty = float(b)
+                    perc = 100.*float(b)/float(nSize)
+                    bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
+                self.item["BUILDINGS"][idx][key]["BINS"] = {"bin_no":float(b_data_analysis_bins),"items":bins_info}
+                if key in b_bins:
+                    custom_bins = eval(b_bins[key])
+                    custom_bins.append(np.min(b_samples))
+                    custom_bins.append(np.max(b_samples))
+                    custom_bins_array = np.unique(custom_bins)
+                    res = np.histogram(b_samples, bins = custom_bins_array)
+                    cum=0
+                    bins_info = []
+                    for i, b in enumerate(res[0]):
+                        cum += b
+                        fStart = float(res[1][i])
+                        fEnd = float(res[1][i+1])
+                        qty = float(b)
+                        perc = 100.*float(b)/float(nSize)
+                        bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
+                    self.item["BUILDINGS"][idx][key]["CUSTOM_BINS"] = {"bin_no":float(len(custom_bins_array)),"items":bins_info}
+    
+    def _map_s_samples(self, s_values, std_np_func):
+        s_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["s"]["per"]
+        s_data_analysis_bins = self.strata_samples["DATA_ANALYSIS"]["s"]["bins"]
+        for idx, s_item in enumerate(self.item["SETTLEMENTS"]):
+            key = str(int(s_item["code"]))
+            if key in list(s_values.dtype.names):
+                s_samples = s_values[1:][key]
+                nSize = len(s_samples)
+                for func_names, np_func in std_np_func.iteritems():
+                    self.item["SETTLEMENTS"][idx][func_names] = float(np_func(s_samples))
+                pers = np.percentile(s_samples,s_data_analysis_perc)
+                self.item["SETTLEMENTS"][idx]["PERCENTILES"] = {"p_parm":s_data_analysis_perc,"values":list(pers)}
+                res = np.histogram(s_samples, bins =s_data_analysis_bins)
+                cum=0
+                bins_info = []
+                for i, b in enumerate(res[0]):
+                    cum += b
+                    fStart = float(res[1][i])
+                    fEnd = float(res[1][i+1])
+                    qty = float(b)
+                    perc = 100.*float(b)/float(nSize)
+                    bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
+                self.item["SETTLEMENTS"][idx]["BINS"] = {"bin_no":float(s_data_analysis_bins),"items":bins_info}
+
+    def _map_a_samples(self, a_values, std_np_func ):
+        a_bins = self.strata_samples["DATA_ANALYSIS"]["a_bins"]
+        a_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["a"]["per"]
+        a_data_analysis_bins = self.strata_samples["DATA_ANALYSIS"]["a"]["bins"]
+        for key in a_values.dtype.names:
+            a_samples = a_values[1:][key]
+            nSize = len(a_samples)
+            for func_names, np_func in std_np_func.iteritems():
+                self.item[key][func_names] = float(np_func(a_samples))
+            pers=[]
+            for a_p in a_data_analysis_perc:
+                ar = np.percentile(a_samples,a_p)
+                pers.append(float(ar))
+            self.item[key]["PERCENTILES"] = {"p_parm":a_data_analysis_perc,"values":pers}
+            res = np.histogram(a_samples, bins =a_data_analysis_bins)
+            cum=0
+            bins_info = []
+            for i, b in enumerate(res[0]):
+                cum += b
+                fStart = float(res[1][i])
+                fEnd = float(res[1][i+1])
+                qty = float(b)
+                perc = 100.*float(b)/float(nSize)
+                bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
+            self.item[key]["BINS"] = {"bin_no":float(a_data_analysis_bins),"items":bins_info}
+            if key in a_bins:
+                custom_bins = eval(a_bins[key])
+                custom_bins.append(np.min(a_samples))
+                custom_bins.append(np.max(a_samples))
+                custom_bins_array = np.unique(custom_bins)
+                res = np.histogram(a_samples, bins =custom_bins_array)
+                cum=0
+                bins_info = []
+                for i, b in enumerate(res[0]):
+                    cum += b
+                    fStart = float(res[1][i])
+                    fEnd = float(res[1][i+1])
+                    qty = float(b)
+                    perc = 100.*float(b)/float(nSize)
+                    bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
+                self.item[key]["CUSTOM_BINS"] = {"bin_no":float(len(custom_bins_array)),"items":bins_info}
         
-    def doit_sample(self, parm, strata_sample, base_vulnerability, buildings_to_skip):
+    def doit_sample(self, parm, strata_sample, buildings_limits, buildings_to_skip):
         b_keep_pk = False
         retVal = {"BUILDINGS":[]}
         # BaseStruct converte un dizionario in un oggetto la cui classe ha come attributi gli elementi del dizionario
@@ -645,7 +730,6 @@ class Alignment(BaseSmtModel):
             if "BUILDINGS" in self.item:                    
                 for idx, b in enumerate(align.BUILDINGS):
                     building_item = {"bldg_code":b.bldg_code}
-                    b_keep_b = False
                     self.logger.debug("\tAnalisi edificio %s con classe di sensibilita' %s" % (b.bldg_code, b.sc_lev))
                     # leggo l'impronta dell'edificio alla pk analizzata
                     x_min = None
@@ -740,11 +824,6 @@ class Alignment(BaseSmtModel):
                     building_item["esp_h_max_base"] = esp_h_max_ab_b
                     building_item["k_peck"] = k_peck
                     
-                    if vulnerability_class_b >= base_vulnerability:
-                        building_item["keep_it"] = b_keep_b = b_keep_pk = True
-                        self.logger.debug("\t\t keep this building")
-                    else:
-                        self.logger.debug("\t\t skip this building")
                     
                     self.logger.debug("\t\tp_tbm_base = %f, s_max_ab_base = %f, beta_max_ab_base = %f, esp_h_max_ab_base = %f, vul_base = %f" % (p_tbm_base, s_max_ab_b, beta_max_ab_b, esp_h_max_ab_b, vulnerability_class_b))
 
@@ -861,6 +940,15 @@ class Alignment(BaseSmtModel):
                         n_found = self.assign_parameter(b.bldg_code, "damage_class_vibration", damage_class_vibration)
                         n_found = self.assign_parameter(b.bldg_code, "vibration_speed_mm_s", vibration_speed_mm_s)
                         """
+                    for key, val in buildings_limits.iteritems():
+                        criteria_tuple = eval(val)
+                        if key in building_item:
+                            sCriteria = "%f%s%f" % (building_item[key],criteria_tuple[0],float(criteria_tuple[1]))
+                            if eval(sCriteria):
+                                building_item["keep_it"] = b_keep_pk = True
+                                self.logger.debug("\t\t  keep this building, criteria on %s is %s " % (key, sCriteria))
+                            else:
+                                self.logger.debug("\t\t skip this building")
                     retVal["BUILDINGS"].append( building_item )
                     # danzi.tn@20160408 end
                     # fin qui refactor on parameter min vs actual

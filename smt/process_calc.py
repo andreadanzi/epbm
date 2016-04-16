@@ -39,11 +39,14 @@ def process_calc(project_code, bAuthenticate,nSamples, type_of_analysis):
                 b_data_analysis_perc = smt_config.get('B_DATA_ANALYSIS', 'PERCENTILES')      
                 b_data_analysis_bins = smt_config.get('B_DATA_ANALYSIS', 'BINS')        
                 s_data_analysis_perc = smt_config.get('S_DATA_ANALYSIS', 'PERCENTILES')      
-                s_data_analysis_bins = smt_config.get('S_DATA_ANALYSIS', 'BINS')     
+                s_data_analysis_bins = smt_config.get('S_DATA_ANALYSIS', 'BINS')        
+                buildings_limits = dict(smt_config.items('BUILDINGS_LIMITS'))      
+                a_bins = dict(smt_config.items('A_BINS')) 
+                b_bins = dict(smt_config.items('B_BINS'))
                 sCustom_type = "(%s)" % custom_type
                 custom_type_tuple = eval(sCustom_type)
-                samples = ReferenceStrata.gen_samples_strata(mongodb, nSamples, project_code, type_of_analysis, base_percentile,base_vulnerability, custom_type_tuple)
-                samples["DATA_ANALYSIS"] = {    
+                samples = ReferenceStrata.gen_samples_strata(mongodb, nSamples, project_code, type_of_analysis, base_percentile, custom_type_tuple)
+                samples["DATA_ANALYSIS"] = {   "base_vulnerability":base_vulnerability,
                                                "a": {
                                                         "per":eval(a_data_analysis_perc),
                                                         "bins":eval(a_data_analysis_bins)
@@ -55,7 +58,10 @@ def process_calc(project_code, bAuthenticate,nSamples, type_of_analysis):
                                                 "s":{
                                                         "per":eval(s_data_analysis_perc),
                                                         "bins":eval(s_data_analysis_bins)
-                                                    }
+                                                    },
+                                                "buildings_limits" : buildings_limits,
+                                                "a_bins": a_bins,
+                                                "b_bins": b_bins,
                                             }
                 # danzi.tn@20160407e
                 found_domains = Domain.find(mongodb, {"project_id": p._id})         
