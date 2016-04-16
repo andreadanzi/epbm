@@ -67,6 +67,7 @@ def get_config(cfg_name):
     reads the config file cfg_name and returns a config parser object
     '''
     smt_config = ConfigParser.RawConfigParser()
+    smt_config.optionxform = str
     smt_config.read(cfg_name)
     return smt_config
 

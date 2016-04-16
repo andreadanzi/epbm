@@ -61,7 +61,7 @@ def process_calc(project_code, bAuthenticate,nSamples, type_of_analysis):
                                                     },
                                                 "buildings_limits" : buildings_limits,
                                                 "a_bins": a_bins,
-                                                "b_bins": b_bins,
+                                                "b_bins": b_bins
                                             }
                 # danzi.tn@20160407e
                 found_domains = Domain.find(mongodb, {"project_id": p._id})         
