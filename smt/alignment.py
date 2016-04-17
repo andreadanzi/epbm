@@ -16,7 +16,7 @@ from building import Building
 # danzi.tn@20160416 completamento analisi per settlements
 # danzi.tn@20160416 la verifica dei parametri soglia è stata estesa nel file di configurazione, sezione BUILDINGS_LIMITS
 # danzi.tn@20160416 per verificare quanti campioni cadono entro detereminati limiti bisogna specificare le soglie in custom bins: A_BINS e B_BINS
-# danzi.tn@20160416 bisogna riportare i valori dei bins e dei percentile sui Buildings (minimo e massimo)
+# danzi.tn@20160417 riportati i valori dei bins (sommati) e dei percentile (minimo e massimo) sui Buildings 
 class Alignment(BaseSmtModel):
 
     def _init_utils(self, **kwargs):
@@ -97,39 +97,83 @@ class Alignment(BaseSmtModel):
 
         return retVal
     
-    def assign_parameter_by_code(self, bcode, param, val, p_code): #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
+    def assign_parameter_by_code(self, bcode, param_key, val, p_code): #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
         retVal = 0
         #2129458 94076BC0006_01
         # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
-        bcurr = self.db.Building.find({"$and":[{"bldg_code":bcode}, {"%s.%s" % (p_code,param):{"$lte":val}}]})
+        bcurr = self.db.Building.find({"$and":[{"bldg_code":bcode}, {"%s.%s" % (param_key,p_code):{"$lte":val}}]})
         for b in bcurr:
             bldg = Building(self.db, b)
             bldg.load()
             try:
-                bldg.item[param][p_code] = val
+                bldg.item[param_key][p_code] = val
             except TypeError as te:
-                 bldg.item[param] = {p_code:val}
+                 bldg.item[param_key] = {p_code:val}
             except KeyError as ke:
-                 bldg.item[param] = {p_code:val}
+                 bldg.item[param_key] = {p_code:val}
             bldg.save()
             retVal = retVal + 1
 
         # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
-        bcurr = self.db.Building.find({"$and":[{"bldg_code":bcode}, {"%s.%s" % (p_code,param):{"$exists":False}}]})
+        bcurr = self.db.Building.find({"$and":[{"bldg_code":bcode}, {"%s.%s" % (param_key,p_code):{"$exists":False}}]})
         for b in bcurr:
             bldg = Building(self.db, b)
             bldg.load()
             try:
-                bldg.item[param][p_code] = val
+                bldg.item[param_key][p_code] = val
             except TypeError as te:
-                 bldg.item[param] = {p_code:val}
+                 bldg.item[param_key] = {p_code:val}
             except KeyError as ke:
-                 bldg.item[param] = {p_code:val}
+                 bldg.item[param_key] = {p_code:val}
             bldg.save()
             retVal = retVal + 1
 
         return retVal
-        
+    
+    # {"p_parm":b_data_analysis_perc,"values":list(pers)}
+    # {"bin_no":float(b_data_analysis_bins),"items":bins_info}
+    def _merge_building_samples(self, current, content):
+        nSize = self.item["samples_size"]
+        if "p_parm" in current:
+            for idx, item in enumerate(content["values"]):
+                if current["values"][idx]["min"] > item:
+                    current["values"][idx]["min"] = item
+                if current["values"][idx]["max"] < item:
+                    current["values"][idx]["max"] = item
+        if "bin_no" in current:
+            for idx, item in enumerate(content["items"]):
+                current["items"][idx]["qty"] += item["qty"]
+                current["items"][idx]["cum"] += item["cum"]
+                current["items"][idx]["perc"] = 100.*float(current["items"][idx]["qty"])/float(nSize)
+        return current
+    
+    def _create_building_samples(self,  content):
+        new_list = []
+        if "p_parm" in content:
+            for item in content["values"]:
+                new_list.append({"min":item,"max":item})
+            content["values"] = new_list
+        if "bin_no" in content:
+            pass
+        return content
+    
+    def assign_samples_by_code(self, bcode, param_key, content, p_code):
+        retVal = 0
+        bcurr = self.db.Building.find({"bldg_code":bcode})
+        for b in bcurr:
+            bldg = Building(self.db, b)
+            bldg.load()
+            if param_key in b:
+                if p_code in b[param_key]:
+                    bldg.item[param_key][p_code] = self._merge_building_samples(bldg.item[param_key][p_code], content)
+                else:
+                    bldg.item[param_key][p_code] = self._create_building_samples(content)
+            else:
+                bldg.item[param_key][p_code] = self._create_building_samples(content)
+            bldg.save()
+            retVal = retVal + 1
+        return retVal
+    
     # parametri geomeccanici relativi al cavo, utilizzati sia per il calcolo volume perso lungo
     # lo scudo, che per il calcolo della curva dei cedimenti. I parametri sono:
     # young_tun, nu_tun, phi_tun
@@ -376,7 +420,7 @@ class Alignment(BaseSmtModel):
                 # gestione campi settlements:
                 self._map_s_samples( s_values, std_np_func)
                 # gestione campi buildings
-                self._map_b_samples( b_values, std_np_func)
+                self._map_b_samples( b_values, std_np_func,b_codes)
         self.save()
 
     def _assign_values(self,retVal,a_values,b_values,b_len, s_values):
@@ -457,7 +501,7 @@ class Alignment(BaseSmtModel):
             for key in s_values.dtype.names:
                 self.item["SETTLEMENTS"].append({"code":float(key),sCode:float(s_values[i][key])})
      
-    def _map_b_samples(self, b_values, std_np_func):
+    def _map_b_samples(self, b_values, std_np_func, b_codes):
         b_bins = self.strata_samples["DATA_ANALYSIS"]["b_bins"]
         b_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["b"]["per"]
         b_data_analysis_bins = self.strata_samples["DATA_ANALYSIS"]["b"]["bins"]
@@ -467,9 +511,12 @@ class Alignment(BaseSmtModel):
                 b_samples = b_values[1:][idx][key]
                 nSize = len(b_samples)
                 for func_names, np_func in std_np_func.iteritems():
-                    self.item["BUILDINGS"][idx][key][func_names] = float(np_func(b_samples))
+                    val = float(np_func(b_samples))
+                    self.item["BUILDINGS"][idx][key][func_names] = val
+                    self.assign_parameter_by_code(b_codes[idx], key, val, func_names)
                 pers = np.percentile(b_samples,b_data_analysis_perc)
                 self.item["BUILDINGS"][idx][key]["PERCENTILES"] = {"p_parm":b_data_analysis_perc,"values":list(pers)}
+                self.assign_samples_by_code(b_codes[idx], key, self.item["BUILDINGS"][idx][key]["PERCENTILES"], "PERCENTILES")
                 res = np.histogram(b_samples, bins =b_data_analysis_bins)
                 cum=0
                 bins_info = []
@@ -481,10 +528,16 @@ class Alignment(BaseSmtModel):
                     perc = 100.*float(b)/float(nSize)
                     bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
                 self.item["BUILDINGS"][idx][key]["BINS"] = {"bin_no":float(b_data_analysis_bins),"items":bins_info}
+                self.assign_samples_by_code(b_codes[idx], key, self.item["BUILDINGS"][idx][key]["BINS"], "BINS")
                 if key in b_bins:
+                    # TODO: min e max non va bene perchè a volte non producono lo teo numero di bins
+                    min = np.min(b_samples)
+                    max = np.max(b_samples)
                     custom_bins = eval(b_bins[key])
-                    custom_bins.append(np.min(b_samples))
-                    custom_bins.append(np.max(b_samples))
+                    if min < np.min(custom_bins):
+                        custom_bins.append(min)
+                    if max > np.max(custom_bins):
+                        custom_bins.append(max)
                     custom_bins_array = np.unique(custom_bins)
                     res = np.histogram(b_samples, bins = custom_bins_array)
                     cum=0
@@ -497,6 +550,7 @@ class Alignment(BaseSmtModel):
                         perc = 100.*float(b)/float(nSize)
                         bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
                     self.item["BUILDINGS"][idx][key]["CUSTOM_BINS"] = {"bin_no":float(len(custom_bins_array)),"items":bins_info}
+                    self.assign_samples_by_code(b_codes[idx], key, self.item["BUILDINGS"][idx][key]["CUSTOM_BINS"], "CUSTOM_BINS")
     
     def _map_s_samples(self, s_values, std_np_func):
         s_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["s"]["per"]
@@ -548,6 +602,7 @@ class Alignment(BaseSmtModel):
                 bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
             self.item[key]["BINS"] = {"bin_no":float(a_data_analysis_bins),"items":bins_info}
             if key in a_bins:
+                # TODO: min e max non va bene perchè a volte non producono lo teo numero di bins
                 custom_bins = eval(a_bins[key])
                 custom_bins.append(np.min(a_samples))
                 custom_bins.append(np.max(a_samples))
