@@ -3,8 +3,9 @@ import os
 import csv
 import datetime
 from base import BaseSmtModel
+from building import Building
 from utils import toFloat
-
+# danzi.tn@20160418 pulizia sui Buildings del progetto dei dati di analisi => clear_building_analysis
 class Project(BaseSmtModel):
     def _init_utils(self, **kwargs):
         self.logger.debug('created an instance of %s', self.__class__.__name__)
@@ -47,7 +48,20 @@ class Project(BaseSmtModel):
                 rows.append(row)
             d_collection = self.db["Building"]
             d_collection.insert(rows)
-
+            
+    def clear_building_analysis(self, b_values_dtype_names):
+        d_collection = self.db["Building"]
+        bldgs = d_collection.find({"project_id": self._id})
+        # b_values_dtype_names
+        for bl_item in bldgs:
+            b = Building(self.db, bl_item)
+            b.load()
+            b.clear_analysis(b_values_dtype_names)
+            b.item["updated_by"] = "Project.clear_building_analysis"
+            b.save()
+            
+            
+            
     def import_objects(self, class_name, csv_file_path):
         if not os.path.exists(csv_file_path):
             self.logger.warning('il file %s non esiste', csv_file_path)

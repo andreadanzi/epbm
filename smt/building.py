@@ -8,7 +8,7 @@ Classe Edificio
 #import datetime
 from base import BaseSmtModel
 #from utils import toFloat
-
+# danzi.tn@20160418 pulizia sul Building dei dati di analisi => clear_analysis
 class Building(BaseSmtModel):
     '''
     classe edificio
@@ -45,7 +45,13 @@ class Building(BaseSmtModel):
         self.save()
         return retVal
 
-
+    def clear_analysis(self, b_values_dtype_names):
+        for key in b_values_dtype_names:
+            if key in self.item:
+                self.item[key] = {}
+                self.logger.debug("_clear_buildings_data on %s->%s" % (self.item["bldg_code"], key))
+        
+        
     def doit(self, parm):
         pass
 

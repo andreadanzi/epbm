@@ -16,6 +16,7 @@ from domain import Domain
 from reference_strata import ReferenceStrata
 
 # danzi.tn@20160407 set della nuova collection ReferenceStrata per il Sampling
+# danzi.tn@20160418 pulizia sui Buildings del progetto dei dati di analisi => clear_building_analysis
 # python process_calc.py -c MDW029_S_E_05 -a -n 1 -t s
 def process_calc(project_code, bAuthenticate,nSamples, type_of_analysis):
     logger = helpers.init_logger('smt_main', 'process_calc.log', logging.DEBUG)
@@ -31,6 +32,27 @@ def process_calc(project_code, bAuthenticate,nSamples, type_of_analysis):
             # danzi.tn@20160407 recupero dei dati presenti in ReferenceStrata
             rs_items = ReferenceStrata.find(mongodb, {"project_id": p._id}) 
             if rs_items:
+                b_values_dtype_names = ("vulnerability_base",
+                                        "damage_class_base",
+                                        "settlement_max_base",
+                                        "tilt_max_base",
+                                        "esp_h_max_base",
+                                        "k_peck",
+                                        "vulnerability",
+                                        "damage_class",
+                                        "settlement_max",
+                                        "tilt_max",
+                                        "esp_h_max",
+                                        "eps_crit",
+                                        "eps_0",
+                                        "p_tbm",
+                                        "blowup",
+                                        "tamez",
+                                        "vulnerability_class_vibration",
+                                        "damage_class_vibration",
+                                        "vibration_speed_mm_s"
+                                        )
+                p.clear_building_analysis(b_values_dtype_names)
                 custom_type = smt_config.get('INPUT_DATA_ANALYSIS', 'CUSTOM_TYPE')                    
                 base_percentile = smt_config.getfloat('BASE_DATA_ANALYSIS', 'BASE_PERCENTILE')    
                 base_vulnerability = smt_config.getint('BASE_DATA_ANALYSIS', 'BASE_VULNERABILITY')   

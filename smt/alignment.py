@@ -17,6 +17,7 @@ from building import Building
 # danzi.tn@20160416 la verifica dei parametri soglia è stata estesa nel file di configurazione, sezione BUILDINGS_LIMITS
 # danzi.tn@20160416 per verificare quanti campioni cadono entro detereminati limiti bisogna specificare le soglie in custom bins: A_BINS e B_BINS
 # danzi.tn@20160417 riportati i valori dei bins (sommati) e dei percentile (minimo e massimo) sui Buildings 
+# danzi.tn@20160418 sistemazione dei valori dei bins (sommati) e dei percentile (minimo e massimo) sui Buildings - filtro building per progetto  
 class Alignment(BaseSmtModel):
 
     def _init_utils(self, **kwargs):
@@ -26,6 +27,7 @@ class Alignment(BaseSmtModel):
 
     def setProject(self, projectItem):
         self.project = BaseStruct(projectItem)
+        self.project_id = projectItem["_id"]
     
     # danzi.tn@20160407 set samples degli strati
     def setSamples(self, samples):
@@ -65,7 +67,7 @@ class Alignment(BaseSmtModel):
         # danzi.tn@20160315 nuovo criterio di ricerca: ci possono essere più PK per ogni building (tun02, tun04, sim)
         # {"PK_INFO":{"$elemMatch": {"$and":[{"pk_min":{"$lte":2150690}},{"pk_max":{"$gt":2150690}}]}}}
         # aghensi#20160406: rimosso livello pk_array, aggiunto filtro per alignment set per gestire più tracciati
-        bcurr = self.db.Building.find({"PK_INFO":{"$elemMatch": {"$and":[{"alignment_set_id":self.item["alignment_set_id"]}, {"pk_min":{"$lte":pk+buff}}, {"pk_max":{"$gt":pk-buff}}]}}})
+        bcurr = self.db.Building.find({"project_id":self.project_id,"PK_INFO":{"$elemMatch": {"$and":[{"alignment_set_id":self.item["alignment_set_id"]}, {"pk_min":{"$lte":pk+buff}}, {"pk_max":{"$gt":pk-buff}}]}}})
         building_array = []
         for b in bcurr:
             building_array.append(b)
@@ -78,7 +80,7 @@ class Alignment(BaseSmtModel):
         retVal = 0
         #2129458 94076BC0006_01
         # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
-        bcurr = self.db.Building.find({"$and":[{"bldg_code":bcode}, {param:{"$lte":val}}]})
+        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id},{"bldg_code":bcode}, {param:{"$lte":val}}]})
         for b in bcurr:
             bldg = Building(self.db, b)
             bldg.load()
@@ -87,7 +89,7 @@ class Alignment(BaseSmtModel):
             retVal = retVal + 1
 
         # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
-        bcurr = self.db.Building.find({"$and":[{"bldg_code":bcode}, {param:{"$exists":False}}]})
+        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id},{"bldg_code":bcode}, {param:{"$exists":False}}]})
         for b in bcurr:
             bldg = Building(self.db, b)
             bldg.load()
@@ -101,7 +103,7 @@ class Alignment(BaseSmtModel):
         retVal = 0
         #2129458 94076BC0006_01
         # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
-        bcurr = self.db.Building.find({"$and":[{"bldg_code":bcode}, {"%s.%s" % (param_key,p_code):{"$lte":val}}]})
+        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id},{"bldg_code":bcode}, {"%s.%s" % (param_key,p_code):{"$lte":val}}]})
         for b in bcurr:
             bldg = Building(self.db, b)
             bldg.load()
@@ -115,7 +117,7 @@ class Alignment(BaseSmtModel):
             retVal = retVal + 1
 
         # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
-        bcurr = self.db.Building.find({"$and":[{"bldg_code":bcode}, {"%s.%s" % (param_key,p_code):{"$exists":False}}]})
+        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id},{"bldg_code":bcode}, {"%s.%s" % (param_key,p_code):{"$exists":False}}]})
         for b in bcurr:
             bldg = Building(self.db, b)
             bldg.load()
@@ -132,19 +134,21 @@ class Alignment(BaseSmtModel):
     
     # {"p_parm":b_data_analysis_perc,"values":list(pers)}
     # {"bin_no":float(b_data_analysis_bins),"items":bins_info}
-    def _merge_building_samples(self, current, content):
-        nSize = self.item["samples_size"]
+    def _merge_building_samples(self, current, content, samples_size):
         if "p_parm" in current:
             for idx, item in enumerate(content["values"]):
                 if current["values"][idx]["min"] > item:
+                    self.logger.debug("%d current min %f > %f " % ( idx, current["values"][idx]["min"],item ))
                     current["values"][idx]["min"] = item
                 if current["values"][idx]["max"] < item:
+                    self.logger.debug("%d current max %f < %f " % ( idx, current["values"][idx]["max"],item ))
                     current["values"][idx]["max"] = item
         if "bin_no" in current:
             for idx, item in enumerate(content["items"]):
+                self.logger.debug("%d current qty %f + %f " % (idx, current["items"][idx]["qty"],item["qty"] ))
                 current["items"][idx]["qty"] += item["qty"]
                 current["items"][idx]["cum"] += item["cum"]
-                current["items"][idx]["perc"] = 100.*float(current["items"][idx]["qty"])/float(nSize)
+                current["items"][idx]["perc"] = 100.*float(current["items"][idx]["qty"])/float(samples_size)
         return current
     
     def _create_building_samples(self,  content):
@@ -159,15 +163,19 @@ class Alignment(BaseSmtModel):
     
     def assign_samples_by_code(self, bcode, param_key, content, p_code):
         retVal = 0
-        bcurr = self.db.Building.find({"bldg_code":bcode})
+        bcurr = self.db.Building.find({"project_id":self.project_id,"bldg_code":bcode})
         for b in bcurr:
             bldg = Building(self.db, b)
             bldg.load()
             if param_key in b:
                 if p_code in b[param_key]:
-                    bldg.item[param_key][p_code] = self._merge_building_samples(bldg.item[param_key][p_code], content)
+                    self.logger.debug("merge samples for building %s , code %s and key %s content = %s" % (bcode, p_code, param_key, str(content) ))
+                    bldg.item["samples_size"] += self.item["samples_size"]
+                    bldg.item[param_key][p_code] = self._merge_building_samples(bldg.item[param_key][p_code], content, bldg.item["samples_size"])
                 else:
+                    self.logger.debug("create samples for building %s , code %s and key %s content = %s" % (bcode, p_code, param_key, str(content) ))
                     bldg.item[param_key][p_code] = self._create_building_samples(content)
+                    bldg.item["samples_size"] = self.item["samples_size"]
             else:
                 bldg.item[param_key][p_code] = self._create_building_samples(content)
             bldg.save()
@@ -362,6 +370,8 @@ class Alignment(BaseSmtModel):
         s_dtype = {'names':s_names, 'formats':s_formats}
         a_dtype = {'names':a_names, 'formats':a_formats}
         return a_dtype, b_dtype, b_len, s_dtype
+
+
         
     # danzi.tn@20160409 samples degli strati e di progetto
     def doit(self, parm):
@@ -373,7 +383,7 @@ class Alignment(BaseSmtModel):
         bKeepAlign = False
         buildings_to_skip = []
         buildings_to_keep = []
-        self.item["updated_by"] = "doit"
+        self.item["updated_by"] = "Alignment.doit"
         self.item["samples_size"] = float(len(self.strata_samples["items"])-1)
         for i, sample in enumerate(self.strata_samples["items"]):
             self.logger.debug("doit (%s) on iter %d" % (self.strata_samples["type"], i))
@@ -549,7 +559,7 @@ class Alignment(BaseSmtModel):
                         qty = float(b)
                         perc = 100.*float(b)/float(nSize)
                         bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
-                    self.item["BUILDINGS"][idx][key]["CUSTOM_BINS"] = {"bin_no":float(len(custom_bins_array)),"items":bins_info}
+                    self.item["BUILDINGS"][idx][key]["CUSTOM_BINS"] = {"bin_no":float(len(custom_bins_array)-1),"items":bins_info}
                     self.assign_samples_by_code(b_codes[idx], key, self.item["BUILDINGS"][idx][key]["CUSTOM_BINS"], "CUSTOM_BINS")
     
     def _map_s_samples(self, s_values, std_np_func):
