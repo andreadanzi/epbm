@@ -18,11 +18,13 @@ from building import Building
 # danzi.tn@20160416 per verificare quanti campioni cadono entro detereminati limiti bisogna specificare le soglie in custom bins: A_BINS e B_BINS
 # danzi.tn@20160417 riportati i valori dei bins (sommati) e dei percentile (minimo e massimo) sui Buildings 
 # danzi.tn@20160418 sistemazione dei valori dei bins (sommati) e dei percentile (minimo e massimo) sui Buildings - filtro building per progetto  
+# danzi.tn@20160419 ottmizzazione dei Buildings collegati all'Alignment: vengono caricati gli oggetti della collection Building in self.building_items
 class Alignment(BaseSmtModel):
 
     def _init_utils(self, **kwargs):
         self.project = None
         self.strata_samples = None
+        self.building_items = {}
         self.logger.debug('created an instance of %s' % self.__class__.__name__)
 
     def setProject(self, projectItem):
@@ -75,7 +77,8 @@ class Alignment(BaseSmtModel):
             self.item["BUILDINGS"] = building_array
             self.save()
         return retVal
-
+    
+    # TODO remove
     def assign_parameter(self, bcode, param, val): #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
         retVal = 0
         #2129458 94076BC0006_01
@@ -99,37 +102,28 @@ class Alignment(BaseSmtModel):
 
         return retVal
     
-    def assign_parameter_by_code(self, bcode, param_key, val, p_code): #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
+    def assign_parameter_by_code(self, building_object, param_key, val, p_code): #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
         retVal = 0
         #2129458 94076BC0006_01
         # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
-        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id},{"bldg_code":bcode}, {"%s.%s" % (param_key,p_code):{"$lte":val}}]})
-        for b in bcurr:
-            bldg = Building(self.db, b)
-            bldg.load()
-            try:
-                bldg.item[param_key][p_code] = val
-            except TypeError as te:
-                 bldg.item[param_key] = {p_code:val}
-            except KeyError as ke:
-                 bldg.item[param_key] = {p_code:val}
-            bldg.save()
+        if param_key in building_object.item:
+            if p_code in building_object.item[param_key]:
+                # è sempre vero che deve essere minnore o uguale ?
+                # prima era processato via DB {"$and":[{"project_id":self.project_id},{"bldg_code":bcode}, {"%s.%s" % (param_key,p_code):{"$lte":val}}]}
+                if building_object.item[param_key][p_code] <= val:
+                    building_object.item[param_key][p_code] = val
+                    retVal = retVal + 1
+                else:
+                    pass
+            else:
+                building_object.item[param_key] = {p_code:val}
+                retVal = retVal + 1
+        else:
+            building_object.item[param_key] = {p_code:val}
             retVal = retVal + 1
-
-        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
-        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id},{"bldg_code":bcode}, {"%s.%s" % (param_key,p_code):{"$exists":False}}]})
-        for b in bcurr:
-            bldg = Building(self.db, b)
-            bldg.load()
-            try:
-                bldg.item[param_key][p_code] = val
-            except TypeError as te:
-                 bldg.item[param_key] = {p_code:val}
-            except KeyError as ke:
-                 bldg.item[param_key] = {p_code:val}
-            bldg.save()
-            retVal = retVal + 1
-
+        if retVal > 0:
+            building_object.item["updated_by"] = "Alignment.assign_parameter_by_code"
+            building_object.save()
         return retVal
     
     # {"p_parm":b_data_analysis_perc,"values":list(pers)}
@@ -161,25 +155,20 @@ class Alignment(BaseSmtModel):
             pass
         return content
     
-    def assign_samples_by_code(self, bcode, param_key, content, p_code):
+    def assign_samples_by_code(self, building_object, param_key, content, p_code):
+        bcode = building_object.item["bldg_code"]
         retVal = 0
-        bcurr = self.db.Building.find({"project_id":self.project_id,"bldg_code":bcode})
-        for b in bcurr:
-            bldg = Building(self.db, b)
-            bldg.load()
-            if param_key in b:
-                if p_code in b[param_key]:
-                    self.logger.debug("merge samples for building %s , code %s and key %s content = %s" % (bcode, p_code, param_key, str(content) ))
-                    bldg.item["samples_size"] += self.item["samples_size"]
-                    bldg.item[param_key][p_code] = self._merge_building_samples(bldg.item[param_key][p_code], content, bldg.item["samples_size"])
-                else:
-                    self.logger.debug("create samples for building %s , code %s and key %s content = %s" % (bcode, p_code, param_key, str(content) ))
-                    bldg.item[param_key][p_code] = self._create_building_samples(content)
-                    bldg.item["samples_size"] = self.item["samples_size"]
+        if param_key in building_object.item:
+            if p_code in building_object.item[param_key]:
+                self.logger.debug("merge samples for building %s , code %s and key %s" % (bcode, p_code, param_key ))
+                building_object.item[param_key][p_code] = self._merge_building_samples(building_object.item[param_key][p_code], content, building_object.item["samples_size"])
             else:
-                bldg.item[param_key][p_code] = self._create_building_samples(content)
-            bldg.save()
-            retVal = retVal + 1
+                self.logger.debug("create samples for building %s , code %s and key %s" % (bcode, p_code, param_key ))
+                building_object.item[param_key][p_code] = self._create_building_samples(content)
+        else:
+            building_object.item[param_key][p_code] = self._create_building_samples(content)
+        building_object.save()
+        retVal = retVal + 1
         return retVal
     
     # parametri geomeccanici relativi al cavo, utilizzati sia per il calcolo volume perso lungo
@@ -328,7 +317,22 @@ class Alignment(BaseSmtModel):
         buff = max(buffer_size*k_peck*depth_tun, self.project.align_scan_length/2)
         return buff, k_peck
 
-    def init_dtype_array(self,retVal):
+    def append_building_items(self, b_code):
+        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id},{"bldg_code":b_code}]})
+        for b in bcurr:
+            bldg = Building(self.db, b)
+            bldg.load()
+            if "samples_size" in bldg.item:
+                bldg.item["samples_size"] += self.item["samples_size"]
+            else:
+                bldg.item["samples_size"] = self.item["samples_size"]
+            bldg.item["updated_by"] = "Alignment.append_building_items"
+            bldg.save()
+            self.building_items[b_code] = bldg
+            self.logger.debug("building %s added to PK %f" % (b_code,self.item["PK"]) )
+        return len(self.building_items)
+        
+    def init_dtype_array(self,retVal):          
         b_dtype = None
         a_dtype = None
         s_dtype = None
@@ -349,20 +353,21 @@ class Alignment(BaseSmtModel):
                     a_names.append(key)
                 self.item[key] = {}
         for idx, b in enumerate(retVal["BUILDINGS"]):
-            for key, val in b.iteritems():
-                if key not in ["bldg_code","keep_it"]:
-                    if isinstance(val, float):
-                        b_formats.append('f4')
-                        b_names.append(key)
-                    if isinstance(val, int):
-                        b_formats.append('i4')
-                        b_names.append(key)
-                    # devo pulire tutti i valori assegnati prima
-                    if key in self.item["BUILDINGS"][idx]:
-                        self.item["BUILDINGS"][idx][key] = {}
-            b_dtype = {'names':b_names, 'formats':b_formats}
-            b_len = len(retVal["BUILDINGS"])
-            break
+            self.append_building_items( b["bldg_code"])
+            if idx == 0:
+                for key, val in b.iteritems():
+                    if key not in ["bldg_code","keep_it"]:
+                        if isinstance(val, float):
+                            b_formats.append('f4')
+                            b_names.append(key)
+                        if isinstance(val, int):
+                            b_formats.append('i4')
+                            b_names.append(key)
+                        # devo pulire tutti i valori assegnati prima
+                        if key in self.item["BUILDINGS"][idx]:
+                            self.item["BUILDINGS"][idx][key] = {}
+                b_dtype = {'names':b_names, 'formats':b_formats}
+                b_len = len(retVal["BUILDINGS"])
         for s in retVal["SETTLEMENTS"]:
             s_names.append("%d"% s["code"])
             s_formats.append("f4")
@@ -378,7 +383,7 @@ class Alignment(BaseSmtModel):
         retVal = {}
         b_len = 0
         s_dtype = s_values = b_dtype = a_dtype = a_values = b_values = None
-        b_codes = []
+        self.building_items = {}
         buildings_limits = self.strata_samples["DATA_ANALYSIS"]["buildings_limits"]
         bKeepAlign = False
         buildings_to_skip = []
@@ -402,9 +407,8 @@ class Alignment(BaseSmtModel):
                 s_values[i]["%d" % s["code"]] = s["value"]            
             # se ci sono buildings (non è detto)
             if b_len > 0:
-                # per ogni building
+                # per ogni building trattato dal calcolo (alcuni potrebbero venire scartati)
                 for idx, b in enumerate(retVal["BUILDINGS"]):
-                    b_codes.append(b["bldg_code"])
                     # assegno a b_values i valori del campione i-esimo (corrente)b
                     for key in b_values.dtype.names:
                         b_values[i][idx][key] = b[key]
@@ -413,7 +417,7 @@ class Alignment(BaseSmtModel):
         # danzi.tn@20160409-end
         self._map_aitems(0,a_values,"base")
         if b_len > 0:
-            self._map_bitems(0,b_values, b_len, b_codes,"base")
+            self._map_bitems(0,b_values, b_len, "base")
         self._map_sitems(0,s_values,"base")
         if bKeepAlign:
             if self.strata_samples["type"] == "c":
@@ -421,7 +425,7 @@ class Alignment(BaseSmtModel):
                 for i, ct in enumerate(custom_type_tuple):
                     self._map_aitems(i+1,a_values,str(ct))
                     if b_len > 0:
-                        self._map_bitems(i+1,b_values, b_len, b_codes,str(ct))
+                        self._map_bitems(i+1,b_values, b_len, str(ct))
                     self._map_sitems(i+1,s_values,str(ct))
             else:
                 std_np_func = {'avg':np.median,'min':np.max,'max':np.min}
@@ -430,7 +434,7 @@ class Alignment(BaseSmtModel):
                 # gestione campi settlements:
                 self._map_s_samples( s_values, std_np_func)
                 # gestione campi buildings
-                self._map_b_samples( b_values, std_np_func,b_codes)
+                self._map_b_samples( b_values, std_np_func)
         self.save()
 
     def _assign_values(self,retVal,a_values,b_values,b_len, s_values):
@@ -489,8 +493,9 @@ class Alignment(BaseSmtModel):
             except KeyError as ke:
                 self.item[key] = {sCode:float(a_values[i][key])}
     
-    def _map_bitems(self,i,b_values,b_len, b_codes,sCode):
+    def _map_bitems(self,i,b_values,b_len,sCode):
         for idx in range(b_len):
+            building_object = self.building_items[self.item["BUILDINGS"][idx]["bldg_code"]]
             for key in b_values.dtype.names:
                 val = float(b_values[i][idx][key])
                 try:
@@ -499,7 +504,7 @@ class Alignment(BaseSmtModel):
                     self.item["BUILDINGS"][idx][key] = {sCode:val}
                 except KeyError as ke:
                     self.item["BUILDINGS"][idx][key] = {sCode:val}
-                self.assign_parameter_by_code(b_codes[idx], key, val, sCode)
+                self.assign_parameter_by_code(building_object, key, val, sCode)
     
     def _map_sitems(self,i,s_values,sCode):
         if len(self.item["SETTLEMENTS"]) > 0:
@@ -511,11 +516,12 @@ class Alignment(BaseSmtModel):
             for key in s_values.dtype.names:
                 self.item["SETTLEMENTS"].append({"code":float(key),sCode:float(s_values[i][key])})
      
-    def _map_b_samples(self, b_values, std_np_func, b_codes):
+    def _map_b_samples(self, b_values, std_np_func):
         b_bins = self.strata_samples["DATA_ANALYSIS"]["b_bins"]
         b_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["b"]["per"]
         b_data_analysis_bins = self.strata_samples["DATA_ANALYSIS"]["b"]["bins"]
         for idx, b_item in enumerate(self.item["BUILDINGS"]):
+            building_object = self.building_items[b_item["bldg_code"]]
             for key in b_values.dtype.names:
                 #if self.item["BUILDINGS"][idx]["bldg_code"] in buildings_to_keep:
                 b_samples = b_values[1:][idx][key]
@@ -523,10 +529,10 @@ class Alignment(BaseSmtModel):
                 for func_names, np_func in std_np_func.iteritems():
                     val = float(np_func(b_samples))
                     self.item["BUILDINGS"][idx][key][func_names] = val
-                    self.assign_parameter_by_code(b_codes[idx], key, val, func_names)
+                    self.assign_parameter_by_code(building_object, key, val, func_names)
                 pers = np.percentile(b_samples,b_data_analysis_perc)
                 self.item["BUILDINGS"][idx][key]["PERCENTILES"] = {"p_parm":b_data_analysis_perc,"values":list(pers)}
-                self.assign_samples_by_code(b_codes[idx], key, self.item["BUILDINGS"][idx][key]["PERCENTILES"], "PERCENTILES")
+                self.assign_samples_by_code(building_object, key, self.item["BUILDINGS"][idx][key]["PERCENTILES"], "PERCENTILES")
                 res = np.histogram(b_samples, bins =b_data_analysis_bins)
                 cum=0
                 bins_info = []
@@ -538,7 +544,7 @@ class Alignment(BaseSmtModel):
                     perc = 100.*float(b)/float(nSize)
                     bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
                 self.item["BUILDINGS"][idx][key]["BINS"] = {"bin_no":float(b_data_analysis_bins),"items":bins_info}
-                self.assign_samples_by_code(b_codes[idx], key, self.item["BUILDINGS"][idx][key]["BINS"], "BINS")
+                self.assign_samples_by_code(building_object, key, self.item["BUILDINGS"][idx][key]["BINS"], "BINS")
                 if key in b_bins:
                     # TODO: min e max non va bene perchè a volte non producono lo teo numero di bins
                     min = np.min(b_samples)
@@ -560,7 +566,7 @@ class Alignment(BaseSmtModel):
                         perc = 100.*float(b)/float(nSize)
                         bins_info.append({"start":fStart,"end":fEnd,"qty":qty,"perc":perc, "cum":float(cum)})
                     self.item["BUILDINGS"][idx][key]["CUSTOM_BINS"] = {"bin_no":float(len(custom_bins_array)-1),"items":bins_info}
-                    self.assign_samples_by_code(b_codes[idx], key, self.item["BUILDINGS"][idx][key]["CUSTOM_BINS"], "CUSTOM_BINS")
+                    self.assign_samples_by_code(building_object, key, self.item["BUILDINGS"][idx][key]["CUSTOM_BINS"], "CUSTOM_BINS")
     
     def _map_s_samples(self, s_values, std_np_func):
         s_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["s"]["per"]
@@ -794,7 +800,7 @@ class Alignment(BaseSmtModel):
 
             if "BUILDINGS" in self.item:                    
                 for idx, b in enumerate(align.BUILDINGS):
-                    building_item = {"bldg_code":b.bldg_code}
+                    building_item = {"bldg_code":str(b.bldg_code)}
                     self.logger.debug("\tAnalisi edificio %s con classe di sensibilita' %s" % (b.bldg_code, b.sc_lev))
                     # leggo l'impronta dell'edificio alla pk analizzata
                     x_min = None
@@ -1015,6 +1021,7 @@ class Alignment(BaseSmtModel):
                             else:
                                 self.logger.debug("\t\t skip this building")
                     retVal["BUILDINGS"].append( building_item )
+                    self.logger.debug("doit_sample added building_item %s" % str(building_item))
                     # danzi.tn@20160408 end
                     # fin qui refactor on parameter min vs actual
                     # aggiorno i valori massimi della pk

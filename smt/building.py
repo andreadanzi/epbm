@@ -46,6 +46,7 @@ class Building(BaseSmtModel):
         return retVal
 
     def clear_analysis(self, b_values_dtype_names):
+        self.item["samples_size"] = .0
         for key in b_values_dtype_names:
             if key in self.item:
                 self.item[key] = {}
