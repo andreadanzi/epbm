@@ -2,7 +2,7 @@
 # import ogr, osr
 import math
 import numpy as np
-
+# danzi.tn@20160420 fix sui metodi di Gabriele
 def toFloat(s):
         try:
             s = s.replace(",",".")
@@ -289,7 +289,7 @@ def gap_shield(ui, shield_taper, cutter_bead_thickness):
 # r_excav = raggio di scavo
 # p_tbm_base=170.000000, p_wt=0.000000, s_v=272.854191, k0_face=0.494974, young_face=31698.113208, ci_face=0.000000, phi_face=30.339623, r_excav=5.300000
 def gap_front(p_tbm, p_wt, s_v, k0, young, ci, phi, r_excav):
-    cu = ci*math.cos(math.radians(phi))/(1.-math.sin(math.radians(phi)))
+    cu = max(10., ci*math.cos(math.radians(phi))/(1.-math.sin(math.radians(phi))))
     qu = 2.*cu
     k=0.
     if qu>100:
@@ -548,7 +548,7 @@ class VolumeLoss:
                     phi_tun, phi_tun_res, ci_tun, ci_tun_res, psi, young_tun, nu_tun, \
                     r_excav, shield_taper, cutter_bead_thickness, tail_skin_thickness, delta, v_loss):
         self.gf=gap_front(p_front, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
-        self.ui_shield = .5*2.*ur_max(s_v, p_wt, p_shield, phi_tun, phi_tun_res, ci_tun, ci_tun_res, psi, young_tun, nu_tun, r_excav)-self.gf
+        self.ui_shield = max(0., .5*2.*ur_max(s_v, p_wt, p_shield, phi_tun, phi_tun_res, ci_tun, ci_tun_res, psi, young_tun, nu_tun, r_excav)-self.gf)
         #ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)
         self.gs=gap_shield(self.ui_shield, shield_taper, cutter_bead_thickness)
         self.ui_tail = max(0., .5*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun_res, ci_tun, ci_tun_res, psi, young_tun, nu_tun, r_excav) - self.gf - self.gs)

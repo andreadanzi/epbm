@@ -19,6 +19,7 @@ from building import Building
 # danzi.tn@20160417 riportati i valori dei bins (sommati) e dei percentile (minimo e massimo) sui Buildings 
 # danzi.tn@20160418 sistemazione dei valori dei bins (sommati) e dei percentile (minimo e massimo) sui Buildings - filtro building per progetto  
 # danzi.tn@20160419 ottmizzazione dei Buildings collegati all'Alignment: vengono caricati gli oggetti della collection Building in self.building_items
+# danzi.tn@20160420 fix sui metodi di Gabriele
 class Alignment(BaseSmtModel):
 
     def _init_utils(self, **kwargs):
@@ -773,7 +774,7 @@ class Alignment(BaseSmtModel):
             gf = gap_front(p_tbm_base, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)  
             self.logger.debug("\t si ha gap_front gp = %f" % gf)
             # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
-            ui_shield = .5*2.*ur_max(s_v, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf
+            ui_shield = max(0., .5*2.*ur_max(s_v, p_wt, p_tbm_shield_base, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf)
             #ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v, nu_tun, young_tun, r_excav)
             # gap_shield(ui, shield_taper, cutter_bead_thickness)
             gs = gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
