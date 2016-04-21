@@ -142,17 +142,18 @@ def open_shapefile(path, logger):
         else:
             return shape_data
 
-def create_shapefile(output_shp, layername, epsg, logger, fields_dict=None):
+def create_shapefile(output_shp, layername, epsg, logger, fields_dict=None, shape_type=ogr.wkbPolygon):
     '''
-    crea uno shape con le informazioni degli edifici del progetto presenti nel database
-    funziona solo per oggetti buildings che hanno la definizione della geometria
-    salvata come parametro "WKT"
+    crea un nuovo shapefile e crea i campi se specificati in un dizionario formattato come
+    {nomecampo1:tipocampo1, nomecampo2:tipocampo2, ...}
     '''
+    if os.path.exists(output_shp):
+        os.remove(output_shp)
     driver = ogr.GetDriverByName("ESRI Shapefile")
     data_source = driver.CreateDataSource(output_shp)
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(epsg)
-    layer = data_source.CreateLayer(layername, srs, ogr.wkbPolygon)
+    layer = data_source.CreateLayer(layername, srs, shape_type)
     if fields_dict:
         for field_name, field_type in fields_dict.iteritems():
             add_shp_field(layer, field_name, field_type, logger)
@@ -177,7 +178,7 @@ def add_shp_field(layer, field_name, field_type, logger):
     '''
     if field_type in ["string", "text"]:
         cur_field = ogr.FieldDefn(field_name, ogr.OFTString)
-        cur_field.SetWidth(254)
+        cur_field.SetWidth(30)
         layer.CreateField(cur_field)
     elif field_type in ["float", "real", "decimal"]:
         layer.CreateField(ogr.FieldDefn(field_name, ogr.OFTReal))
@@ -205,3 +206,18 @@ def create_feature_from_wkt(layer, wkt):
     feature.SetGeometry(shape)
     layer.CreateFeature(feature)
     return feature
+
+def create_rectangular_feature(layer, x0, y0, x1, y1):
+    ring = ogr.Geometry(ogr.wkbLinearRing)
+    ring.AddPoint(x0, y0)
+    ring.AddPoint(x1, y0)
+    ring.AddPoint(x1, y1)
+    ring.AddPoint(x0, y1)
+    ring.AddPoint(x0, y0)
+    poly = ogr.Geometry(ogr.wkbPolygon)
+    poly.AddGeometry(ring)
+    featureDefn = layer.GetLayerDefn()
+    outFeature = ogr.Feature(featureDefn)
+    outFeature.SetGeometry(poly)
+    layer.CreateFeature(outFeature)
+    return outFeature

@@ -14,7 +14,7 @@ from project import Project
 from domain import Domain
 import helpers
 
-def export_pk_data_csv(authenticate, project_code, sPath):
+def export_pk_data_csv(authenticate, project_code):
     logger = helpers.init_logger('smt_main', 'export_pk_data.log', logging.DEBUG)
     smt_config = helpers.get_config('smt.cfg')
     outputdir = os.path.join(helpers.get_project_basedir(project_code), "out")
@@ -53,11 +53,10 @@ def export_pk_data_csv(authenticate, project_code, sPath):
 
 def main(argv):
     project_code = None
-    sPath = None
 #    type_of_analysis = None
     bAuthenticate = False
     sSyntax = os.path.basename(__file__) + \
-              " -c <project code> -o <output csv file name> [-a for autentication -h for help]"
+              " -c <project code> [-a for autentication -h for help]"
     try:
         opts, args = getopt.getopt(argv, "hac:o:", ["code=", "output="])
     except getopt.GetoptError:
@@ -74,10 +73,7 @@ def main(argv):
             bAuthenticate = True
         elif opt in ("-c", "--code"):
             project_code = arg
-        elif opt in ("-o", "--output"):
-            sPath = arg
-    if sPath:
-        export_pk_data_csv(bAuthenticate, project_code, sPath)
+    export_pk_data_csv(bAuthenticate, project_code)
 
 
 if __name__ == "__main__":

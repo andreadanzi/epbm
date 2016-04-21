@@ -14,7 +14,7 @@ from project import Project
 from building import Building
 import helpers
 
-def export_buildings_data(project_code, authenticate, csv_name, shp_name, fields_name):
+def export_buildings_data(project_code, authenticate):
     '''
     funzione che fa il vero lavoro
     '''
@@ -25,8 +25,8 @@ def export_buildings_data(project_code, authenticate, csv_name, shp_name, fields
         logger.error("Not authenticated")
         return
     data_basedir = helpers.get_project_basedir(project_code)
-    fields_path = os.path.join(data_basedir, "in", fields_name)
-    csv_path = os.path.join(data_basedir, "out", csv_name)
+    fields_path = os.path.join(data_basedir, "in", "buildings_out_settings.csv")
+    csv_path = os.path.join(data_basedir, "out", "buildings_export_data.csv")
     if not os.path.exists(fields_path):
         logger.error("file delle impostazioni di output %s non trovato", fields_path)
         return
@@ -49,9 +49,8 @@ def export_buildings_data(project_code, authenticate, csv_name, shp_name, fields
         return
     headers, csv_data, shp_headers, shp_data = get_bldg_data(dati, bcurr, mongodb, logger)
     helpers.write_dict_list_to_csv(csv_path, headers, csv_data)
-    if shp_name:
-        shp_path = os.path.join(data_basedir, "gis", shp_name)
-        update_bldg_shp(shp_path, shp_headers, shp_data, logger)
+    shp_path = os.path.join(data_basedir, "gis", "edifici.shp")
+    update_bldg_shp(shp_path, shp_headers, shp_data, logger)
     helpers.destroy_logger(logger)
 
 def get_bldg_data(quali_dati, bcurr, mongodb, logger):
@@ -78,7 +77,8 @@ def get_bldg_data(quali_dati, bcurr, mongodb, logger):
                         full_field_name = "{}-{}".format(dato["field"], subitem['alignment_code'])
                         headers.add(full_field_name)
                         out_item[full_field_name] = subitem[dato["field"]]
-                        full_shp_field_name = "{}-{}".format(dato["shp_field"], subitem['alignment_code'])
+                        full_shp_field_name = "{}-{}".format(dato["shp_field"],
+                                                             subitem['alignment_code'])
                         shp_item[full_shp_field_name] = subitem[dato["field"]]
                         shp_headers[full_shp_field_name] = dato["field_type"]
             else:
@@ -159,12 +159,8 @@ def main(argv):
     funzione principale
     '''
     project_code = None
-    csv_name = None
-    shapefile_name = None
-    fields_name = None
     authenticate = False
-    syntax = "Usage: " + os.path.basename(__file__) + " -c <project code> -o <output csv name> -f"\
-             " <field settings name> [-s <shapefile name> -a for autentication -h for help]"
+    syntax = "Usage: " + os.path.basename(__file__) + " -c <project code> [-a for autentication -h for help]"
     try:
         opts, _ = getopt.getopt(argv, "hac:o:s:f:", ["code=", "output=", "shapefile=", "fields="])
     except getopt.GetoptError:
@@ -181,13 +177,7 @@ def main(argv):
             authenticate = True
         elif opt in ("-c", "--code"):
             project_code = arg
-        elif opt in ("-o", "--output"):
-            csv_name = arg
-        elif opt in ("-s", "--shapefile"):
-            shapefile_name = arg
-        elif opt in ("-f", "--fields"):
-            fields_name = arg
-    export_buildings_data(project_code, authenticate, csv_name, shapefile_name, fields_name)
+    export_buildings_data(project_code, authenticate)
 
 
 if __name__ == "__main__":

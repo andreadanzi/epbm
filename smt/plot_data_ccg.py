@@ -9,7 +9,6 @@ from collections import defaultdict
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import csv
 
 from alignment_set import AlignmentSet
 from project import Project
@@ -122,6 +121,8 @@ def plot_data(project_code, authenticate, type_of_analysis):
     custom_type_tuple = eval(smt_config.get('INPUT_DATA_ANALYSIS', 'CUSTOM_TYPE'))
     logged_in, mongodb = helpers.init_db(smt_config, authenticate)
     outputdir = os.path.join(helpers.get_project_basedir(project_code), "out")
+    if not os.path.exists(outputdir):
+        os.makedirs(outputdir)
     mpl.rcParams.update({'font.size': 6})
     if logged_in:
         logger.info("Logged in")
@@ -146,13 +147,13 @@ def plot_data(project_code, authenticate, type_of_analysis):
                                                   "EPS_H_MAX":True, "CONSOLIDATION_VALUE":True,
                                                   "SENSIBILITY":True, "DAMAGE_CLASS":True,
                                                   "VULNERABILITY":True}).sort("PK", 1)
+                    a_list = list(als)
                     if type_of_analysis == 'c' and len(custom_type_tuple) >= 0:
-                        a_list = list(als)
                         for percentile in custom_type_tuple:
                             plot_alignset_data(a_list, str(percentile), a_set.item["code"],
                                                outputdir, logger)
                     elif type_of_analysis == 's':
-                        plot_alignset_data(list(als), 'avg', a_set.item["code"],
+                        plot_alignset_data(a_list, 'avg', a_set.item["code"],
                                            outputdir, logger)
     else:
         logger.error("Authentication failed")
@@ -283,9 +284,9 @@ def plot_single_graph(suffix, pks, pkxticks, pklabel, options, outputdir, logger
 def main(argv):
     project_code = None
     authenticate = False
-    type_of_analysis = None
+    type_of_analysis = 's'
     syntax = "Usage: " + os.path.basename(__file__) + \
-             " -c <project code> [-a for autentication -h for help]"
+             " -c <project code> [-t <type of analysis> -a for autentication -h for help]"
     try:
         opts = getopt.getopt(argv, "hac:t:", ["code=", "type="])[0]
     except getopt.GetoptError:

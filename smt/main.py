@@ -19,7 +19,7 @@ import helpers
 
 #PROJECT_CODE = "MDW029_S_E_05"
 
-def import_all_data(project_code, project_name):
+def import_all_data(project_code):
     '''
     funzione principale per l'inizializzazione del progetto
     '''
@@ -39,7 +39,7 @@ def import_all_data(project_code, project_name):
     p = None
     # TODO: questo pezzo di codice non dovrebbe servire se imposto bene i CSV!
     if not pd:
-        p = Project(mongodb, {"project_name":project_name, "project_code":project_code})
+        p = Project(mongodb, {"project_name":project_code, "project_code":project_code})
         p.item["created"] = datetime.datetime.utcnow()
         p.save()
     else:
@@ -102,6 +102,7 @@ def import_all_data(project_code, project_name):
                 # TODO buffer_size deve essere un parametr di progetto
                 buff, k_peck = a.define_buffer(0.1)
                 a.assign_buildings(buff)
+    helpers.destroy_logger(logger)
 
 def main(argv):
     '''

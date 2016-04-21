@@ -1,0 +1,19 @@
+field;csv_field;multiplier;field_type
+PK;PK;1;float
+COB;COB;0.01;float
+P_EPB;p_epb;0.01;float
+P_WT;p_wt;0.01;float
+BLOWUP;Blowup;0.01;float
+VOLUME_LOSS;Volume Loss [%];100;float
+K_PECK;k peck;1;float
+SETTLEMENT_MAX;Settlement max [mm];1000;float
+TILT_MAX;Tilt max [permille];1000;float
+EPS_H_MAX;Eps h max [permille];1000;float
+CONSOLIDATION_VALUE;Consolidation Value;1;float
+SENSIBILITY;Sensibilità;1;float
+DAMAGE_CLASS;Classe danno;1;float
+VULNERABILITY;Vulnerabilità;1;float
+GAP;Gap totale [cm];100;float
+GAP_FRONT;Gap Fronte [cm];100;float
+GAP_SHIELD;Gap Scudo [cm];100;float
+GAP_TAIL;Gap Coda [cm];100;float

@@ -1,27 +1,27 @@
 field;shp_field;csv_field;multiplier;field_type
 bldg_code;bldg_code;Codice Edificio;0;text
-typology;typology;Tipologia;0;text
-z_fondation;zFound;Quota Imposta Fondazione;1;float
-depth_fondation;dFound;Profondità Fondazioni;1;float
-height_overground;hOver;Altezza fuori terra;1;float
-pk_min;pkMin;PK inizio;1;float
-pk_max;pkMax;PK fine;1;float
-d_min;dMin;Distanza minima dall'asse tracciato;1;float
-d_max;dMax;Distanza massima dall'asse tracciato;1;float
-sc_lev;scLv;Classe sensibilità;1;float
-damage_class;dmgCls;Classe di danno;1;float
+pk_min-tun;pk_min-tun;PK inizio;1;float
+pk_max-tun;pk_max-tun;PK fine;1;float
+d_min-tun;d_min-tun;Distanza minima dall'asse tracciato;1;float
+d_max-tun;d_max-tun;Distanza massima dall'asse tracciato;1;float
+sc_lev;sc_lev;Classe sensibilità;1;float
+damage_class;dmg_cls;Classe di danno;1;float
 vulnerability;vuln;Vulnerabilità;1;float
-settlement_max;setMax;Settlement max;1000;float
-tilt_max;tltMax;Tilt max;1000;float
-esp_h_max;epshMax;Eps h max;1000;float
-eps_0;eps0;eps_0;100;float
-p_tbm;pTbm;Pressione al fronte;1;float
+settlement_max;sett_max;Settlement max;1000;float
+tilt_max;tilt_max;Tilt max;1000;float
+esp_h_max;esph_max;Esp h max [kpa];1000;float
+eps_0;eps_0;eps_0 [%];100;float
+p_tbm;p_tbm;Pressione al fronte;1;float
 blowup;blowup;Blowup;1;float
-k_peck;kPeck;K peck;1;float
-eps_crit;epsCrit;Eps critico;1000;float
-damage_class_base;dmgClsB;Classe di danno base;1;float
-vulnerability_base;vulnB;Vulnerabilità  base;1;float
-settlement_max_base;setMaxB;Settlement max base;1000;float
-tilt_max_base;tltMaxB;Tilt max base;1000;float
-esp_h_max_base;epshMxB;Eps h max base;1000;float
-eps_crit_base;epsCrtB;Eps critico base;1000;float
+k_peck;k_peck;k_peck;1;float
+damage_class_base;dmg_cls_b;Classe di danno base;1;float
+vulnerability_base;vuln_b;Vulnerabilità  base;1;float
+settlement_max_base;sett_max_b;Settlement max base [mm];1000;float
+tilt_max_base;tilt_max_b;Tilt max base [permille];1000;float
+esp_h_max_base;esph_max_b;Esp h max base [permille];1000;float
+eps_crit;eps_cr;Eps critico [permille];1000;float
+eps_crit_base;eps_cr_b;Eps critico base [permille];1000;float
+GAP;gap;Gap totale [cm];100;float
+GAP_FRONT;gap_front;Gap Fronte [cm];100;float
+GAP_SHIELD;gap_shield;Gap Scudo [cm];100;float
+GAP_TAIL;gap_tail;Gap Coda [cm];100;float
