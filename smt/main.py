@@ -128,7 +128,7 @@ def main(argv):
         elif opt in ("-n", "--name"):
             project_name = arg
     if project_code:
-        import_all_data(project_code, project_name)
+        import_all_data(project_code)
 
 
 if __name__ == "__main__":
