@@ -20,9 +20,9 @@ def do_everything(project_code, type_of_analysis, n_samples):
     chiama tutte le funzioni
     '''
     authenticate = True #CHECK!
-    #import_all_data(project_code)
-    #process_calc(project_code, authenticate, n_samples, type_of_analysis)
-    #plt_data_ccg(project_code, authenticate, type_of_analysis)
+    import_all_data(project_code)
+    process_calc(project_code, authenticate, n_samples, type_of_analysis)
+    plt_data_ccg(project_code, authenticate, type_of_analysis)
     plt_data(authenticate, project_code, type_of_analysis)
     ebd(project_code, authenticate)
 

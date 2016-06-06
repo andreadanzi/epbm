@@ -2,15 +2,20 @@
 import os
 import csv
 import datetime
+from shapely.geometry import asShape, mapping
+from shapely.ops import transform
+
 from base import BaseSmtModel
 from alignment import Alignment
 from utils import toFloat
 from building import Building
+from helpers import transform_to_wgs
 #from domain import Domain
 
 class AlignmentSet(BaseSmtModel):
     def _init_utils(self, **kwargs):
         self.logger.debug('created an instance of %s', self.__class__.__name__)
+
 
     def delete_referencing(self, alignments=False, buildings=False):
         if alignments:
@@ -27,31 +32,37 @@ class AlignmentSet(BaseSmtModel):
                                                if x["alignment_set_id"] != self._id]
                 building.save()
 
+
     def delete(self):
         super(AlignmentSet, self).delete()
         self.delete_referencing()
 
-    def import_alignment(self, csvFilePath):
+
+    def import_alignment(self, csvFilePath, epsg):
         with open(csvFilePath, 'rb') as csvfile:
             rows = []
             align_reader = csv.DictReader(csvfile, delimiter=';')
             align_list = list(align_reader)
             self.logger.debug('import_alignment - starting reading %d rows from %s',
                               len(align_list), csvFilePath)
+            transf = transform_to_wgs(epsg)
             for row in align_list:
                 row["alignment_set_id"] = self._id
+                row["alignment_set_code"] = self.item["code"]
                 row["domain_id"] = self.item["domain_id"]
                 for key, value in row.iteritems():
                     row[key] = toFloat(value)
-                row["PH"] = {"type": "Point", "coordinates": [toFloat(row["x"]),
-                                                              toFloat(row["y"]),
-                                                              toFloat(row["z"])]}
+                row["PH"] = {"type": "Point", "coordinates": [(row["x"]), (row["y"]), (row["z"])]}
+                # aghensi@20160503 creato campo coordinate WGS84 per l'indice spaziale
+                row["PH_wgs"] = mapping(transform(transf, asShape(row["PH"])))
                 row["created"] = datetime.datetime.utcnow()
                 row["updated"] = datetime.datetime.utcnow()
                 rows.append(row)
             self.delete_referencing(alignments=True)
             a_collection = self.db["Alignment"]
             a_collection.insert(rows)
+            a_collection.create_index([("PH_wgs", "2dsphere")])
+
 
     def import_strata(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
@@ -139,6 +150,7 @@ class AlignmentSet(BaseSmtModel):
                 align = Alignment(self.db, ac)
                 align.save()
 
+
     def import_falda(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
             falda_reader = csv.DictReader(csvfile, delimiter=';')
@@ -163,6 +175,7 @@ class AlignmentSet(BaseSmtModel):
                     self.logger.debug('import_falda - nothing found for pk=%f and alignment_set %s',
                                       pk, self._id)
 
+
     def import_sezioni(self, csvFilePath):
         with open(csvFilePath, 'rb') as csvfile:
             sezioni_reader = csv.DictReader(csvfile, delimiter=';')
@@ -184,6 +197,7 @@ class AlignmentSet(BaseSmtModel):
                         }
                     align = Alignment(self.db, ac)
                     align.save()
+
 
     #tbm_progetto.csv
     def import_tbm(self, csvFilePath):
@@ -212,6 +226,7 @@ class AlignmentSet(BaseSmtModel):
                     align = Alignment(self.db, ac)
                     align.save()
 
+
     def import_reference_strata(self, csv_file_path):
         with open(csv_file_path, 'rb') as csvfile:
             reference_strata_reader = csv.DictReader(csvfile, delimiter=';')
@@ -230,6 +245,7 @@ class AlignmentSet(BaseSmtModel):
                 geocodes[code.upper()] = items
             self.item["REFERENCE_STRATA"] = geocodes
             self.save()
+
 
     def import_building_pks(self, csv_file_path):
         if not os.path.exists(csv_file_path):
@@ -265,6 +281,7 @@ class AlignmentSet(BaseSmtModel):
 #                        building.item["d_min"] = d_min
 #                        building.item["d_max"] = d_max
                     # aghensi@20160407 memorizzo geometria impronta edificio in formato WKT in db
+                    # TODO: trasformo WKT in GeoJSON per indicizzazione? (shapely)
                     if "WKT" in row:
                         if not "WKT" in building.item:
                             building.item["WKT"] = row["WKT"]
@@ -273,8 +290,6 @@ class AlignmentSet(BaseSmtModel):
                     b_num = b_num + 1
             self.logger.info("%d Buildings found", b_num)
 
+
     def doit(self, parm):
         pass
-
-
-

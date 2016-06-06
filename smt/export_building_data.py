@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 '''
-export_buildngs_data
+export_buildings_data
 esporta il file CSV con i valori calcolati degli edifici
 TODO: esportare direttamente il file SHP
 '''
@@ -149,7 +149,7 @@ def update_bldg_shp(shp_path, shp_headers, shp_dicts, logger):
 #                                          {"WKT": {"$exists": True}},
 #                                          {"PK_INFO":{"$exists": True}}]})
 #        if wktcurr.count() > 0:
-#            # Problema: Anaconda non riesce a trovare i file di GDAL per
+#            # TODO FIXME: Anaconda non riesce a trovare i file di GDAL per EPSG
 #            shape_data, layer = helpers.create_shapefile(shp_path, "Buildings",
 #                                                         epsg, logger)
 
@@ -162,11 +162,11 @@ def main(argv):
     authenticate = False
     syntax = "Usage: " + os.path.basename(__file__) + " -c <project code> [-a for autentication -h for help]"
     try:
-        opts, _ = getopt.getopt(argv, "hac:o:s:f:", ["code=", "output=", "shapefile=", "fields="])
+        opts, _ = getopt.getopt(argv, "hac:", ["code="])
     except getopt.GetoptError:
         print syntax
         sys.exit(1)
-    if len(opts) < 4:
+    if len(opts) < 1:
         print syntax
         sys.exit(2)
     for opt, arg in opts:

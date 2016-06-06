@@ -33,3 +33,5 @@ smt/master/alignment.py
 smt/master/utils.py
 data/MFW001_0-010/gis/*
 data/MFW001_0-010/out/*
+.spyderproject
+smt/.spyderworkspace

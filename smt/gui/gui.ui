@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>282</width>
+    <height>205</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>282</width>
+    <height>205</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>282</width>
+    <height>205</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>EPBM</string>
+  </property>
+  <property name="toolButtonStyle">
+   <enum>Qt::ToolButtonIconOnly</enum>
+  </property>
+  <property name="animated">
+   <bool>true</bool>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QWidget" name="layoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>10</y>
+      <width>261</width>
+      <height>170</height>
+     </rect>
+    </property>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="1" column="0" rowspan="3" colspan="2">
+      <widget class="QGroupBox" name="groupBox">
+       <property name="title">
+        <string>Tipologia calcolo</string>
+       </property>
+       <widget class="QWidget" name="layoutWidget">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>20</y>
+          <width>237</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <item>
+            <widget class="QRadioButton" name="rbStandardCalc">
+             <property name="text">
+              <string>Standard</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QRadioButton" name="rbCustomCalc">
+             <property name="text">
+              <string>Custom</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lblSamples">
+             <property name="text">
+              <string>Campioni:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="sbSamples">
+             <property name="minimum">
+              <number>1</number>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QPushButton" name="btnMain">
+       <property name="toolTip">
+        <string>Importa i file contenuti nalla cartella &quot;in&quot; del progetto</string>
+       </property>
+       <property name="text">
+        <string>Inizializza</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <widget class="QLabel" name="lblProjectCode">
+       <property name="text">
+        <string>Project Code:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="cbxProjectCode"/>
+     </item>
+     <item row="5" column="0">
+      <widget class="QPushButton" name="btnProcessCalc">
+       <property name="text">
+        <string>Calcola</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QPushButton" name="btnExportData">
+       <property name="text">
+        <string>Esporta dati tracciato</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QPushButton" name="btnExportBuilding">
+       <property name="text">
+        <string>Esporta dati Edifici</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1">
+      <widget class="QPushButton" name="btnStrataQgis">
+       <property name="text">
+        <string>Esporta SHP strati</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QPushButton" name="pushButton">
+       <property name="text">
+        <string>Estrapola Grafici</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QStatusBar" name="statusbar">
+   <property name="sizeGripEnabled">
+    <bool>false</bool>
+   </property>
+  </widget>
+ </widget>
+ <tabstops>
+  <tabstop>cbxProjectCode</tabstop>
+  <tabstop>rbStandardCalc</tabstop>
+  <tabstop>rbCustomCalc</tabstop>
+  <tabstop>sbSamples</tabstop>
+  <tabstop>btnMain</tabstop>
+  <tabstop>btnProcessCalc</tabstop>
+  <tabstop>pushButton</tabstop>
+  <tabstop>btnExportData</tabstop>
+  <tabstop>btnExportBuilding</tabstop>
+  <tabstop>btnStrataQgis</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

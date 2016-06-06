@@ -3,24 +3,33 @@ helpers.py
 modulo funzioni riutilizzabili
 '''
 import os
+import sys
 import logging
 import logging.handlers
 import ConfigParser
 import csv
 import collections
+#import vtk
 import osgeo.ogr as ogr
 import osgeo.osr as osr
 from pymongo import MongoClient
+#from pyproj import Proj
+from functools import partial
+import pyproj
 
 from utils import toFloat
-
 # COMMON FUNCTIONS
 
 def get_project_basedir(project_code):
     '''
     returns the path of the Project data base dir
     '''
+    # TODO: utilizzare cartella di lavoro anziche percorso del file...
     return os.path.join(os.path.dirname(__file__), "..", "data", project_code)
+
+def get_immediate_subdirectories(a_dir):
+    return [name for name in os.listdir(a_dir)
+            if os.path.isdir(os.path.join(a_dir, name))]
 
 def init_logger(logger_name, file_path, log_level):
     '''
@@ -28,13 +37,20 @@ def init_logger(logger_name, file_path, log_level):
     '''
     logger = logging.getLogger(logger_name)
     if not len(logger.handlers):
+        # Log su file
         logger.setLevel(log_level)
         file_handler = logging.handlers.RotatingFileHandler(file_path, maxBytes=5000000,
                                                             backupCount=5)
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(log_level)
         formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
+        # aghensi@20160502 - messaggi critici anche su stdout
+        stdout_handler = logging.StreamHandler(sys.stdout)
+        stdout_handler.setLevel(logging.WARNING)
+        stdout_formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+        stdout_handler.setFormatter(stdout_formatter)
+        logger.addHandler(stdout_handler)
         logger.handler_set = True
     return logger
 
@@ -127,7 +143,52 @@ def write_dict_list_to_csv(csv_file, csv_columns, dict_data):
         print "I/O error({0}): {1}".format(errno, strerror)
     return
 
-# SHAPEFILE FUNCTIONS
+# SHAPEFILE AND GIS FUNCTIONS
+
+#g2 = transform(project, g1)
+def transform_to_wgs(epsg):
+    '''
+    ritorna la funzione da passare a shapely transform per tradurre le coordinate
+    dal sistema di riferimento con EPSG indicato in WGS84
+    dest_geom = transform(transform_to_wgs(epsg), srg_geom)
+    '''
+    return partial(
+        pyproj.transform,
+        pyproj.Proj(init='epsg:{0:.0f}'.format(epsg)), #SR origine
+        pyproj.Proj(init='epsg:4326')) #SR destinazione
+
+
+def transform_to_epsg(epsg):
+    '''
+    ritorna la funzione da passare a shapely transform per tradurre le coordinate
+    da WGS84 al sistema di riferimento con EPSG specificato
+    dest_geom = transform(transform_to_epsg(epsg), srg_geom)
+    '''
+    return partial(
+        pyproj.transform,
+        pyproj.Proj(init='epsg:4326'), #WGS
+        pyproj.Proj(init='epsg:{0:.0f}'.format(epsg))) #SR destinazione
+
+
+#def to_wgs(x, y, epsg):
+#    '''
+#    converts easting northing coordinates of the sepcified CRS to WGS (lon - lat)
+#    NOTE: if you have to call it multiple times, it's probably better to initialize
+#    the Proj object once and use the call function inside your main function!
+#    '''
+#    proj = Proj(init='epsg:{}'.format(epsg))
+#    return proj(x, y, inverse=True)
+#
+#
+#def to_epsg(lon, lat, epsg):
+#    '''
+#    converts WGS (lon - lat) coordinates to easting northing of the sepcified CRS
+#    NOTE: if you have to call it multiple times, it's probably better to initialize
+#    the Proj object once and use the call function inside your main function!
+#    '''
+#    proj = Proj(init="epsg:{}".format(epsg))
+#    return proj(lon, lat)
+
 
 def open_shapefile(path, logger):
     '''
@@ -141,6 +202,7 @@ def open_shapefile(path, logger):
             return None
         else:
             return shape_data
+
 
 def create_shapefile(output_shp, layername, epsg, logger, fields_dict=None, shape_type=ogr.wkbPolygon):
     '''
@@ -159,6 +221,7 @@ def create_shapefile(output_shp, layername, epsg, logger, fields_dict=None, shap
             add_shp_field(layer, field_name, field_type, logger)
     return data_source, layer
 
+
 def append_fields_to_shapefile(shape_data, shp_headers, logger):
     '''
     adds new fields of type real to a shapefile datasource from a string list
@@ -171,6 +234,7 @@ def append_fields_to_shapefile(shape_data, shp_headers, logger):
         if field_name[:10] not in shp_fields:
             add_shp_field(layer, field_name[:10], field_type, logger)
     return layer
+
 
 def add_shp_field(layer, field_name, field_type, logger):
     '''
@@ -186,6 +250,7 @@ def add_shp_field(layer, field_name, field_type, logger):
         layer.CreateField(ogr.FieldDefn(field_name, ogr.OFTInteger))
     logger.debug("field %s created", field_name)
 
+
 def find_first_feature(layer, field, value):
     '''
     finds the first feature by field value
@@ -197,6 +262,7 @@ def find_first_feature(layer, field, value):
     else:
         return None
 
+
 def create_feature_from_wkt(layer, wkt):
     '''
     create a new feature starting from WKT string
@@ -207,7 +273,11 @@ def create_feature_from_wkt(layer, wkt):
     layer.CreateFeature(feature)
     return feature
 
+
 def create_rectangular_feature(layer, x0, y0, x1, y1):
+    '''
+    crea oggetto rettangolare nel layer
+    '''
     ring = ogr.Geometry(ogr.wkbLinearRing)
     ring.AddPoint(x0, y0)
     ring.AddPoint(x1, y0)
@@ -221,3 +291,59 @@ def create_rectangular_feature(layer, x0, y0, x1, y1):
     outFeature.SetGeometry(poly)
     layer.CreateFeature(outFeature)
     return outFeature
+
+
+# VTK FUNCTIONS
+
+#def load_geojson(input_string, feature_properties={}):
+#    '''Parses input_string with vtkGeoJSONReader, returns vtkPolyData
+#
+#    feature_properties is a dictionary of name-default_values
+#    to attach as cell data in the returned vtkPolyData.
+#    '''
+#    reader = vtk.vtkGeoJSONReader()
+#    #reader.DebugOn()
+#    reader.StringInputModeOn()
+#    reader.SetStringInput(input_string)
+#    for name,default_value in feature_properties.items():
+#      reader.AddFeatureProperty(name, default_value)
+#    reader.Update()
+#    return reader.GetOutput()
+#
+#
+#def get_surface_from_points(inputData):
+#    polydata = vtk.vtkPolyData()
+#    polydata.SetPoints(input.GetPoints())
+#    surf = vtk.vtkSurfaceReconstructionFilter()
+#    surf.SetInputConnection(polydata.GetOutputPort())
+#    cf = vtk.vtkContourFilter()
+#    cf.SetInputConnection(surf.GetOutputPort())
+#    cf.SetValue(0, 0.0)
+#    # Sometimes the contouring algorithm can create a volume whose gradient
+#    # vector and ordering of polygon (using the right hand rule) are
+#    # inconsistent. vtkReverseSense cures this problem.
+#    reverse = vtk.vtkReverseSense()
+#    reverse.SetInputConnection(cf.GetOutputPort())
+#    reverse.ReverseCellsOn()
+#    reverse.ReverseNormalsOn()
+#    return reverse.GetOutput()
+#
+#def cut_surface(surface, polygon):
+#    #create a plane to cut,here it cuts in the XZ direction (xz normal=(1,0,0);XY =(0,0,1),YZ =(0,1,0)
+#    plane=vtk.vtkPlane()
+#    plane.SetOrigin(10,0,0)
+#    plane.SetNormal(1,0,0)
+#
+#    #create cutter
+#    cutter=vtk.vtkCutter()
+#    cutter.SetCutFunction(plane)
+#    cutter.SetInputConnection(cube.GetOutputPort())
+#    cutter.Update()
+#    cutterMapper=vtk.vtkPolyDataMapper()
+#    cutterMapper.SetInputConnection(cutter.GetOutputPort())
+#
+#    #create plane actor
+#    planeActor=vtk.vtkActor()
+#    planeActor.GetProperty().SetColor(1.0,1,0)
+#    planeActor.GetProperty().SetLineWidth(2)
+#    planeActor.SetMapper(cutterMapper)

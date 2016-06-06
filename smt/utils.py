@@ -310,10 +310,13 @@ def gap_front(p_tbm, p_wt, s_v, k0, young, ci, phi, r_excav):
     g_f=.5*k*om*r_excav*p0/young
     return g_f
 
-# Curva caratteristica con c' e phi'
-# per congruenza con i risulati di loganathan, utilizzo:
-# p0 come tensione totale e dovro' depurare la pi con la pressione dell'acqua
+
 def ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav):
+    '''
+    Curva caratteristica con c' e phi'
+    per congruenza con i risulati di loganathan, utilizzo:
+    p0 come tensione totale e dovro' depurare la pi con la pressione dell'acqua
+    '''
     p0 = sigma_v-p_wt
     pi = max(p_tbm-p_wt, 0.)
     rad_phi = math.radians(phi)
@@ -420,20 +423,20 @@ def eps_crit_burland_wroth(h_bldg, str_type, L_hog_l, L_sag, L_hog_r, delta_hog_
         t.append(t_hog)
         I.append(I_hog)
         delta.append(delta_hog_l)
-        delta_h.append(delta_h_hog_l)        
+        delta_h.append(delta_h_hog_l)
     if L_hog_r>0:
         L.append(L_hog_r)
         t.append(t_hog)
         I.append(I_hog)
         delta.append(delta_hog_r)
-        delta_h.append(delta_h_hog_r)        
+        delta_h.append(delta_h_hog_r)
     if L_sag>0:
         L.append(L_sag)
         t.append(t_sag)
         I.append(I_sag)
         delta.append(delta_sag)
         delta_h.append(delta_h_sag)
-    
+
     e_crit = 0.
     for i, l_curr in enumerate(L):
         eb = eps_b_burland_wroth(L[i], t[i], I[i], E_G, h_bldg, delta[i])
@@ -442,7 +445,7 @@ def eps_crit_burland_wroth(h_bldg, str_type, L_hog_l, L_sag, L_hog_r, delta_hog_
         e_bs = eb+eh
         e_ds = .35*eh+math.sqrt((.65*eh)**2+ed**2)
         e_crit = max(e_crit, e_bs, e_ds)
-    
+
     return e_crit
 
 # distanza flesso i equivalente della curva di laganthan
@@ -492,12 +495,12 @@ class DamageParametersBurlandWroth:
         self.h_bldg = h_bldg
         self.z = z
         self.x_left_L_sag=0.0
-        self.x_right_L_sag=0.0         
+        self.x_right_L_sag=0.0
         self.x_left_L_hog_r=0.0
-        self.x_right_L_hog_r=0.0     
+        self.x_right_L_hog_r=0.0
         self.x_left_L_hog_l=0.0
         self.x_right_L_hog_l=0.0
-        
+
     # qui aggiorno tutte le variabili dipendendi dalla  variabilita' statistica geologica e variabili con pk
     def update_geo(self, r_excav, depth, beta_deg, nu):
         self.r_excav = r_excav
@@ -518,7 +521,7 @@ class DamageParametersBurlandWroth:
             x_right = min(self.i, self.x_max)
             self.L_sag = max(0., x_right - x_left)
             self.x_left_L_sag=x_left
-            self.x_right_L_sag=x_right                            
+            self.x_right_L_sag=x_right
         self.L_hog_r = 0.
         if self.x_max>self.i:
             x_left = max(self.x_min, self.i)
@@ -526,7 +529,7 @@ class DamageParametersBurlandWroth:
             self.L_hog_r = max(0., x_right - x_left)
             self.x_left_L_hog_r=x_left
             self.x_right_L_hog_r=x_right
-    
+
     # qui definisco le tensioni dipendenti da:
     # n_dx livello di discretizzazione nell'analisi
     # eps0 volume perso
@@ -570,7 +573,7 @@ class DamageParametersFrench:
         self.beta_max = beta_max
         self.esp_h_max = esp_h_max
 
-###Gabriele@20160409 esp critico Burland and Wroth 1974 - fine    
+###Gabriele@20160409 esp critico Burland and Wroth 1974 - fine
 
 """
 
@@ -590,5 +593,5 @@ def latLonToProjection(lat, lon, epsg):
     coordTransform = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
     point.Transform(coordTransform)
     return (point.GetX(), point.GetY())
-    
+
 """
