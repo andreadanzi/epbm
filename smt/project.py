@@ -2,17 +2,26 @@
 import os
 import csv
 import datetime
+import glob
 from lxml import etree
 from shapely.geometry import MultiPoint, mapping
 from shapely.ops import transform
+import ifcopenshell
+from minimongo import Model, Index
 
 from base import BaseSmtModel
 from building import Building
 from utils import toFloat
 from helpers import transform_to_wgs
+from section import Section
 
 # danzi.tn@20160418 pulizia sui Buildings del progetto dei dati di analisi=>clear_building_analysis
 class Project(BaseSmtModel):
+    class Meta(object):
+        '''specifica alcune impostazioni per la collection'''
+        database = 'smt' #TODO: come lo configuro in modo globale?
+        indices = (Index("code"))
+
     def _init_utils(self, **kwargs):
         self.logger.debug('created an instance of %s', self.__class__.__name__)
 
@@ -109,7 +118,7 @@ class Project(BaseSmtModel):
                 "CODE": surface.get("desc"), #.upper()?
                 "geometry": {"type": "MultiPoint", "coordinates": coords},
                 "geom_wgs": mapping(wgs_surf), #trasforma oggetto shapely in geoJSON
-                 # memorizzo il massimo delle z per avere strati ordinati
+                # memorizzo il massimo delle z per avere strati ordinati
                 "max_elev": max([point.z for point in wgs_surf]),
                 "project_id": self._id,
                 "created":   datetime.datetime.utcnow(),
@@ -120,6 +129,74 @@ class Project(BaseSmtModel):
             p_collection.insert(surf_list)
             # aggiungo indice spaziale 2d
             p_collection.create_index([("geom_wgs", "2dsphere")])
+
+
+    def import_ifc(self, ifcpath):
+        '''Importa il file IFC speficficato nella collection 'section'
+
+        Args:
+            ifcpath (string): percorso del file IFC
+
+        Returns:
+            bool - True se il file esiste e sono stati estratti degli elementi con proprietà
+        '''
+        if not os.path.exists(ifcpath):
+            self.logger.warning('cannot find file %s', ifcpath)
+            return False
+        ifcfile = ifcopenshell.open(ifcpath)
+        project = ifcfile.by_type("IfcProject")[0]
+        cur_section = Section({
+            'code':project.Name,
+            'project_id':self._id,
+            'elements':[]
+            })
+
+        supported_types = ('IfcBuildingElementProxy', 'IfcCovering', 'IfcBeam',
+                           'IfcColumn', 'IfcCurtainWall', 'IfcDoor', 'IfcMember', 'IfcRailing',
+                           'IfcRamp', 'IfcRampFlight', 'IfcWall', 'IfcWallStandardCase', 'IfcSlab',
+                           'IfcStairFlight', 'IfcWindow', 'IfcStair', 'IfcRoof', 'IfcPile',
+                           'IfcFooting', 'IfcBuildingElementComponent', 'IfcPlate',
+                           'IfcReinforcingBar', 'IfcReinforcingMesh', 'IfcTendon',
+                           'IfcTendonAnchor', 'IfcBuildingElementPart')
+        for cur_type in supported_types:
+            for element in ifcfile.by_type(cur_type):
+                cur_element = {}
+                for relation in element.IsDefinedBy:
+                    if relation.is_a('IfcRelDefinesByProperties'):
+                        for cur_prop in relation.RelatingPropertyDefinition.HasProperties:
+                            if cur_prop.is_a('IfcPropertySingleValue'):
+                                cur_element[cur_prop.Name] = cur_prop.NominalValue.wrappedValue
+                if cur_element:
+                    cur_element['code'] = element.Name
+                    cur_element['guid'] = element.GlobalId
+                    cur_section.elements.append(cur_element)
+                else:
+                    self.logger.warn('import_ifc: element %s without properties', element.Name)
+        if len(cur_section.elements) > 0:
+            cur_section.created = datetime.datetime.utcnow()
+            cur_section.updated = datetime.datetime.utcnow()
+            cur_section.save()
+            return True
+        else:
+            return False
+
+
+    def import_ifcs(self, ifcfolder):
+        '''Importa i file IFC presenti nella cartella speficficata
+
+        Args:
+            ifcfolder (string): percorso della cartella contenente i file IFC
+        '''
+        if not os.path.exists(ifcfolder):
+            self.logger.warning('cannot find folder %s', ifcfolder)
+            return
+        imported_files = 0
+        tot_files = 0
+        for ifcfile in glob.glob("*.ifc"):
+            tot_files += 1
+            if self.import_ifc(ifcfile):
+                imported_files += 1
+        self.logger.info('%i over %i IFC files imported', imported_files, tot_files)
 
 
     def doit(self, parm):

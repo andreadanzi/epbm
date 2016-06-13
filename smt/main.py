@@ -60,6 +60,7 @@ def import_all_data(project_code):
                      os.path.join(importdir, "overground_infrastructure_class.csv"))
     p.import_objects("VibrationClass", os.path.join(importdir, "vibration_class.csv"))
     p.import_stratasurf(os.path.join(importdir, "strata.xml"), p.item["epsg"])
+    p.import_ifc(os.path.join(importdir, 'ifc'))
 
     bldgs = Building.find(mongodb, {"project_id": p._id})
     for bl in bldgs:

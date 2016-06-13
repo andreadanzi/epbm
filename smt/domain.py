@@ -233,6 +233,7 @@ class Domain(BaseSmtModel):
             self.item["REFERENCE_STRATA"] = geocodes
             self.save()
 
+
     # aghensi@20160503 - aggiunti subdomains da utilizzare per filtro punti e rototraslazione
     def import_subdomains(self, csv_file_path, epsg):
         '''

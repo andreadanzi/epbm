@@ -59,7 +59,7 @@ class Alignment(BaseSmtModel):
                                       align.z, strato.POINTS.base.coordinates[2])
                 ###### CONTINUA QUI
         except AttributeError as ae:
-            self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
+            self.logger.error("Alignment %f, missing attribute [%s]" % (align.PK, ae))
         if "REFERENCE_STRATA" in self.item:
             self.save()
         return retVal
@@ -750,6 +750,7 @@ class Alignment(BaseSmtModel):
 
             # tensione totale come valore a fondo scavo (sigma_v) riportato in asse tunnel (s_v)
             sigma_v = 0.
+            #TODO: cambio con check top > z_base e zRef è max tra zbase e base strato;
             for ref_stratus in ref_strata:
                 if ref_stratus.POINTS.base.coordinates[2] >= z_base:
                     zRef = ref_stratus.POINTS.base.coordinates[2]
