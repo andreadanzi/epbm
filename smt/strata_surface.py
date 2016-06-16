@@ -1,12 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-aghensi@20160502 - importazione LandXML delle stratigrafie in mongodb con indice spaziale
+classe che memorizza la nuvola di punti delle superfici stratigrafiche
 """
+from minimongo import Index
 from base import BaseSmtModel
 
 class StrataSurface(BaseSmtModel):
-    def _init_utils(self,**kwargs):
-        self.logger.debug('created an instance of %s' % self.__class__.__name__)
+    '''classe della nuvola di punti della superficie stratigrafica'''
+    class Meta(object):
+        '''impostazioni per minimongo'''
+        database = 'smt'
+        indexes = (Index("geom_wgs", "2dsphere"))
 
-    def doit(self, parm):
-        pass
+#    def _init_utils(self,**kwargs):
+#        self.logger.debug('created an instance of %s' % self.__class__.__name__)
+#
+#    def doit(self, parm):
+#        pass

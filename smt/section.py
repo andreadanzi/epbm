@@ -3,12 +3,10 @@
 Sezione tipo di galleria
 
 """
-#from minimongo import Model, Index
-import minimongo
+from minimongo import Index
 
 from base import BaseSmtModel
 
-#class Section(Model, BaseSmtModel):
 class Section(BaseSmtModel):
     '''
     Sezione tipo galleria
@@ -27,9 +25,9 @@ class Section(BaseSmtModel):
     class Meta(object):
         '''specifica alcune impostazioni per la collection'''
         database = 'smt' #TODO: come lo configuro in modo globale?
-        indices = (minimongo.Index("code"), minimongo.Index('guid'))
+        indices = (Index("code"), Index('guid'))
 
-if __name__ == "__main__":
-    minimongo.configure(host='localhost', database='smt')
-    prova = Section({'code':'aaa', 'elements':[{'code':'1', 'guid':'evflaukbvfiluh'}]}).save
-    print prova.elements[0].code
+#if __name__ == "__main__":
+#    minimongo.configure(host='localhost', database='smt')
+#    prova = Section({'code':'aaa', 'elements':[{'code':'1', 'guid':'evflaukbvfiluh'}]}).save
+#    print prova.elements[0].code

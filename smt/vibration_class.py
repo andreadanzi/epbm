@@ -2,8 +2,5 @@
 from base import BaseSmtModel
 
 class VibrationClass(BaseSmtModel):
-    def _init_utils(self, **kwargs):
-        self.logger.debug('created an instance of %s', self.__class__.__name__)
-
-    def doit(self, parm):
-        pass
+    class Meta(object):
+        database = 'smt'

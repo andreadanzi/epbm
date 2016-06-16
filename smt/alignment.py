@@ -3,6 +3,7 @@
 import math
 import csv
 import numpy as np
+from minimongo import Index
 from base import BaseSmtModel, BaseStruct
 from utils import toFloat, k_eq, blowup, cob_step_1, cob_step_2, p_min_tamez, gap_front, gap_shield, ur_max, gap_tail, volume_loss, boussinesq, VolumeLoss, DamageParametersBurlandWroth, DamageParametersFrench, vibration_speed_Boucliers, uz_laganathan
 from building import Building
@@ -21,6 +22,10 @@ from building import Building
 # danzi.tn@20160419 ottmizzazione dei Buildings collegati all'Alignment: vengono caricati gli oggetti della collection Building in self.building_items
 # danzi.tn@20160420 fix sui metodi di Gabriele
 class Alignment(BaseSmtModel):
+    class Meta(object):
+        '''impostazioni minimongo'''
+        database = 'smt'
+        indices = (Index({"PH_wgs":"2dsphere"}), Index('code'))
 
     def _init_utils(self, **kwargs):
         self.project = None
