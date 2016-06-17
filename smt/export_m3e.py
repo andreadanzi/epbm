@@ -7,7 +7,7 @@ import os
 import sys
 import getopt
 import logging
-from shapely.affinity import affine_transform, translate
+from shapely.affinity import affine_transform
 from shapely.geometry import asShape
 
 from project import Project

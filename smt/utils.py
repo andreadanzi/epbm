@@ -574,24 +574,3 @@ class DamageParametersFrench:
         self.esp_h_max = esp_h_max
 
 ###Gabriele@20160409 esp critico Burland and Wroth 1974 - fine
-
-"""
-
-def latLonToProjection(lat, lon, epsg):
-    '''
-    Converte le coordinate nel formato latitudine, longitudine (EPSG 4326)
-    in coordinate del sistema di riferimento specificato tramite il suo EPSG
-    per i documenti della Grand Paris l'EPSG è 3949
-    '''
-    LATLON_EPSG = 4326
-    point = ogr.Geometry(ogr.wkbPoint)
-    point.AddPoint(lat, lon)
-    inSpatialRef = osr.SpatialReference()
-    inSpatialRef.ImportFromEPSG(LATLON_EPSG)
-    outSpatialRef = osr.SpatialReference()
-    outSpatialRef.ImportFromEPSG(epsg)
-    coordTransform = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
-    point.Transform(coordTransform)
-    return (point.GetX(), point.GetY())
-
-"""

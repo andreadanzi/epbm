@@ -27,9 +27,11 @@ def get_project_basedir(project_code):
     # TODO: utilizzare cartella di lavoro anziche percorso del file...
     return os.path.join(os.path.dirname(__file__), "..", "data", project_code)
 
+
 def get_immediate_subdirectories(a_dir):
     return [name for name in os.listdir(a_dir)
             if os.path.isdir(os.path.join(a_dir, name))]
+
 
 def init_logger(logger_name, file_path, log_level):
     '''
@@ -54,6 +56,7 @@ def init_logger(logger_name, file_path, log_level):
         logger.handler_set = True
     return logger
 
+
 def destroy_logger(logger):
     '''
     unloads the logger closing all its handlers
@@ -62,6 +65,7 @@ def destroy_logger(logger):
         handler.close()
         logger.removeHandler(handler)
     logging.shutdown()
+
 
 def init_db(smt_config, authenticate):
     '''
@@ -78,6 +82,7 @@ def init_db(smt_config, authenticate):
         logged_in = True
     return logged_in, mongodb
 
+
 def get_config(cfg_name):
     '''
     reads the config file cfg_name and returns a config parser object
@@ -86,6 +91,7 @@ def get_config(cfg_name):
     smt_config.optionxform = str
     smt_config.read(cfg_name)
     return smt_config
+
 
 def flatten(my_dict, parent_key='', sep='_'):
     '''
@@ -100,17 +106,20 @@ def flatten(my_dict, parent_key='', sep='_'):
             items.append((new_key, value))
     return dict(items)
 
+
 def flatten_dicts_list(mylist):
     '''
     returns a list of flattened nested dictionary
     '''
     return [flatten(list_item) for list_item in mylist]
 
+
 def get_dicts_list_keys(mylist):
     '''
     returns all the unique keys of a list of dictionaries
     '''
     return set().union(*(d.keys() for d in mylist))
+
 
 # CSV FUNCTIONS
 def get_csv_dict_list(path):
@@ -122,8 +131,10 @@ def get_csv_dict_list(path):
         rows = []
         for row in csv_reader:
             for key, value in row.iteritems():
-                # HACK: bldg_code deve restare stringa - oppure uso sempre toFloat?
-                if key != "bldg_code":
+                # HACK: code deve restare stringa maiuscola
+                if key == "code":
+                    row[key] = value.upper()
+                else:
                     row[key] = toFloat(value)
             rows.append(row)
         return rows
