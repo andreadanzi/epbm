@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+'''classe dell'alignment set (tracciato)'''
 import os
 import csv
 import datetime
@@ -12,6 +13,7 @@ from building import Building
 from helpers import transform_to_wgs
 
 class AlignmentSet(BaseSmtModel):
+    '''classe dell'alignment set (tracciato)'''
     class Meta(object):
         '''impostazioni minimongo'''
         database = 'smt'
@@ -70,7 +72,7 @@ class AlignmentSet(BaseSmtModel):
         with open(csv_file_path, 'rb') as csvfile:
             strata_reader = csv.DictReader(csvfile, delimiter=';')
             pk = -1.0
-            ac = None
+            align = None
             strata_list = list(strata_reader)
             self.logger.debug('import_strata - starting reading %d rows from %s',
                               len(strata_list), csv_file_path)
@@ -81,15 +83,15 @@ class AlignmentSet(BaseSmtModel):
                     pass
                 else:
                     # new pk
-                    if ac:
-                        ac.updated = datetime.datetime.utcnow()
-                        ac.save()
-                        ac = None
+                    if align:
+                        align.updated = datetime.datetime.utcnow()
+                        align.save()
+                        align = None
                     pk = cur_pk
-                    ac = Alignment.collection.find_one({"pk":pk, "alignment_set_id":self._id})
-                if ac:
+                    align = Alignment.collection.find_one({"pk":pk, "alignment_set_id":self._id})
+                if align:
                     if row["Descrizione"] == "DEM":
-                        ac.dem = {
+                        align.dem = {
                             "type": "Point",
                             "coordinates": [
                                 toFloat(row["x"]),
@@ -98,56 +100,37 @@ class AlignmentSet(BaseSmtModel):
                                 ]
                             }
                     else:
-                        geoparameters = self.reference_strata[row["Descrizione"].upper()]
-                        if hasattr(ac,"strata"):
-                            ac.strata.append({
-                                "code":row["Descrizione"].upper(),
-                                "parameters":geoparameters,
-                                "points":{
-                                    "top":{
-                                        "type":"Point",
-                                        "coordinates":[
-                                            toFloat(row["x"]),
-                                            toFloat(row["y"]),
-                                            toFloat(row["top"])
-                                            ]
-                                        },
-                                    "base": {
-                                        "type":"Point",
-                                        "coordinates":[
-                                            toFloat(row["x"]),
-                                            toFloat(row["y"]),
-                                            toFloat(row["base"])
-                                            ]
-                                        }
+                        code = row["Descrizione"].upper()
+                        geoparameters = self.reference_strata[code]
+                        doc = {
+                            "code":code,
+                            "parameters":geoparameters,
+                            "points":{
+                                "top":{
+                                    "type":"Point",
+                                    "coordinates":[
+                                        toFloat(row["x"]),
+                                        toFloat(row["y"]),
+                                        toFloat(row["top"])
+                                        ]
+                                    },
+                                "base": {
+                                    "type":"Point",
+                                    "coordinates":[
+                                        toFloat(row["x"]),
+                                        toFloat(row["y"]),
+                                        toFloat(row["base"])
+                                        ]
                                     }
-                                })
+                                }
+                            }
+                        if hasattr(align, "strata"):
+                            align.strata.append(doc)
                         else:
-                            ac.strata = [{
-                                "code":row["Descrizione"].upper(),
-                                "parameters":geoparameters,
-                                "points":{
-                                    "top":{
-                                        "type":"Point",
-                                        "coordinates":[
-                                            toFloat(row["x"]),
-                                            toFloat(row["y"]),
-                                            toFloat(row["top"])
-                                            ]
-                                        },
-                                    "base":{
-                                        "type":"Point",
-                                        "coordinates":[
-                                            toFloat(row["x"]),
-                                            toFloat(row["y"]),
-                                            toFloat(row["base"])
-                                            ]
-                                        }
-                                    }
-                                }]
-            if ac:
-                ac.updated = datetime.datetime.utcnow()
-                ac.save()
+                            align.strata = [doc]
+            if align:
+                align.updated = datetime.datetime.utcnow()
+                align.save()
 
 
     def import_falda(self, csv_file_path):
@@ -155,17 +138,17 @@ class AlignmentSet(BaseSmtModel):
         with open(csv_file_path, 'rb') as csvfile:
             falda_list = list(csv.DictReader(csvfile, delimiter=';'))
             pk = -1.0
-            ac = None
+            align = None
             self.logger.debug('import_falda - starting reading %d rows from %s',
                               len(falda_list), csv_file_path)
             for row in falda_list:
                 pk = float(row["PK"])
-                ac = Alignment.collection.find_one({"pk":pk, "alignment_set_id":self._id})
-                if ac:
-                    ac.falda = {"type":"Point", "coordinates":[toFloat(row["x"]),
-                                                               toFloat(row["y"]),
-                                                               toFloat(row["z"])]}
-                    ac.save()
+                align = Alignment.collection.find_one({"pk":pk, "alignment_set_id":self._id})
+                if align:
+                    align.falda = {"type":"Point", "coordinates":[toFloat(row["x"]),
+                                                                  toFloat(row["y"]),
+                                                                  toFloat(row["z"])]}
+                    align.save()
                     self.logger.debug('import_falda - FALDA saved for pk=%f and alignment_set %s',
                                       pk, self._id)
                 else:
@@ -178,20 +161,20 @@ class AlignmentSet(BaseSmtModel):
         with open(csv_file_path, 'rb') as csvfile:
             sezioni_list = list(csv.DictReader(csvfile, delimiter=';'))
             pk = -1.0
-            ac = None
+            align = None
             self.logger.debug('import_sezioni - starting reading %d rows from %s',
                               len(sezioni_list), csv_file_path)
             for row in sezioni_list:
                 pk = float(row["PK"])
-                ac = Alignment.collection.find_one({"pk":pk, "alignment_set_id":self._id})
-                if ac:
-                    ac.sections = {
+                align = Alignment.collection.find_one({"pk":pk, "alignment_set_id":self._id})
+                if align:
+                    align.sections = {
                         "excavation":{"radius": toFloat(row["Excavation Radius"])},
                         "lining":{"internal_radius": toFloat(row["Lining Internal Radius"]),
                                   "thickness": toFloat(row["Lining Thickness"]),
                                   "offset": toFloat(row["Lining Offset"])}
                         }
-                    ac.save()
+                    align.save()
 
 
     #tbm_progetto.csv
@@ -200,14 +183,14 @@ class AlignmentSet(BaseSmtModel):
         with open(csv_file_path, 'rb') as csvfile:
             tbm_list = list(csv.DictReader(csvfile, delimiter=';'))
             pk = -1.0
-            ac = None
+            align = None
             self.logger.debug('import_tbm - starting reading %d rows from %s',
                               len(tbm_list), csv_file_path)
             for row in tbm_list:
                 pk = float(row["PK"])
-                ac = Alignment.collection.find_one({"pk":pk, "alignment_set_id":self._id})
-                if ac:
-                    ac.tbm = {
+                align = Alignment.collection.find_one({"pk":pk, "alignment_set_id":self._id})
+                if align:
+                    align.tbm = {
                         "excav_diameter": toFloat(row["excav_diameter"]),
                         "bead_thickness": toFloat(row["bead_thickness"]),
                         "taper": toFloat(row["taper"]),
@@ -217,7 +200,7 @@ class AlignmentSet(BaseSmtModel):
                         "shield_length": toFloat(row["shield_length"]),
                         "pressure_max": toFloat(row["pressure_max"])
                         }
-                    ac.save()
+                    align.save()
 
 
     def import_reference_strata(self, csv_file_path):
@@ -251,39 +234,31 @@ class AlignmentSet(BaseSmtModel):
         with open(csv_file_path, 'rb') as csv_file:
             csv_reader = csv.DictReader(csv_file, delimiter=';')
             b_num = 0
-            building_coll = self.db["Building"]
             for row in csv_reader:
-                building_code = row["bldg_code"]
+                building_code = row["code"]
                 pk_min = toFloat(row["pk_min"])
                 pk_max = toFloat(row["pk_max"])
                 d_min = toFloat(row["d_min"])
                 d_max = toFloat(row["d_max"])
-                prop_array = [{"alignment_set_id": self._id, "alignment_code": self.item["code"],
-                               "pk_min": pk_min, "pk_max": pk_max, "d_min": d_min, "d_max": d_max}]
-                ccurr = Building.collection.find({"bldg_code": building_code})
-                if ccurr.count == 0:
+                prop = {"alignment_set_id": self._id, "alignment_code": self.code,
+                        "pk_min": pk_min, "pk_max": pk_max, "d_min": d_min, "d_max": d_max}
+                bldgs = Building.collection.find({"bldg_code": building_code})
+                if bldgs.count == 0:
                     self.logger.error("Building with bldg_code = %s not found!", building_code)
-                for bItem in ccurr:
+                for bldg in bldgs:
                     self.logger.debug("Buliding %s found", building_code)
-                    building = Building(self.db, bItem)
-                    building.load()
                     # aghensi@20160406 tolto livello pk_array da PK_INFO e valori fuori da PK_INFO
-                    if "PK_INFO" in building.item:
-                        pk_array = building.item["PK_INFO"]
-                        building.item["PK_INFO"] = pk_array + prop_array
+                    if hasattr(bldg, "pk_info"):
+                        # TODO: se nell'array c'è già informazione su quell'allignment set?
+                        bldg.pkinfo.append(prop)
                     else:
-                        building.item["PK_INFO"] = prop_array
-#                        building.item["pk_min"] = pk_min
-#                        building.item["pk_max"] = pk_max
-#                        building.item["d_min"] = d_min
-#                        building.item["d_max"] = d_max
+                        bldg.pkinfo = [prop]
                     # aghensi@20160407 memorizzo geometria impronta edificio in formato WKT in db
                     # TODO: trasformo WKT in GeoJSON per indicizzazione? (shapely)
                     if "WKT" in row:
-                        if not "WKT" in building.item:
-                            building.item["WKT"] = row["WKT"]
-                    building.item["updated"] = datetime.datetime.utcnow()
-                    building.save()
+                        bldg.wkt = row["WKT"]
+                    bldg.updated = datetime.datetime.utcnow()
+                    bldg.save()
                     b_num = b_num + 1
             self.logger.info("%d Buildings found", b_num)
 

@@ -3,9 +3,11 @@
 import math
 import csv
 import numpy as np
+from operator import attrgetter
 from minimongo import Index
-from base import BaseSmtModel, BaseStruct
+
 from utils import toFloat, k_eq, blowup, cob_step_1, cob_step_2, p_min_tamez, gap_front, gap_shield, ur_max, gap_tail, volume_loss, boussinesq, VolumeLoss, DamageParametersBurlandWroth, DamageParametersFrench, vibration_speed_Boucliers, uz_laganathan
+from base import BaseSmtModel
 from building import Building
 # danzi.tn@20160310 refactoring per separare calc da setup
 # danzi.tn@20160322 clacolati dati _base insieme a
@@ -27,62 +29,63 @@ class Alignment(BaseSmtModel):
         database = 'smt'
         indices = (Index({"PH_wgs":"2dsphere"}), Index('code'))
 
+    # TODO: serve project come attributo?
     def _init_utils(self, **kwargs):
         self.project = None
         self.strata_samples = None
         self.building_items = {}
         self.logger.debug('created an instance of %s', self.__class__.__name__)
 
+    # TODO: controllo se posso utilizzare minimongo per fare embedding!
     def setProject(self, projectItem):
-        self.project = BaseStruct(projectItem)
-        self.project_id = projectItem["_id"]
+        self.project = projectItem
+        self.project_id = projectItem._id
 
     # danzi.tn@20160407 set samples degli strati
     def setSamples(self, samples):
         self.strata_samples = samples
 
     def assign_reference_strata(self):
-        retVal = "XXX"
-        # BaseStruct converte un dizionario in un oggetto la cui classe ha come attributi gli elementi del dizionario
-        # per cui se ho d={"a":2,"c":3} con o=BaseStruct(d) => d.a == 2 e d.c == 3
-        # a volte ci sono elementi che durante import non hanno recuperato DEM e Stratigrafia, per questo bisogna mettere try
-        align = BaseStruct(self.item)
-        self.logger.debug("Analisi alla PK %f", align.PK)
+        retval = "XXX"
+        # aghensi@20160616 utilizzo minimongo anziché BaseStruct
+        # self ha già mappato le chiavi del documento come attributi del db
+        self.logger.debug("Analisi alla PK %f", self.pk)
         try:
-            if align.z == align.PH.coordinates[2]:
+            if self.z == self.ph.coordinates[2]:
                 ### Verifica strato di riferimento per le PK
-                indexes = [idx for idx, strato in enumerate(align.STRATA) if strato.POINTS.top.coordinates[2] > align.z >= strato.POINTS.base.coordinates[2]]
+                indexes = [idx for idx, strato in enumerate(self.strata)
+                           if strato.points.top.coordinates[2] > self.z >= strato.points.base.coordinates[2]]
                 for idx in indexes:
-                    ref_stratus = align.STRATA[idx]
-                    pointsDict = self.item["STRATA"][idx]["POINTS"]
-                    self.item["REFERENCE_STRATA"] = {"CODE":ref_stratus.CODE,
-                                                     "PARAMETERS": ref_stratus.PARAMETERS.__dict__,
-                                                     "POINTS": pointsDict}
-                    retVal = ref_stratus.CODE
+                    ref_stratus = self.strata[idx]
+                    pointsDict = self.strata[idx].points
+                    self.reference_strata = {"code":ref_stratus.code,
+                                             "parameters": ref_stratus.parameters.__dict__,
+                                             "points": pointsDict}
+                    retval = ref_stratus.code
                     self.logger.debug(u"\tstrato di riferimento per %f è %s: %f > %f >= %f ",
-                                      align.PK, retVal, ref_stratus.POINTS.top.coordinates[2],
-                                      align.z, strato.POINTS.base.coordinates[2])
+                                      self.pk, retval, ref_stratus.points.top.coordinates[2],
+                                      self.z, strato.points.base.coordinates[2])
                 ###### CONTINUA QUI
-        except AttributeError as ae:
-            self.logger.error("Alignment %f, missing attribute [%s]" % (align.PK, ae))
-        if "REFERENCE_STRATA" in self.item:
+        except AttributeError as attrerr:
+            self.logger.error("Alignment %f, missing attribute [%s]" % (self.pk, attrerr))
+        if hasattr(self, 'strata'):
             self.save()
-        return retVal
+        return retval
+
 
     def assign_buildings(self, buff):
-        retVal = "XXX"
-        pk = self.item["PK"]
+        retval = "XXX"
         # danzi.tn@20160315 nuovo criterio di ricerca: ci possono essere più PK per ogni building (tun02, tun04, sim)
         # {"PK_INFO":{"$elemMatch": {"$and":[{"pk_min":{"$lte":2150690}},{"pk_max":{"$gt":2150690}}]}}}
         # aghensi#20160406: rimosso livello pk_array, aggiunto filtro per alignment set per gestire più tracciati
-        bcurr = self.db.Building.find({
+        bcurr = Building.collection.find({
             "project_id":self.project_id,
-            "PK_INFO":{
+            "pk_info":{
                 "$elemMatch": {
                     "$and":[
-                        {"alignment_set_id":self.item["alignment_set_id"]},
-                        {"pk_min":{"$lte":pk+buff}},
-                        {"pk_max":{"$gt":pk-buff}}
+                        {"alignment_set_id":self.alignment_set_id},
+                        {"pk_min":{"$lte":self.pk+buff}},
+                        {"pk_max":{"$gt":self.pk-buff}}
                         ]
                     }
                 }
@@ -91,59 +94,70 @@ class Alignment(BaseSmtModel):
         for b in bcurr:
             building_array.append(b)
         if len(building_array) > 0:
-            self.item["BUILDINGS"] = building_array
+            self.buildings = building_array
             self.save()
-        return retVal
+        return retval
 
-    # TODO remove
-    def assign_parameter(self, bcode, param, val):
-    #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
-        retVal = 0
-        #2129458 94076BC0006_01
-        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
-        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"bldg_code":bcode}, {param:{"$lte":val}}]})
-        for b in bcurr:
-            bldg = Building(self.db, b)
-            bldg.load()
-            bldg.item[param] = val
-            bldg.save()
-            retVal = retVal + 1
+   # TODO remove
+#    def assign_parameter(self, bcode, param, val):
+#    #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
+#        retval = 0
+#        #2129458 94076BC0006_01
+#        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
+#        bcurr = Building.collection.find({
+#            "$and":[{"project_id":self.project_id}, {"bldg_code":bcode}, {param:{"$lte":val}}]})
+#        for b in bcurr:
+#            bldg = Building(self.db, b)
+#            bldg.load()
+#            bldg.item[param] = val
+#            bldg.save()
+#            retval = retval + 1
+#
+#        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
+#        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"bldg_code":bcode}, {param:{"$exists":False}}]})
+#        for b in bcurr:
+#            bldg = Building(self.db, b)
+#            bldg.load()
+#            bldg.item[param] = val
+#            bldg.save()
+#            retval = retval + 1
+#        return retval
 
-        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
-        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"bldg_code":bcode}, {param:{"$exists":False}}]})
-        for b in bcurr:
-            bldg = Building(self.db, b)
-            bldg.load()
-            bldg.item[param] = val
-            bldg.save()
-            retVal = retVal + 1
-        return retVal
-
+    # TODO: continuo refactoring da qui - aghensi
     def assign_parameter_by_code(self, building_object, param_key, val, p_code):
     #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
-        retVal = 0
+        retval = 0
         #2129458 94076BC0006_01
         # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
         # aghensi@2160506: salvo separatamente i valori relativi a diversi alignment set
-        as_code = self.item["alignment_set_code"]
-        if as_code not in building_object.item:
-            building_object.item[as_code] = None
+        as_code = self.alignment_set_code
+#   TODO: come faccio ad assegnare valori ad attributi nidificati di oggetti minimongo?
+#        getpcode = attrgetter('{}.{}.{}'.format(as_code,param_key,p_code))
+#        setpcode = attrgetter('{}.{}'.format(as_code,param_key))
+#        try:
+#            curvalue = getpcode(building_object)
+#            if curvalue <= val:
+#                setattr(setpcode, p_code, val)
+#        except:
+
+        if not hasattr(building_object, as_code):
+            setattr(building_object, as_code, None)
         if (param_key in building_object.item[as_code]
             and p_code in building_object.item[as_code][param_key]):
             # TODO: è sempre vero che deve essere minore o uguale ?
             # prima era processato via DB {"$and":[{"project_id":self.project_id},{"bldg_code":bcode}, {"%s.%s" % (param_key,p_code):{"$lte":val}}]}
             if building_object.item[as_code][param_key][p_code] <= val:
                 building_object.item[as_code][param_key][p_code] = val
-                retVal = retVal + 1
+                retval = retval + 1
             else:
                 pass
         else:
             building_object.item[as_code][param_key] = {p_code:val}
-            retVal = retVal + 1
-        if retVal > 0:
-            building_object.item["updated_by"] = "Alignment.assign_parameter_by_code"
+            retval = retval + 1
+        if retval > 0:
+            building_object.updated_by = "Alignment.assign_parameter_by_code"
             building_object.save()
-        return retVal
+        return retval
 
     # {"p_parm":b_data_analysis_perc,"values":list(pers)}
     # {"bin_no":float(b_data_analysis_bins),"items":bins_info}
@@ -179,7 +193,7 @@ class Alignment(BaseSmtModel):
 
     def assign_samples_by_code(self, building_object, param_key, content, p_code):
         bcode = building_object.item["bldg_code"]
-        retVal = 0
+        retval = 0
         # aghensi@2160506: salvo separatamente i valori relativi a diversi alignment set
         as_code = self.item["alignment_set_code"]
         if as_code not in building_object.item:
@@ -194,8 +208,8 @@ class Alignment(BaseSmtModel):
                               bcode, p_code, param_key)
             building_object.item[as_code][param_key][p_code] = self._create_building_samples(content)
         building_object.save()
-        retVal = retVal + 1
-        return retVal
+        retval = retval + 1
+        return retval
 
     # parametri geomeccanici relativi al cavo, utilizzati sia per il calcolo volume perso lungo
     # lo scudo, che per il calcolo della curva dei cedimenti. I parametri sono:
@@ -207,7 +221,7 @@ class Alignment(BaseSmtModel):
     # dist = distanza tra il baricentro dello strato considerato e l'asse del tunnel
     # prendo in considerazione tutti gli strati con top superiore a z_tun meno un diametro
     def define_tun_param(self):
-        retVal = "XXX"
+        retval = "XXX"
         align = BaseStruct(self.item)
         r_excav = align.TBM.excav_diameter/2.0
         z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + r_excav
@@ -249,10 +263,10 @@ class Alignment(BaseSmtModel):
         self.item["ci_tun"] = ci_tun
         self.item["beta_tun"] = beta_tun
         self.save()
-        return retVal
+        return retval
 
     def define_face_param(self):
-        retVal = "XXX"
+        retval = "XXX"
         align = BaseStruct(self.item)
         r_excav = align.TBM.excav_diameter/2.0
         z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + r_excav
@@ -289,10 +303,10 @@ class Alignment(BaseSmtModel):
         self.item["phi_face"] = phi_face
         self.item["ci_face"] = ci_face
         self.save()
-        return retVal
+        return retval
 
     def define_face_param_sample(self, strata_sample):
-        retVal = "XXX"
+        retval = "XXX"
         align = BaseStruct(self.item)
         r_excav = align.TBM.excav_diameter/2.0
         z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + r_excav
@@ -328,7 +342,7 @@ class Alignment(BaseSmtModel):
         self.item["young_face"] = young_face
         self.item["phi_face"] = phi_face
         self.item["ci_face"] = ci_face
-        return retVal
+        return retval
 
     def define_buffer(self, buffer_size=1.0):
         buff = 0.
@@ -357,7 +371,7 @@ class Alignment(BaseSmtModel):
             self.logger.debug("building %s added to PK %f", b_code, self.item["PK"])
         return len(self.building_items)
 
-    def init_dtype_array(self, retVal):
+    def init_dtype_array(self, retval):
         b_dtype = None
         a_dtype = None
         s_dtype = None
@@ -368,7 +382,7 @@ class Alignment(BaseSmtModel):
         b_formats = []
         s_names = []
         s_formats = []
-        for key, val in retVal.iteritems():
+        for key, val in retval.iteritems():
             if key not in ["BUILDINGS", "SETTLEMENTS", "keep_it"]:
                 if isinstance(val, float):
                     a_formats.append('f4')
@@ -377,7 +391,7 @@ class Alignment(BaseSmtModel):
                     a_formats.append('i4')
                     a_names.append(key)
                 self.item[key] = {}
-        for idx, b in enumerate(retVal["BUILDINGS"]):
+        for idx, b in enumerate(retval["BUILDINGS"]):
             self.append_building_items(b["bldg_code"])
             if idx == 0:
                 for key, val in b.iteritems():
@@ -392,8 +406,8 @@ class Alignment(BaseSmtModel):
                         if key in self.item["BUILDINGS"][idx]:
                             self.item["BUILDINGS"][idx][key] = {}
                 b_dtype = {'names':b_names, 'formats':b_formats}
-                b_len = len(retVal["BUILDINGS"])
-        for s in retVal["SETTLEMENTS"]:
+                b_len = len(retval["BUILDINGS"])
+        for s in retval["SETTLEMENTS"]:
             s_names.append("%d"% s["code"])
             s_formats.append("f4")
         self.item["SETTLEMENTS"] = []
@@ -405,7 +419,7 @@ class Alignment(BaseSmtModel):
 
     # danzi.tn@20160409 samples degli strati e di progetto
     def doit(self, parm):
-        retVal = {}
+        retval = {}
         b_len = 0
         s_values = a_values = b_values = None
         self.building_items = {}
@@ -420,20 +434,20 @@ class Alignment(BaseSmtModel):
             if self.strata_samples["type"] == "c":
                 self.logger.debug("iteration type = %s " % str(sample["type"]))
             self.define_face_param_sample(sample)
-            retVal = self.doit_sample(parm, sample, buildings_limits, buildings_to_skip)
+            retval = self.doit_sample(parm, sample, buildings_limits, buildings_to_skip)
             # per il primo giro definisco la struttura degli array, verifico e recupero i building critici
             if i == 0:
-                bKeepAlign, a_values, b_values, b_len, s_values, buildings_to_keep, buildings_to_skip = self._prepare_samples(retVal)
+                bKeepAlign, a_values, b_values, b_len, s_values, buildings_to_keep, buildings_to_skip = self._prepare_samples(retval)
             # assegno ad a_values i valori del campione i-esimo (corrente)
             for key in a_values.dtype.names:
-                a_values[i][key] = retVal[key]
+                a_values[i][key] = retval[key]
             # per ogni settlement
-            for s in retVal["SETTLEMENTS"]:
+            for s in retval["SETTLEMENTS"]:
                 s_values[i]["%d" % s["code"]] = s["value"]
             # se ci sono buildings (non è detto)
             if b_len > 0:
                 # per ogni building trattato dal calcolo (alcuni potrebbero venire scartati)
-                for idx, b in enumerate(retVal["BUILDINGS"]):
+                for idx, b in enumerate(retval["BUILDINGS"]):
                     # assegno a b_values i valori del campione i-esimo (corrente)b
                     for key in b_values.dtype.names:
                         b_values[i][idx][key] = b[key]
@@ -462,35 +476,35 @@ class Alignment(BaseSmtModel):
                 self._map_b_samples(b_values, std_np_func)
         self.save()
 
-    def _assign_values(self, retVal, a_values, b_values, b_len, s_values):
+    def _assign_values(self, retval, a_values, b_values, b_len, s_values):
         for key in a_values.dtype.names:
-            a_values[i][key] = retVal[key]
+            a_values[i][key] = retval[key]
         # per ogni settlement
-        for s in retVal["SETTLEMENTS"]:
+        for s in retval["SETTLEMENTS"]:
             s_values[i]["%d" % s["code"]] = s["value"]
         # se ci sono buildings (non è detto)
         if b_len > 0:
             # per ogni building
-            for idx, b in enumerate(retVal["BUILDINGS"]):
+            for idx, b in enumerate(retval["BUILDINGS"]):
                 b_codes.append(b["bldg_code"])
                 # assegno a b_values i valori del campione i-esimo (corrente)b
                 for key in b_values.dtype.names:
                     b_values[i][idx][key] = b[key]
 
-    def _prepare_samples(self, retVal):
+    def _prepare_samples(self, retval):
         # di base c'è un'iterazione sola, se poi viene superata la soglia di vulnerability allora si procede con monte carlo
         bKeepAlign = False
         buildings_to_keep = []
         buildings_to_skip = []
         samples_len = 1
-        if "keep_it" in retVal:
-            bKeepAlign = retVal["keep_it"]
+        if "keep_it" in retval:
+            bKeepAlign = retval["keep_it"]
             self.logger.debug("keep this alignment and perform monte carlo")
             # tolgo il primo campione, che è quello base
             samples_len = len(self.strata_samples["items"])
             # al primo giro verifico quali buildings togliere
             # per ogni building
-            for idx, b in enumerate(retVal["BUILDINGS"]):
+            for idx, b in enumerate(retval["BUILDINGS"]):
                 if "keep_it" in b:
                     buildings_to_keep.append(b)
                 else:
@@ -499,7 +513,7 @@ class Alignment(BaseSmtModel):
         else:
             self.logger.debug("go a head widthout monte carlo")
             self.item["keep_analysis"] = False
-        a_dtype, b_dtype, b_len, s_dtype = self.init_dtype_array(retVal)
+        a_dtype, b_dtype, b_len, s_dtype = self.init_dtype_array(retval)
         # dichiaro le matrici a_values, s_values con tutti i samples degli alignment e relativi settlements
         a_values = np.zeros(samples_len, dtype=a_dtype)
         s_values = np.zeros(samples_len, dtype=s_dtype)
@@ -680,7 +694,7 @@ class Alignment(BaseSmtModel):
 
     def doit_sample(self, parm, strata_sample, buildings_limits, buildings_to_skip):
         b_keep_pk = False
-        retVal = {"BUILDINGS":[]}
+        retval = {"BUILDINGS":[]}
         # BaseStruct converte un dizionario in un oggetto la cui classe ha come attributi gli elementi del dizionario
         # per cui se ho d={"a":2,"c":3} con o=BaseStruct(d) => d.a == 2 e d.c == 3
         # a volte ci sono elementi che durante import non hanno recuperato DEM e Stratigrafia, per questo bisogna mettere try
@@ -1093,7 +1107,7 @@ class Alignment(BaseSmtModel):
                                                   key, sCriteria)
                             else:
                                 self.logger.debug("\t\t skip this building")
-                    retVal["BUILDINGS"].append(building_item)
+                    retval["BUILDINGS"].append(building_item)
                     self.logger.debug("doit_sample added building_item %s" % str(building_item))
                     # danzi.tn@20160408 end
                     # fin qui refactor on parameter min vs actual
@@ -1146,35 +1160,35 @@ class Alignment(BaseSmtModel):
 
             # Assegno il valore COB alla PK
             # {'col1':('i1',0,'title 1'), 'col2':('f4',1,'title 2')}
-            retVal["COB"] = fCob
-            retVal["P_TAMEZ"] = p_tamez
-            retVal["P_WT"] = p_wt
+            retval["COB"] = fCob
+            retval["P_TAMEZ"] = p_tamez
+            retval["P_WT"] = p_wt
             # Assegno il valore BLOWUP alla PK
-            retVal["BLOWUP"] = fBlowUp
-            retVal["P_EPB"] = p_tbm
-            retVal["P_EPB_BASE"] = p_tbm_base
-            retVal["VOLUME_LOSS"] = eps0
-            retVal["VOLUME_LOSS_BASE"] = eps0_base
-            retVal["K_PECK"] = k_peck
-            retVal["SETTLEMENT_MAX"] = damage_pk.s_max
-            retVal["TILT_MAX"] = damage_pk.beta_max
-            retVal["EPS_H_MAX"] = damage_pk.esp_h_max
-            retVal["SETTLEMENTS"] = sett_list
+            retval["BLOWUP"] = fBlowUp
+            retval["P_EPB"] = p_tbm
+            retval["P_EPB_BASE"] = p_tbm_base
+            retval["VOLUME_LOSS"] = eps0
+            retval["VOLUME_LOSS_BASE"] = eps0_base
+            retval["K_PECK"] = k_peck
+            retval["SETTLEMENT_MAX"] = damage_pk.s_max
+            retval["TILT_MAX"] = damage_pk.beta_max
+            retval["EPS_H_MAX"] = damage_pk.esp_h_max
+            retval["SETTLEMENTS"] = sett_list
             if consolidation != "none":
-                retVal["CONSOLIDATION"] = consolidation
-            retVal["CONSOLIDATION_VALUE"] = consolidation_value
-            retVal["SENSIBILITY"] = sensibility_pk
-            retVal["DAMAGE_CLASS"] = damage_class_pk
-            retVal["VULNERABILITY"] = vulnerability_pk
-            retVal["DAMAGE_CLASS_BASE"] = damage_class_pk_base
-            retVal["VULNERABILITY_BASE"] = vulnerability_pk_base
+                retval["CONSOLIDATION"] = consolidation
+            retval["CONSOLIDATION_VALUE"] = consolidation_value
+            retval["SENSIBILITY"] = sensibility_pk
+            retval["DAMAGE_CLASS"] = damage_class_pk
+            retval["VULNERABILITY"] = vulnerability_pk
+            retval["DAMAGE_CLASS_BASE"] = damage_class_pk_base
+            retval["VULNERABILITY_BASE"] = vulnerability_pk_base
 
-            retVal["sensibility_vbr_pk"] = sensibility_vbr_pk
-            retVal["vibration_speed_mm_s_pk"] = vibration_speed_mm_s_pk
-            retVal["damage_class_vbr_pk"] = damage_class_vbr_pk
-            retVal["vulnerability_vbr_pk"] = vulnerability_vbr_pk
+            retval["sensibility_vbr_pk"] = sensibility_vbr_pk
+            retval["vibration_speed_mm_s_pk"] = vibration_speed_mm_s_pk
+            retval["damage_class_vbr_pk"] = damage_class_vbr_pk
+            retval["vulnerability_vbr_pk"] = vulnerability_vbr_pk
             if b_keep_pk:
-                retVal["keep_it"] = b_keep_pk
+                retval["keep_it"] = b_keep_pk
             self.logger.debug("\tAnalisi di volume perso")
             self.logger.debug("\tParametri geomeccanici mediati:")
             self.logger.debug("\t\tTensione totale verticale =%f kPa e pressione falda =%f kPa",
@@ -1199,7 +1213,7 @@ class Alignment(BaseSmtModel):
 
         #except AttributeError as ae:
         #    self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
-        return retVal
+        return retval
 
     def _calc_cob(self, code, z_base_ref_stratus, z_top_ref_stratus, inom, c_tr, phi_tr, z_wt,
                   z_tun, gamma_muck, z_base, z_top, sigma_v, fCob):
