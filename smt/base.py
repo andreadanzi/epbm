@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 '''classe di base per le collection del database'''
 import logging
-import csv
-import os
 import datetime
-from .utils import toFloat
+from helpers import get_csv_dict_list
 
 class BaseStruct(object):
     '''classe che trasforma un dizionario in oggetto con attributi'''
@@ -126,22 +124,18 @@ class BaseSmtModel(object):
             * csv_file_path (string): percorso del file CSV
             * delete_existing (bool, default=False): cancella tutti gli elementi della collection
         '''
-        if not os.path.exists(csv_file_path):
-            cls.logger.warn('cannot find file %s', csv_file_path)
-            return
-        with open(csv_file_path, 'rb') as csvfile:
-            rows = []
-            csv_reader = csv.DictReader(csvfile, delimiter=';')
-            for row in csv_reader:
-                for key, value in row.iteritems():
-                    # HACK: bldg_code deve restare stringa - oppure uso sempre toFloat?
-                    if key != "bldg_code":
-                        row[key] = toFloat(value)
+        try:
+            req_fields = cls.REQUIRED_CSV_FIELDS
+        except AttributeError:
+            req_fields = None
+        logger = logging.getLogger('smt_main.' + cls.__name__)
+        obj_list = get_csv_dict_list(csv_file_path, logger, req_fields)
+        if obj_list:
+            for row in obj_list:
                 row["created"] = datetime.datetime.utcnow()
                 row["updated"] = datetime.datetime.utcnow()
-                rows.append(row)
             #db.Alignment.insert(rows)
             collection = db[cls.__name__]
             if delete_existing:
                 collection.remove()
-            collection.insert(rows)
+            collection.insert(obj_list)

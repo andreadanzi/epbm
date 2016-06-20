@@ -9,10 +9,12 @@ from lxml import etree
 from shapely.geometry import MultiPoint, mapping, asShape
 from shapely.ops import transform
 import ifcopenshell
+import helpers
 from utils import toFloat
 from helpers import transform_to_wgs
 from base import BaseSmtModel
 from building import Building
+from schedule import WBS
 
 # danzi.tn@20160418 pulizia sui Buildings del progetto dei dati di analisi=>clear_building_analysis
 class Project(BaseSmtModel):
@@ -26,8 +28,8 @@ class Project(BaseSmtModel):
             a_collection.remove({"alignment_set_id":als["_id"]})
         as_collection.remove({"project_id":self._id})
         # danzi.tn@20160407 nuova collection ReferenceStrata
-        for db_collection in ["Building", "BuildingClass", "UndergroundStructureClass", "Domain",
-                              "UndergroundUtilityClass", "OvergroundInfrastructureClass",
+        # aghensi@20160620 unica collection ElementClass
+        for db_collection in ["Building", "ElementClass", "Domain", "WBS",
                               "VibrationClass", "ReferenceStrata", "StrataSurfacePoints"]:
             self.db[db_collection].remove({"project_id":self._id})
 
@@ -52,28 +54,43 @@ class Project(BaseSmtModel):
 
 
     def import_objects(self, class_name, csv_file_path):
-        '''importa gli oggetti dal database
+        '''importa gli oggetti nel database
 
         trasforma tutti gli attributi possibili in float e il valore di 'code' in uppercase'''
-        if not os.path.exists(csv_file_path):
-            self.logger.warning('il file %s non esiste', csv_file_path)
-            return
-        with open(csv_file_path, 'rb') as csvfile:
-            rows = []
-            csv_reader = csv.DictReader(csvfile, delimiter=';')
-            for row in csv_reader:
-                for key, value in row.iteritems():
-                    # aghensi@20160503 HACK per mantenere bldg_code testo
-                    if key != "bldg_code":
-                        row[key] = toFloat(value)
-                    # danzi.tn@20160408 i codici sono sempre UPPERCASE
-                    if key == "code":
-                        row[key] = value.upper()
-                row["project_id"] = self._id
-                row["created"] = datetime.datetime.utcnow()
-                row["updated"] = datetime.datetime.utcnow()
-                rows.append(row)
-            self.db[class_name].insert(rows)
+        try:
+            req_fields = eval(class_name).REQUIRED_CSV_FIELDS
+        except AttributeError:
+            req_fields = None
+        obj_list = helpers.get_csv_dict_list(csv_file_path, self.logger, req_fields)
+        if obj_list:
+            common_dict ={"project_id": self._id,
+                          "created": datetime.datetime.utcnow(),
+                          "updated": datetime.datetime.utcnow()}
+            obj_list = [obj_dict.update(common_dict) for obj_dict in obj_list]
+            self.db[class_name].insert(obj_list)
+
+
+    def import_schedule(self, csv_file_path):
+        '''importa il cronoprogramma e assegna le WBS agli alignment relativi'''
+        wbs_list = helpers.get_csv_dict_list(csv_file_path, self.logger, WBS.REQUIRED_CSV_FIELDS)
+        if wbs_list:
+            common_dict ={"project_id": self._id,
+                          "created": datetime.datetime.utcnow(),
+                          "updated": datetime.datetime.utcnow()}
+            a_collection = self.db['AlignmentSet']
+            for wbs_dict in wbs_list:
+                wbs_dict.update(common_dict)
+                cur_wbs = WBS(self.db, wbs_dict)
+                # start_date e end_date devono essere datetime, uso update_schedule per parsing
+                cur_wbs.update_schedule(wbs_dict['start_date'], wbs_dict['end_date'])
+                aset = a_collection.find_one({'code':cur_wbs.item['alignment_set_code']})
+                if aset:
+                    cur_wbs.item['alignment_set_id'] = aset['_id']
+                    cur_wbs.assign_to_alignment()
+                    cur_wbs.save()
+                else:
+                    self.logger.warn('Cannot find alignment_set id of alignment set %s for WBS %s',
+                                     cur_wbs.item['alignment_set_code'], cur_wbs.item['code'])
 
 
     def import_stratasurf(self, landxml_file_path, epsg):
@@ -108,7 +125,7 @@ class Project(BaseSmtModel):
             wgs_surf = transform(transform_to_wgs(epsg), MultiPoint(coords))
             surf_list.append({
                 "strata_id": surface.get("id"),
-                "CODE": surface.get("desc"), #.upper()?
+                "code": surface.get("desc"), #.upper()?
                 "geometry": {"type": "MultiPoint", "coordinates": coords},
                 "geom_wgs": mapping(wgs_surf), #trasforma oggetto shapely in geoJSON
                 # memorizzo il massimo delle z per avere strati ordinati
@@ -133,6 +150,7 @@ class Project(BaseSmtModel):
         Returns:
             bool - True se il file esiste e sono stati estratti degli elementi con proprietà
         '''
+        #TODO: controllo unità misura...
         if not os.path.exists(ifcpath):
             self.logger.warning('cannot find file %s', ifcpath)
             return False
@@ -238,8 +256,7 @@ class Project(BaseSmtModel):
                     "boundaries": boundary,
                     # uso shapely e proj per salvare coordinate WGS
                     "bound_wgs": mapping(transform(transf, asShape(boundary))),
-                    "domain_id": self._id,
-                    "project_id": self.item["project_id"],
+                    "project_id": self._id,
                     "export_matrix": trasl_rot_matrix,
                     "import_matrix": rot_trasl_matrix
                     }

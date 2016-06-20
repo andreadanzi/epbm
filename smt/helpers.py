@@ -44,13 +44,13 @@ def init_logger(logger_name, file_path, log_level):
         file_handler = logging.handlers.RotatingFileHandler(file_path, maxBytes=5000000,
                                                             backupCount=5)
         file_handler.setLevel(log_level)
-        formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+        formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(funcName)s - %(message)s')
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
         # aghensi@20160502 - messaggi critici anche su stdout
         stdout_handler = logging.StreamHandler(sys.stdout)
         stdout_handler.setLevel(logging.WARNING)
-        stdout_formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+        stdout_formatter = logging.Formatter('%(name)s - %(levelname)s - %(funcName)s - %(message)s')
         stdout_handler.setFormatter(stdout_formatter)
         logger.addHandler(stdout_handler)
         logger.handler_set = True
@@ -122,21 +122,31 @@ def get_dicts_list_keys(mylist):
 
 
 # CSV FUNCTIONS
-def get_csv_dict_list(path):
+def get_csv_dict_list(path, logger, required_fields=None):
     '''
     reads a csv file and returns a list of dictionaries using the first row as keys
+
+    if 'code' field exists the value is UPPERCASED
+    the other fields are transformed to float if possible
     '''
+    if not os.path.exists(path):
+        logger.warning('File %s not found', path)
+        return
     with open(path, 'rb') as csv_file:
         csv_reader = csv.DictReader(csv_file, delimiter=';')
+        if required_fields:
+            headers = [field.lower() for field in csv_reader.fieldnames]
+            missing_keys = []
+            for key in required_fields:
+                if not(key.lower() in headers):
+                    missing_keys.append(key)
+            if len(missing_keys) > 0:
+                logger.error('CSV file is missing required fields: %s', missing_keys)
+                return None
         rows = []
         for row in csv_reader:
-            for key, value in row.iteritems():
-                # HACK: code deve restare stringa maiuscola
-                if key == "code":
-                    row[key] = value.upper()
-                else:
-                    row[key] = toFloat(value)
-            rows.append(row)
+            rows.append({key: toFloat(value) if value != 'code' else value.upper()
+                        for key, value in row.iteritems()})
         return rows
 
 
@@ -153,6 +163,7 @@ def write_dict_list_to_csv(csv_file, csv_columns, dict_data):
     except IOError as (errno, strerror):
         print "I/O error({0}): {1}".format(errno, strerror)
     return
+
 
 # SHAPEFILE AND GIS FUNCTIONS
 
