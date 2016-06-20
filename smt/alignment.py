@@ -96,8 +96,8 @@ class Alignment(BaseSmtModel):
     #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
         retVal = 0
         #2129458 94076BC0006_01
-        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
-        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"bldg_code":bcode}, {param:{"$lte":val}}]})
+        # { "$and":[{"code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
+        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"code":bcode}, {param:{"$lte":val}}]})
         for b in bcurr:
             bldg = Building(self.db, b)
             bldg.load()
@@ -105,8 +105,8 @@ class Alignment(BaseSmtModel):
             bldg.save()
             retVal = retVal + 1
 
-        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
-        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"bldg_code":bcode}, {param:{"$exists":False}}]})
+        # { "$and":[{"code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
+        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"code":bcode}, {param:{"$exists":False}}]})
         for b in bcurr:
             bldg = Building(self.db, b)
             bldg.load()
@@ -119,7 +119,7 @@ class Alignment(BaseSmtModel):
     #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
         retVal = 0
         #2129458 94076BC0006_01
-        # { "$and":[{"bldg_code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
+        # { "$and":[{"code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
         # aghensi@2160506: salvo separatamente i valori relativi a diversi alignment set
         as_code = self.item["alignment_set_code"]
         if as_code not in building_object.item:
@@ -127,7 +127,7 @@ class Alignment(BaseSmtModel):
         if (param_key in building_object.item[as_code]
             and p_code in building_object.item[as_code][param_key]):
             # TODO: è sempre vero che deve essere minore o uguale ?
-            # prima era processato via DB {"$and":[{"project_id":self.project_id},{"bldg_code":bcode}, {"%s.%s" % (param_key,p_code):{"$lte":val}}]}
+            # prima era processato via DB {"$and":[{"project_id":self.project_id},{"code":bcode}, {"%s.%s" % (param_key,p_code):{"$lte":val}}]}
             if building_object.item[as_code][param_key][p_code] <= val:
                 building_object.item[as_code][param_key][p_code] = val
                 retVal = retVal + 1
@@ -174,7 +174,7 @@ class Alignment(BaseSmtModel):
         return content
 
     def assign_samples_by_code(self, building_object, param_key, content, p_code):
-        bcode = building_object.item["bldg_code"]
+        bcode = building_object.item["code"]
         retVal = 0
         # aghensi@2160506: salvo separatamente i valori relativi a diversi alignment set
         as_code = self.item["alignment_set_code"]
@@ -339,7 +339,7 @@ class Alignment(BaseSmtModel):
         return buff, k_peck
 
     def append_building_items(self, b_code):
-        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"bldg_code":b_code}]})
+        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"code":b_code}]})
         for b in bcurr:
             bldg = Building(self.db, b)
             bldg.load()
@@ -374,10 +374,10 @@ class Alignment(BaseSmtModel):
                     a_names.append(key)
                 self.item[key] = {}
         for idx, b in enumerate(retVal["BUILDINGS"]):
-            self.append_building_items(b["bldg_code"])
+            self.append_building_items(b["code"])
             if idx == 0:
                 for key, val in b.iteritems():
-                    if key not in ["bldg_code", "keep_it"]:
+                    if key not in ["code", "keep_it"]:
                         if isinstance(val, float):
                             b_formats.append('f4')
                             b_names.append(key)
@@ -468,7 +468,7 @@ class Alignment(BaseSmtModel):
         if b_len > 0:
             # per ogni building
             for idx, b in enumerate(retVal["BUILDINGS"]):
-                b_codes.append(b["bldg_code"])
+                b_codes.append(b["code"])
                 # assegno a b_values i valori del campione i-esimo (corrente)b
                 for key in b_values.dtype.names:
                     b_values[i][idx][key] = b[key]
@@ -490,7 +490,7 @@ class Alignment(BaseSmtModel):
                 if "keep_it" in b:
                     buildings_to_keep.append(b)
                 else:
-                    buildings_to_skip.append(b["bldg_code"])
+                    buildings_to_skip.append(b["code"])
             self.item["keep_analysis"] = True
         else:
             self.logger.debug("go a head widthout monte carlo")
@@ -516,7 +516,7 @@ class Alignment(BaseSmtModel):
 
     def _map_bitems(self, i, b_values, b_len, sCode):
         for idx in range(b_len):
-            building_object = self.building_items[self.item["BUILDINGS"][idx]["bldg_code"]]
+            building_object = self.building_items[self.item["BUILDINGS"][idx]["code"]]
             for key in b_values.dtype.names:
                 val = float(b_values[i][idx][key])
                 try:
@@ -542,9 +542,9 @@ class Alignment(BaseSmtModel):
         b_data_analysis_perc = self.strata_samples["DATA_ANALYSIS"]["b"]["per"]
         b_data_analysis_bins = self.strata_samples["DATA_ANALYSIS"]["b"]["bins"]
         for idx, b_item in enumerate(self.item["BUILDINGS"]):
-            building_object = self.building_items[b_item["bldg_code"]]
+            building_object = self.building_items[b_item["code"]]
             for key in b_values.dtype.names:
-                #if self.item["BUILDINGS"][idx]["bldg_code"] in buildings_to_keep:
+                #if self.item["BUILDINGS"][idx]["code"] in buildings_to_keep:
                 b_samples = b_values[1:][idx][key]
                 nSize = len(b_samples)
                 for func_names, np_func in std_np_func.iteritems():
@@ -853,9 +853,9 @@ class Alignment(BaseSmtModel):
 
             if "BUILDINGS" in self.item:
                 for idx, b in enumerate(align.BUILDINGS):
-                    building_item = {"bldg_code":str(b.bldg_code)}
+                    building_item = {"code":str(b.code)}
                     self.logger.debug("\tAnalisi edificio %s con classe di sensibilita' %s",
-                                      b.bldg_code, b.sc_lev)
+                                      b.code, b.sc_lev)
                     # leggo l'impronta dell'edificio alla pk analizzata
                     x_min = None
                     x_max = None
@@ -872,7 +872,7 @@ class Alignment(BaseSmtModel):
                         self.logger.debug("\t\timpronta da %fm a %fm e a una profondita' di %fm dal piano di campagna e con un altezza totale di %fm",
                                           x_min, x_max, b.depth_fondation, h_bldg)
                     except TypeError:
-                        self.logger.debug("Dati errati per l'edificio %s" % (b.bldg_code))
+                        self.logger.debug("Dati errati per l'edificio %s" % (b.code))
                         break
                     # calcolo delta_pk la distanza dell'edificio dalla pk corrente per correggere la distanza
                     # tengo conto anche del passo delle pk per contare fino a meta' di ogni step
@@ -1012,10 +1012,10 @@ class Alignment(BaseSmtModel):
                             p_tbm_shield = max(p_tbm-50., p_wt)
                     if vulnerability_class > 2:
                         if consolidation == "none":
-                            consolidation = b.bldg_code
+                            consolidation = b.code
                             consolidation_value = 1.
                         else:
-                            consolidation += ";" + b.bldg_code
+                            consolidation += ";" + b.code
 
                     building_item["vulnerability"] = vulnerability_class
                     building_item["damage_class"] = damage_class
@@ -1029,11 +1029,11 @@ class Alignment(BaseSmtModel):
 
                     ###Gabriele@20160409 esp critico Burland and Wroth 1974 - fine
                     """
-                    n_found = self.assign_parameter(b.bldg_code, "vulnerability", vulnerability_class)
-                    n_found = self.assign_parameter(b.bldg_code, "damage_class", damage_class)
-                    n_found = self.assign_parameter(b.bldg_code, "settlement_max", s_max_ab)
-                    n_found = self.assign_parameter(b.bldg_code, "tilt_max", beta_max_ab)
-                    n_found = self.assign_parameter(b.bldg_code, "esp_h_max", esp_h_max_ab)
+                    n_found = self.assign_parameter(b.code, "vulnerability", vulnerability_class)
+                    n_found = self.assign_parameter(b.code, "damage_class", damage_class)
+                    n_found = self.assign_parameter(b.code, "settlement_max", s_max_ab)
+                    n_found = self.assign_parameter(b.code, "tilt_max", beta_max_ab)
+                    n_found = self.assign_parameter(b.code, "esp_h_max", esp_h_max_ab)
                     """
 
                     # aghensi@20160404 - aggiunto attributi al database ma non so se è giusto
@@ -1044,10 +1044,10 @@ class Alignment(BaseSmtModel):
                     building_item["tamez"] = p_tamez
 
                     """
-                    n_found = self.assign_parameter(b.bldg_code, "eps_0", eps0)
-                    n_found = self.assign_parameter(b.bldg_code, "p_tbm", p_tbm)
-                    n_found = self.assign_parameter(b.bldg_code, "blowup", fBlowUp)
-                    n_found = self.assign_parameter(b.bldg_code, "tamez", p_tamez)
+                    n_found = self.assign_parameter(b.code, "eps_0", eps0)
+                    n_found = self.assign_parameter(b.code, "p_tbm", p_tbm)
+                    n_found = self.assign_parameter(b.code, "blowup", fBlowUp)
+                    n_found = self.assign_parameter(b.code, "tamez", p_tamez)
                     """
                     #Gabriele@20160330 Vibration analysis
                     # danzi.tn@20160408 checks if VIBRATION_LIMITS is available
@@ -1057,7 +1057,7 @@ class Alignment(BaseSmtModel):
                             if distance < 1.:
                                 distance = 1.
                                 self.logger.error("Struttura %s in collisione con tunnel alla pk %f",
-                                                  b.bldg_code, align.PK)
+                                                  b.code, align.PK)
                         else:
                             ddd = min(abs(x_min), abs(x_max))
                             distance = math.sqrt(ddd**2+(copertura-b.depth_fondation)**2)
@@ -1073,9 +1073,9 @@ class Alignment(BaseSmtModel):
                         building_item["damage_class_vibration"] = damage_class_vibration
                         building_item["vibration_speed_mm_s"] = vibration_speed_mm_s
                         """
-                        n_found = self.assign_parameter(b.bldg_code, "vulnerability_class_vibration", vulnerability_class_vibration)
-                        n_found = self.assign_parameter(b.bldg_code, "damage_class_vibration", damage_class_vibration)
-                        n_found = self.assign_parameter(b.bldg_code, "vibration_speed_mm_s", vibration_speed_mm_s)
+                        n_found = self.assign_parameter(b.code, "vulnerability_class_vibration", vulnerability_class_vibration)
+                        n_found = self.assign_parameter(b.code, "damage_class_vibration", damage_class_vibration)
+                        n_found = self.assign_parameter(b.code, "vibration_speed_mm_s", vibration_speed_mm_s)
                         """
                     for key, val in buildings_limits.iteritems():
                         criteria_tuple = eval(val)
@@ -1103,7 +1103,7 @@ class Alignment(BaseSmtModel):
                         vulnerability_vbr_pk = max(vulnerability_class_vibration,
                                                    vulnerability_vbr_pk)
                     #, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab)
-                    # print "%d %d %s" %(n_found, align.PK, b.bldg_code )
+                    # print "%d %d %s" %(n_found, align.PK, b.code )
                     self.logger.debug("\t\tp_tbm = %f, s_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f, eps_0 = %f",
                                       p_tbm, s_max_ab, beta_max_ab, esp_h_max_ab,
                                       vulnerability_class, eps0)

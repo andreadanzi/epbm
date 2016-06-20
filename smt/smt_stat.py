@@ -20,17 +20,17 @@ class CNorm:
     mean=0
     def __init__(self, mean):
         self.mean = mean
-    
+
     def ppf(self, perc):
         return self.mean
-    
+
     def rvs(self, size=1):
         if size > 1:
             return np.full(size,self.mean)
         return self.mean
 
-#danzi.tn@20160407 norma troncata sulla base del 99% 
-def get_truncnorm(vmin,vmax,name='',p=99.,nIter=1000):
+#danzi.tn@20160407 norma troncata sulla base del 99%
+def get_truncnorm(vmin, vmax, name='', p=99., nIter=1000):
     vmin = float(vmin)
     vmax = float(vmax)
     if vmin < 0 or vmax < 0:
@@ -69,14 +69,16 @@ def get_truncnorm_avg(your_avg, your_sigma, p=99):
     return myNorm
 
 #danzi.tn@20160407 distribuzione triangolare
-def get_triang(minVal,avgVal,maxVal):
-    minVal = float(minVal)
-    avgVal = float(avgVal)
-    maxVal = float(maxVal)
-    c = (avgVal-minVal)/(maxVal-minVal)
+def get_triang(minVal, avgVal, maxVal):
+    minVal, avgVal, maxVal = sorted([float(minVal), float(avgVal), float(maxVal)])
+    try:
+        c = (avgVal-minVal)/(maxVal-minVal)
+    except ZeroDivisionError:
+        c = 1
     loc = minVal
     scale = maxVal-minVal
     return triang(c, loc=loc,scale=scale)
+
 
 def assign_standard_strata_samples(rs_items,samples,nSamples):
     log = logging.getLogger('smt_main')
@@ -112,7 +114,7 @@ def assign_standard_strata_samples(rs_items,samples,nSamples):
             samples["items"][1][rs_item["code"]]= BaseStruct({"inom":i_samples, "e": e_samples , "phi_tr" : phi_samples, "c_tr" : c_samples, "k0" : k0_samples })
     return samples
 
-    
+
 def assign_custom_strata_samples(rs_items,samples,custom_type_tuple):
     log = logging.getLogger('smt_main')
     log.debug('assign_custom_strata_samples started')
@@ -189,8 +191,8 @@ def assign_base_strata_percentiles(t_norm,triVLoss, rs_items,samples,base_percen
         log.debug('\t\tbase c_sample=%f ' % c_sample)
         log.debug('\t\tbase k0_sample=%f ' % k0_sample)
     return samples
-    
-    
+
+
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(1, 1)
@@ -242,7 +244,7 @@ if __name__ == '__main__':
     soglie = [17.2,17.8,18.2,18.6]
     for s in  soglie:
         print u"Sotto %f c'è il %f percento del campione" % (s,percentileofscore(samples,s))
-        
+
     # PLOT
     # valori per asse x
     x = np.linspace(0, 50, 100)
@@ -256,7 +258,7 @@ if __name__ == '__main__':
     ax.hist(samples,5, normed=True, histtype='stepfilled', alpha=0.2)
     ax.legend(loc='best', frameon=False)
     plt.show()
-    # 
+    #
     fig, ax = plt.subplots()
     func = get_triang(0.09, .095, .1)
     print func.ppf(0.5)

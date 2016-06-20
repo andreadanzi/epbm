@@ -19,6 +19,9 @@ from schedule import WBS
 # danzi.tn@20160418 pulizia sui Buildings del progetto dei dati di analisi=>clear_building_analysis
 class Project(BaseSmtModel):
     '''Classe del progetto'''
+    REQUIRED_CSV_FIELDS = ('code', 'align_scan_length', 'epsg')
+
+
     def delete_referencing(self):
         '''cancella tutti gli oggetti che appartengono al progetto'''
         # aghensi@20160406 aggiunta eliminazione di edifici e classi relativi al progetto
@@ -86,7 +89,7 @@ class Project(BaseSmtModel):
                 aset = a_collection.find_one({'code':cur_wbs.item['alignment_set_code']})
                 if aset:
                     cur_wbs.item['alignment_set_id'] = aset['_id']
-                    cur_wbs.assign_to_alignment()
+                    cur_wbs.assign_to_alignment(self.item['align_scan_length'])
                     cur_wbs.save()
                 else:
                     self.logger.warn('Cannot find alignment_set id of alignment set %s for WBS %s',

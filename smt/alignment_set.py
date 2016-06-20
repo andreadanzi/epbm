@@ -221,9 +221,9 @@ class AlignmentSet(BaseSmtModel):
                 prop = {"alignment_set_id": self._id, "alignment_code": self.item["code"],
                         "pk_min": row["pk_min"], "pk_max": row["pk_max"],
                         "d_min": row["d_min"], "d_max": row["d_max"]}
-                ccurr = building_coll.find({"bldg_code": building_code})
+                ccurr = building_coll.find({"code": building_code})
                 if ccurr.count == 0:
-                    self.logger.error("Building with bldg_code = %s not found!", building_code)
+                    self.logger.error("Building with code = %s not found!", building_code)
                 for bitem in ccurr:
                     self.logger.debug("Buliding %s found", building_code)
                     building = Building(self.db, bitem)

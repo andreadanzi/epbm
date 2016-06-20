@@ -66,8 +66,8 @@ def get_bldg_data(quali_dati, bcurr, mongodb, logger):
     for item in bcurr:
         building = Building(mongodb, item)
         building.load()
-        bldg_code = building.item["bldg_code"]
-        logger.debug("Reading building %s data", bldg_code)
+        code = building.item["code"]
+        logger.debug("Reading building %s data", code)
         out_item = {}
         shp_item = {}
         for dato in quali_dati:
@@ -125,13 +125,13 @@ def update_bldg_shp(shp_path, shp_headers, shp_dicts, logger):
     if not layer:
         return
     for building in shp_dicts:
-        bldg_feature = helpers.find_first_feature(layer, "bldg_code", building["bldg_code"])
+        bldg_feature = helpers.find_first_feature(layer, "code", building["code"])
         if not bldg_feature:
-            logger.warning("No feature with bldg_code %s found", building["bldg_code"])
+            logger.warning("No feature with code %s found", building["code"])
         else:
             for key, value in building.iteritems():
                 #logger.debug("Trying to set field %s of building %s to value %0.10f",
-                #             dato["shp_field"][:10], bldg_code, field_value)
+                #             dato["shp_field"][:10], code, field_value)
                 bldg_feature.SetField(key[:10], value)
             layer.SetFeature(bldg_feature)
     shape_data.Destroy()
@@ -141,8 +141,8 @@ def update_bldg_shp(shp_path, shp_headers, shp_dicts, logger):
 #            if "WKT" in building.item:
 #                bldg_feature = helpers.create_feature_from_wkt(layer, building.item["WKT"])
 #            else:
-#                logger.warning("Feature with bldg_code %s not created, missing WKT definition",
-#                               bldg_code)
+#                logger.warning("Feature with code %s not created, missing WKT definition",
+#                               code)
 #    else:
 #        wktcurr = Building.find(mongodb,
 #                                {"$and": [{"project_id": project._id},

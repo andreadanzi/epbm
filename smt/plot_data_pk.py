@@ -298,9 +298,9 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
                             ws2.cell(column=19, row=1, value="Volume Loss Base")
                             ws2.cell(column=20, row=1, value="Volume Loss")
                             for row, b_align in enumerate(align.BUILDINGS):
-                                b_dict = db.Building.find_one({"bldg_code":b_align.bldg_code})
+                                b_dict = db.Building.find_one({"code":b_align.code})
                                 b = BaseStruct(b_dict)
-                                ws2.cell(column=1, row=row+2, value="%s" % b.bldg_code)
+                                ws2.cell(column=1, row=row+2, value="%s" % b.code)
                                 ws2.cell(column=2, row=row+2, value=b.d_min)
                                 ws2.cell(column=3, row=row+2, value=b.d_max)
                                 ws2.cell(column=4, row=row+2, value=b.depth_fondation)

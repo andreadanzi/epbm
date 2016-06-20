@@ -38,7 +38,7 @@ class Building(BaseSmtModel):
         for key in b_values_dtype_names:
             if key in self.item:
                 self.item[key] = {}
-                self.logger.debug("_clear_buildings_data on %s->%s", self.item["bldg_code"], key)
+                self.logger.debug("_clear_buildings_data on %s->%s", self.item["code"], key)
 
 
     def doit(self, parm):
