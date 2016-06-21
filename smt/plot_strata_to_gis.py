@@ -25,7 +25,7 @@ def export_pk_data_csv(authenticate, project_code):
         return
 
     logger.info("Logged in")
-    pd = mongodb.Project.find_one({"project_code":project_code})
+    pd = mongodb.Project.find_one({"code":project_code})
     if not pd:
         logger.error("Project %s not found!", pd["project_name"])
         helpers.destroy_logger(logger)

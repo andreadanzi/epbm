@@ -37,7 +37,7 @@ def export_buildings_data(project_code, authenticate):
         return
     # EXPORT BUILDINGS CALCULATED DATA
 
-    projdb = mongodb.Project.find_one({"project_code":project_code})
+    projdb = mongodb.Project.find_one({"code":project_code})
     if not projdb:
         logger.error("Il progetto dal codice %s non esiste!", project_code)
         return

@@ -12,7 +12,7 @@ from bson.objectid import ObjectId
 # create main logger
 logger = logging.getLogger('smt_main')
 logger.setLevel(logging.DEBUG)
-# create a rotating file handler which logs even debug messages 
+# create a rotating file handler which logs even debug messages
 fh = logging.handlers.RotatingFileHandler('export_pk.log',maxBytes=5000000, backupCount=5)
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
@@ -34,7 +34,7 @@ db = client[database]
 # DB authentication
 db.authenticate(username,password,source=source_database)
 # Search for project_code = "MFW001_0-010 Metro Paris-Ligne 15_T2A"
-pd = db.Project.find_one({"project_code":"MFW001_0-010 Metro Paris-Ligne 15_T2A"})
+pd = db.Project.find_one({"code":"MFW001_0-010 Metro Paris-Ligne 15_T2A"})
 p = Project(db, pd)
 p.load()
 found_domains = Domain.find(db, {"project_id": p._id})

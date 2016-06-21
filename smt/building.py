@@ -6,7 +6,7 @@ Classe Edificio e altro elemento strutturale/infrastrutturale
 # danzi.tn@20160312 import delle PK di riferimento sui building
 # danzi.tn@20160418 pulizia sul Building dei dati di analisi => clear_analysis
 # aghensi@201605XX spostamento import PK in alignment_set
-from .base import BaseSmtModel
+from base import BaseSmtModel
 
 class Building(BaseSmtModel):
     '''

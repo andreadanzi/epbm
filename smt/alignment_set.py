@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''alignment set - tracciato'''
 import datetime
 from shapely.geometry import asShape, mapping

@@ -186,7 +186,7 @@ def plot_data(authenticate, project_code, type_of_analysis):
 
     if logged_in:
         logger.info("Logged in")
-        pd = mongodb.Project.find_one({"project_code":project_code})
+        pd = mongodb.Project.find_one({"code":project_code})
         if pd:
             logger.info("Project %s found", pd["project_name"])
             p = Project(mongodb, pd)

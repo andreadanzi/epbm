@@ -126,7 +126,7 @@ def plot_data(project_code, authenticate, type_of_analysis):
     mpl.rcParams.update({'font.size': 6})
     if logged_in:
         logger.info("Logged in")
-        pd = mongodb.Project.find_one({"project_code":project_code})
+        pd = mongodb.Project.find_one({"code":project_code})
         if pd:
             logger.info("Project %s found", pd["project_name"])
             p = Project(mongodb, pd)

@@ -15,6 +15,12 @@ from base import BaseSmtModel
 from building import Building
 from schedule import WBS
 from tbm import TBM
+from reference_strata import ReferenceStrata
+from domain import Domain
+from element_class import ElementClass
+from vibration_class import VibrationClass
+from corridor import Corridor
+from alignment_set import AlignmentSet
 
 # danzi.tn@20160418 pulizia sui Buildings del progetto dei dati di analisi=>clear_building_analysis
 class Project(BaseSmtModel):
@@ -65,10 +71,10 @@ class Project(BaseSmtModel):
             req_fields = None
         obj_list = get_csv_dict_list(csv_file_path, self.logger, req_fields)
         if obj_list:
-            common_dict ={"project_id": self._id,
-                          "created": datetime.datetime.utcnow(),
-                          "updated": datetime.datetime.utcnow()}
-            obj_list = [obj_dict.update(common_dict) for obj_dict in obj_list]
+            for obj_dict in obj_list:
+                obj_dict["project_id"] = self._id
+                obj_dict["created"] = datetime.datetime.utcnow()
+                obj_dict["updated"] = datetime.datetime.utcnow()
             self.db[class_name].insert(obj_list)
 
 
@@ -237,20 +243,15 @@ class Project(BaseSmtModel):
         i vertici del sottodominio sono salvati in "boundaries" e pronti per essere utilizzati
         con la query campo: {$geoWithin: {$polygon: boundaries}}
         '''
-        if not os.path.exists(csv_file_path):
-            self.logger.warning('il file %s non esiste', csv_file_path)
-            return
-        with open(csv_file_path, 'rb') as csvfile:
-            domain_reader = csv.DictReader(csvfile, delimiter=';')
+        domain_list = get_csv_dict_list(csv_file_path, self.logger, Domain.REQUIRED_CSV_FIELDS)
+        if domain_list:
             domains = []
-            self.logger.debug('import_domains - starting reading %d rows from %s',
-                              len(domain_reader), csv_file_path)
             transf = transform_to_wgs(self.item['epsg'])
-            for row in domain_reader:
-                x_1 = toFloat(row["x1"])
-                y_1 = toFloat(row["y1"])
-                x_2 = toFloat(row["x2"])
-                y_2 = toFloat(row["y2"])
+            for row in domain_list:
+                x_1 = row["x1"]
+                y_1 = row["y1"]
+                x_2 = row["x2"]
+                y_2 = row["y2"]
                 tetha = degrees(atan2(y_2 - y_1, x_2 - x_1))
                 cos_t = cos(tetha)
                 sin_t = sin(tetha)
@@ -265,24 +266,18 @@ class Project(BaseSmtModel):
                     "coordinates": [
                         [x_1, y_1],
                         [x_2, y_2],
-                        [toFloat(row["x3"]), toFloat(row["y3"])],
-                        [toFloat(row["x4"]), toFloat(row["y4"])],
+                        [row["x3"], row["y3"]],
+                        [row["x4"], row["y4"]],
                         [x_1, y_1]
                         ]
                     }
-                domain = {
-                    "code": row["code"],
-                    "boundaries": boundary,
-                    # uso shapely e proj per salvare coordinate WGS
-                    "bound_wgs": mapping(transform(transf, asShape(boundary))),
-                    "project_id": self._id,
-                    "export_matrix": trasl_rot_matrix,
-                    "import_matrix": rot_trasl_matrix
-                    }
+                row["boundaries"] = boundary,
+                # uso shapely e proj per salvare coordinate WGS
+                row["bound_wgs"] =mapping(transform(transf, asShape(boundary))),
+                row["project_id"] = self._id,
+                row["export_matrix"] = trasl_rot_matrix,
+                row["import_matrix"] = rot_trasl_matrix
                 # memorizzo gli altri valori
-                for key, value in row.iteritems():
-                    if not key in ("code", "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"):
-                        domain[key] = toFloat(value)
-                domains.append(domain)
+                domains.append(row) #Serve? basta usare domain_list?
             if len(domains) > 0:
                 self.db['Domain'].insert(domains)

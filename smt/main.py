@@ -10,11 +10,12 @@ import datetime
 import logging
 import logging.handlers
 
+import helpers
 from alignment import Alignment
 from alignment_set import AlignmentSet
 from project import Project
 from building import Building
-import helpers
+
 
 #PROJECT_CODE = "MDW029_S_E_05"
 
@@ -28,24 +29,24 @@ def import_all_data(project_code):
     mongodb = helpers.init_db(smt_config, True)[1]
     importdir = os.path.join(helpers.get_project_basedir(project_code), "in")
 
-    pd = mongodb.Project.find_one({"project_code":project_code})
+    pd = mongodb.Project.find_one({"code":project_code})
     if pd:
         logger.info("Deleting project %s", pd["project_name"])
         p = Project(mongodb, pd)
         p.delete()
 
-    Project.ImportFromCSVFile(os.path.join(importdir, "project.csv"), mongodb, False)
-    pd = mongodb.Project.find_one({"project_code":project_code})
+    Project.import_from_csv_file(mongodb, os.path.join(importdir, "project.csv"))
+    pd = mongodb.Project.find_one({"code":project_code})
     p = None
     # TODO: questo pezzo di codice non dovrebbe servire se imposto bene i CSV!
     if not pd:
-        p = Project(mongodb, {"project_name":project_code, "project_code":project_code})
+        p = Project(mongodb, {"project_name":project_code, "code":project_code})
         p.item["created"] = datetime.datetime.utcnow()
         p.save()
     else:
         p = Project(mongodb, pd)
     # aghensi@20160617 - importo domini per M3E, non sono più elemento contenitore di AlignmenSet
-    p.import_domains(os.path.join(importdir, "subdomains.csv"))
+    p.import_domains(os.path.join(importdir, "domains.csv"))
     # danzi.tn@20160407 nuova collection ReferenceStrata
     p.import_objects("ReferenceStrata", os.path.join(importdir, "reference_strata.csv"))
     # Import Buildings

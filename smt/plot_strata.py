@@ -25,7 +25,7 @@ def export_pk_data_csv(authenticate, project_code):
     logged_in, mongodb = helpers.init_db(smt_config, authenticate)
     if logged_in:
         logger.info("Logged in")
-        pd = mongodb.Project.find_one({"project_code":project_code})
+        pd = mongodb.Project.find_one({"code":project_code})
         if pd:
             logger.info("Project %s found", pd["project_name"])
             p = Project(mongodb, pd)

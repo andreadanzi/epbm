@@ -141,7 +141,7 @@ def get_csv_dict_list(path, logger, required_fields=None):
                 if not(key.lower() in headers):
                     missing_keys.append(key)
             if len(missing_keys) > 0:
-                logger.error('CSV file is missing required fields: %s', missing_keys)
+                logger.error('CSV file %s is missing required fields: %s', path, missing_keys)
                 return None
         rows = []
         for row in csv_reader:

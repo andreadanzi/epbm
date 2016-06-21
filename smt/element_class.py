@@ -2,7 +2,7 @@
 """
 Classe che riassume le classi di sensibilità/danno per i vari tipi di elementi
 """
-from .base import BaseSmtModel
+from base import BaseSmtModel
 
 class ElementClass(BaseSmtModel):
     '''

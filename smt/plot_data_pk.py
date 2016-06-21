@@ -207,7 +207,7 @@ def plot_data_pk(bAuthenticate, sPath, sTxt):
         bLoggedIn = True
     if bLoggedIn:
         logger.info("Logged in")
-        pd = db.Project.find_one({"project_code":PROJECT_CODE})
+        pd = db.Project.find_one({"code":PROJECT_CODE})
         if pd:
             logger.info("Project %s found" % pd["project_name"])
             p = Project(db, pd)

@@ -226,7 +226,7 @@ def export_m3e(project_code, subdomains, authenticate):
     data_basedir = helpers.get_project_basedir(project_code)
     outdir = os.path.join(data_basedir, "out", "M3E")
 
-    projdb = mongodb.Project.find_one({"project_code":project_code})
+    projdb = mongodb.Project.find_one({"code":project_code})
     if not projdb:
         logger.error("Il progetto dal codice %s non esiste!", project_code)
         return

@@ -58,7 +58,7 @@ class ReferenceStrata(BaseSmtModel):
                    "custom_type_tuple":custom_type_tuple, "items":[]}
         std_norm_samples = []
         vloss_tail_samples = []
-        pd = mongodb.Project.find_one({"project_code":project_code})
+        pd = mongodb.Project.find_one({"code":project_code})
         if pd:
             rs_items = mongodb.ReferenceStrata.find({"project_id": pd["_id"]})
             rs_items_list = list(rs_items)
