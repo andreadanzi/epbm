@@ -1,18 +1,30 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import logging
-from scipy.stats import *
+from scipy.stats import rv_discrete, truncnorm, triang, norm, percentileofscore
 from base import BaseStruct
 
-# funzione che restituisce media e sigma di una gaussiana sulla base di valori minimi e massimi al 99 percentile
-def get_sigma(min,max,p=99):
-    if min==-1 or max == -1:
+
+def get_sigma(v_min, v_max, p=99):
+    '''funzione che restituisce media e sigma di una gaussiana
+    sulla base di valori minimi e massimi al percentile 99 o 95 (default 99)
+
+    Args:
+        * v_min (float): valore minimo
+        * v_max (float): valore massimo
+        * p (int): percentile, può avere valore 95, altrimenti è 99 (default);
+
+    Returns:
+        * avg (float): media
+        * sigma (float): deviazione standard
+    '''
+    if v_min==-1 or v_max == -1:
         return -1, 0
-    avg = np.average([max,min])
+    avg = np.average([v_max,v_min])
     if p==95:
-        sigma = (max-avg)/2.0
+        sigma = (v_max-avg)/2.0
     else:
-        sigma = (max-avg)/3.0
+        sigma = (v_max-avg)/3.0
     return avg, sigma
 
 
@@ -26,7 +38,7 @@ class CNorm:
 
     def rvs(self, size=1):
         if size > 1:
-            return np.full(size,self.mean)
+            return np.full(size, self.mean)
         return self.mean
 
 #danzi.tn@20160407 norma troncata sulla base del 99%
@@ -42,7 +54,7 @@ def get_truncnorm(vmin, vmax, name='', p=99., nIter=1000):
     elif nIter < 4:
         hixk = [vmin,(vmin+vmax)/2.0,vmax]
         #la distribuzione delle tre opzioni
-        hipk = (0.2,0.6,0.2)
+        hipk = (0.2, 0.6, 0.2)
         #Custom made discrete distribution for Human Factor - da chiamare con hi[hcustm.rvs()] restituisce S N o F sulla base della distribuzione
         myNorm = rv_discrete(name='bbt_%s' % name, values=(hixk, hipk))
         return myNorm
@@ -69,14 +81,23 @@ def get_truncnorm_avg(your_avg, your_sigma, p=99):
     return myNorm
 
 #danzi.tn@20160407 distribuzione triangolare
-def get_triang(minVal, avgVal, maxVal):
-    minVal, avgVal, maxVal = sorted([float(minVal), float(avgVal), float(maxVal)])
+def get_triang(minval, avgval, maxval):
+    '''
+    aghensi@20160620 - mi assicuro che i valori siano in ordine
+    crea la distribuzione triangolare ordinando i parametri di input in modo crescente
+
+    Args:
+        * minval (float): valore minimo
+        * avgval (float): valore medio
+        * maxval (float): valore massimo
+    '''
+    minval, avgval, maxval = sorted([float(minval), float(avgval), float(maxval)])
     try:
-        c = (avgVal-minVal)/(maxVal-minVal)
+        c = (avgval-minval)/(maxval-minval)
     except ZeroDivisionError:
         c = 1
-    loc = minVal
-    scale = maxVal-minVal
+    loc = minval
+    scale = maxval-minval
     return triang(c, loc=loc,scale=scale)
 
 

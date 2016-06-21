@@ -5,7 +5,16 @@ import datetime
 from helpers import get_csv_dict_list
 
 class BaseStruct(object):
-    '''classe che trasforma un dizionario in oggetto con attributi'''
+    '''classe che trasforma un dizionario in oggetto con attributi
+
+    converte un dizionario in un oggetto la cui classe ha come attributi gli elementi del dizionario
+    d = {"a":2,"c":3}
+    o = BaseStruct(d)
+    o.a == 2
+    >>>> True
+    o.c == 3
+    >>>> True
+    '''
     def __init__(self, d):
         '''inizializza la classe'''
         for a, b in d.iteritems():
@@ -55,10 +64,14 @@ class BaseSmtModel(object):
         return self
 
 
-    def save(self, *args, **kwargs):
+    def save(self, caller=None, created=False, *args, **kwargs):
         '''memorizza il documento nel database'''
         #self.logger.debug('save %s' % (self.__class__.__name__))
         self.item["updated"] = datetime.datetime.utcnow()
+        if created:
+            self.item["created"] = datetime.datetime.utcnow()
+        if caller:
+            self.item["updated_by"] = caller
         self._id = self.collection.save(self.item, *args, **kwargs)
 
 

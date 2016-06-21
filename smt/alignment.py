@@ -57,10 +57,10 @@ class Alignment(BaseSmtModel):
                     retVal = ref_stratus.CODE
                     self.logger.debug(u"\tstrato di riferimento per %f è %s: %f > %f >= %f ",
                                       align.PK, retVal, ref_stratus.POINTS.top.coordinates[2],
-                                      align.z, strato.POINTS.base.coordinates[2])
+                                      align.z, ref_stratus.POINTS.base.coordinates[2])
                 ###### CONTINUA QUI
         except AttributeError as ae:
-            self.logger.error("Alignment %f , missing attribute [%s]" % (align.PK, ae))
+            self.logger.error("Alignment %f , missing attribute [%s]", align.PK, ae)
         if "REFERENCE_STRATA" in self.item:
             self.save()
         return retVal
@@ -91,29 +91,29 @@ class Alignment(BaseSmtModel):
             self.save()
         return retVal
 
-    # TODO remove
-    def assign_parameter(self, bcode, param, val):
-    #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
-        retVal = 0
-        #2129458 94076BC0006_01
-        # { "$and":[{"code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
-        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"code":bcode}, {param:{"$lte":val}}]})
-        for b in bcurr:
-            bldg = Building(self.db, b)
-            bldg.load()
-            bldg.item[param] = val
-            bldg.save()
-            retVal = retVal + 1
-
-        # { "$and":[{"code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
-        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"code":bcode}, {param:{"$exists":False}}]})
-        for b in bcurr:
-            bldg = Building(self.db, b)
-            bldg.load()
-            bldg.item[param] = val
-            bldg.save()
-            retVal = retVal + 1
-        return retVal
+# INUTILIZZATA
+#    def assign_parameter(self, bcode, param, val):
+#    #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
+#        retVal = 0
+#        #2129458 94076BC0006_01
+#        # { "$and":[{"code":94076BC0006_01},{"vulnerability":{"$lt":vulnerability}} ]}
+#        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"code":bcode}, {param:{"$lte":val}}]})
+#        for b in bcurr:
+#            bldg = Building(self.db, b)
+#            bldg.load()
+#            bldg.item[param] = val
+#            bldg.save()
+#            retVal = retVal + 1
+#
+#        # { "$and":[{"code":94076BC0006_01},{"vulnerability":{"$exists":False}} ]}
+#        bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"code":bcode}, {param:{"$exists":False}}]})
+#        for b in bcurr:
+#            bldg = Building(self.db, b)
+#            bldg.load()
+#            bldg.item[param] = val
+#            bldg.save()
+#            retVal = retVal + 1
+#        return retVal
 
     def assign_parameter_by_code(self, building_object, param_key, val, p_code):
     #vulnerability, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab):
@@ -125,7 +125,7 @@ class Alignment(BaseSmtModel):
         if as_code not in building_object.item:
             building_object.item[as_code] = None
         if (param_key in building_object.item[as_code]
-            and p_code in building_object.item[as_code][param_key]):
+                and p_code in building_object.item[as_code][param_key]):
             # TODO: è sempre vero che deve essere minore o uguale ?
             # prima era processato via DB {"$and":[{"project_id":self.project_id},{"code":bcode}, {"%s.%s" % (param_key,p_code):{"$lte":val}}]}
             if building_object.item[as_code][param_key][p_code] <= val:
@@ -181,7 +181,7 @@ class Alignment(BaseSmtModel):
         if as_code not in building_object.item:
             building_object.item[as_code] = None
         if (param_key in building_object.item[as_code]
-            and p_code in building_object.item[as_code][param_key]):
+                and p_code in building_object.item[as_code][param_key]):
             self.logger.debug("merge samples for building %s , code %s and key %s",
                               bcode, p_code, param_key)
             building_object.item[as_code][param_key][p_code] = self._merge_building_samples(building_object.item[param_key][p_code], content, building_object.item["samples_size"])
@@ -193,16 +193,20 @@ class Alignment(BaseSmtModel):
         retVal = retVal + 1
         return retVal
 
-    # parametri geomeccanici relativi al cavo, utilizzati sia per il calcolo volume perso lungo
-    # lo scudo, che per il calcolo della curva dei cedimenti. I parametri sono:
-    # young_tun, nu_tun, phi_tun
-    # sono calcolati come media pesata sullo spessore e sulla distanza dello strato dall'asse della
-    # galleria; il peso e' dato dallo spessore * coeff_d
-    # coeff_d = 2.*r_excav/(max(2.*r_excav, dist) [vale 1 fino a distanze di 2 raggi di scavo e poi
-    # va a diminuire]
-    # dist = distanza tra il baricentro dello strato considerato e l'asse del tunnel
-    # prendo in considerazione tutti gli strati con top superiore a z_tun meno un diametro
+
     def define_tun_param(self):
+        ''' parametri geomeccanici relativi al cavo, utilizzati sia per il calcolo volume perso lungo
+        lo scudo, che per il calcolo della curva dei cedimenti. I parametri sono:
+            * young_tun
+            * nu_tun
+            * phi_tun
+        sono calcolati come media pesata sullo spessore e sulla distanza dello strato dall'asse della
+        galleria; il peso e' dato dallo spessore * coeff_d
+        * coeff_d = 2.*r_excav/(max(2.*r_excav, dist) [vale 1 fino a distanze di 2 raggi di scavo e poi
+            va a diminuire]
+        * dist = distanza tra il baricentro dello strato considerato e l'asse del tunnel
+        prendo in considerazione tutti gli strati con top superiore a z_tun meno un diametro'''
+        # TODO: TBM adesso ha più elementi, sistemo
         retVal = "XXX"
         align = BaseStruct(self.item)
         r_excav = align.TBM.excav_diameter/2.0
@@ -248,6 +252,9 @@ class Alignment(BaseSmtModel):
         return retVal
 
     def define_face_param(self):
+        ''''parametri relativi all'estrusione del fronte (k0, modulo di young, coesione e attrito)
+        come media sull'altezza del fronte piu' mezzo raggio sopra e sotto'''
+        # TODO: TBM adesso ha più elementi, sistemo
         retVal = "XXX"
         align = BaseStruct(self.item)
         r_excav = align.TBM.excav_diameter/2.0
@@ -255,8 +262,6 @@ class Alignment(BaseSmtModel):
         z_base = z_top - align.TBM.excav_diameter
         z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
         ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > z_tun - align.TBM.excav_diameter]
-        # parametri relativi all'estrusione del fronte (k0, modulo di young, coesione e attrito)
-        # come media sull'altezza del fronte piu' mezzo raggio sopra e sotto
         gamma_th = 0.
         k0_th = 0.
         young_th = 0.
@@ -288,6 +293,9 @@ class Alignment(BaseSmtModel):
         return retVal
 
     def define_face_param_sample(self, strata_sample):
+        ''''parametri relativi all'estrusione del fronte (k0, modulo di young, coesione e attrito)
+        come media sull'altezza del fronte piu' mezzo raggio sopra e sotto'''
+        # TODO: TBM adesso ha più elementi, sistemo
         retVal = "XXX"
         align = BaseStruct(self.item)
         r_excav = align.TBM.excav_diameter/2.0
@@ -295,8 +303,6 @@ class Alignment(BaseSmtModel):
         z_base = z_top - align.TBM.excav_diameter
         z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
         ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > z_tun - align.TBM.excav_diameter]
-        # parametri relativi all'estrusione del fronte (k0, modulo di young, coesione e attrito)
-        # come media sull'altezza del fronte piu' mezzo raggio sopra e sotto
         gamma_th = 0.
         k0_th = 0.
         young_th = 0.
@@ -327,6 +333,7 @@ class Alignment(BaseSmtModel):
         return retVal
 
     def define_buffer(self, buffer_size=1.0):
+        # TODO: TBM adesso ha più elementi, sistemo
         buff = 0.
         align = BaseStruct(self.item)
         r_excav = align.TBM.excav_diameter/2.0
@@ -347,8 +354,7 @@ class Alignment(BaseSmtModel):
                 bldg.item["samples_size"] += self.item["samples_size"]
             else:
                 bldg.item["samples_size"] = self.item["samples_size"]
-            bldg.item["updated_by"] = "Alignment.append_building_items"
-            bldg.save()
+            bldg.save("Alignment.append_building_items")
             self.building_items[b_code] = bldg
             self.logger.debug("building %s added to PK %f", b_code, self.item["PK"])
         return len(self.building_items)
@@ -409,12 +415,11 @@ class Alignment(BaseSmtModel):
         bKeepAlign = False
         buildings_to_skip = []
         buildings_to_keep = []
-        self.item["updated_by"] = "Alignment.doit"
         self.item["samples_size"] = float(len(self.strata_samples["items"])-1)
         for i, sample in enumerate(self.strata_samples["items"]):
-            self.logger.debug("doit (%s) on iter %d" % (self.strata_samples["type"], i))
+            self.logger.debug("doit (%s) on iter %d", (self.strata_samples["type"], i))
             if self.strata_samples["type"] == "c":
-                self.logger.debug("iteration type = %s " % str(sample["type"]))
+                self.logger.debug("iteration type = %s", str(sample["type"]))
             self.define_face_param_sample(sample)
             retVal = self.doit_sample(parm, sample, buildings_limits, buildings_to_skip)
             # per il primo giro definisco la struttura degli array, verifico e recupero i building critici
@@ -446,7 +451,7 @@ class Alignment(BaseSmtModel):
                 for i, ct in enumerate(custom_type_tuple):
                     self._map_aitems(i+1, a_values, str(ct))
                     if b_len > 0:
-                        self._map_bitems(i+1,b_values, b_len, str(ct))
+                        self._map_bitems(i+1, b_values, b_len, str(ct))
                     self._map_sitems(i+1, s_values, str(ct))
             else:
                 std_np_func = {'avg':np.median, 'min':np.max, 'max':np.min}
@@ -456,22 +461,23 @@ class Alignment(BaseSmtModel):
                 self._map_s_samples(s_values, std_np_func)
                 # gestione campi buildings
                 self._map_b_samples(b_values, std_np_func)
-        self.save()
+        self.save("Aligment.doit")
 
-    def _assign_values(self, retVal, a_values, b_values, b_len, s_values):
-        for key in a_values.dtype.names:
-            a_values[i][key] = retVal[key]
-        # per ogni settlement
-        for s in retVal["SETTLEMENTS"]:
-            s_values[i]["%d" % s["code"]] = s["value"]
-        # se ci sono buildings (non è detto)
-        if b_len > 0:
-            # per ogni building
-            for idx, b in enumerate(retVal["BUILDINGS"]):
-                b_codes.append(b["code"])
-                # assegno a b_values i valori del campione i-esimo (corrente)b
-                for key in b_values.dtype.names:
-                    b_values[i][idx][key] = b[key]
+# INUTILIZZATA
+#    def _assign_values(self, retVal, a_values, b_values, b_len, s_values):
+#        for key in a_values.dtype.names:
+#            a_values[i][key] = retVal[key]
+#        # per ogni settlement
+#        for s in retVal["SETTLEMENTS"]:
+#            s_values[i]["%d" % s["code"]] = s["value"]
+#        # se ci sono buildings (non è detto)
+#        if b_len > 0:
+#            # per ogni building
+#            for idx, b in enumerate(retVal["BUILDINGS"]):
+#                b_codes.append(b["code"])
+#                # assegno a b_values i valori del campione i-esimo (corrente)b
+#                for key in b_values.dtype.names:
+#                    b_values[i][idx][key] = b[key]
 
     def _prepare_samples(self, retVal):
         # di base c'è un'iterazione sola, se poi viene superata la soglia di vulnerability allora si procede con monte carlo
@@ -486,14 +492,14 @@ class Alignment(BaseSmtModel):
             samples_len = len(self.strata_samples["items"])
             # al primo giro verifico quali buildings togliere
             # per ogni building
-            for idx, b in enumerate(retVal["BUILDINGS"]):
+            for b in retVal["BUILDINGS"]:
                 if "keep_it" in b:
                     buildings_to_keep.append(b)
                 else:
                     buildings_to_skip.append(b["code"])
             self.item["keep_analysis"] = True
         else:
-            self.logger.debug("go a head widthout monte carlo")
+            self.logger.debug("go ahead widthout monte carlo")
             self.item["keep_analysis"] = False
         a_dtype, b_dtype, b_len, s_dtype = self.init_dtype_array(retVal)
         # dichiaro le matrici a_values, s_values con tutti i samples degli alignment e relativi settlements
@@ -574,13 +580,13 @@ class Alignment(BaseSmtModel):
                                             self.item["BUILDINGS"][idx][key]["BINS"], "BINS")
                 if key in b_bins:
                     # TODO: min e max non va bene perchè a volte non producono lo stesso numero di bins
-                    min = np.min(b_samples)
-                    max = np.max(b_samples)
+                    minval = np.min(b_samples)
+                    maxval = np.max(b_samples)
                     custom_bins = eval(b_bins[key])
-                    if min < np.min(custom_bins):
-                        custom_bins.append(min)
-                    if max > np.max(custom_bins):
-                        custom_bins.append(max)
+                    if minval < np.min(custom_bins):
+                        custom_bins.append(minval)
+                    if maxval > np.max(custom_bins):
+                        custom_bins.append(maxval)
                     custom_bins_array = np.unique(custom_bins)
                     res = np.histogram(b_samples, bins=custom_bins_array)
                     cum = 0
@@ -675,10 +681,9 @@ class Alignment(BaseSmtModel):
                                                  "items":bins_info}
 
     def doit_sample(self, parm, strata_sample, buildings_limits, buildings_to_skip):
+        # TODO: TBM adesso ha più elementi, sistemo
         b_keep_pk = False
         retVal = {"BUILDINGS":[]}
-        # BaseStruct converte un dizionario in un oggetto la cui classe ha come attributi gli elementi del dizionario
-        # per cui se ho d={"a":2,"c":3} con o=BaseStruct(d) => d.a == 2 e d.c == 3
         # a volte ci sono elementi che durante import non hanno recuperato DEM e Stratigrafia, per questo bisogna mettere try
         align = BaseStruct(self.item)
         r_excav = align.TBM.excav_diameter/2.
@@ -686,7 +691,7 @@ class Alignment(BaseSmtModel):
         z_top = z_tun + r_excav
         z_base = z_tun - r_excav
         z_dem = align.DEM.coordinates[2]
-        self.logger.debug("Analisi alla PK %f" % (align.PK))
+        self.logger.debug("Analisi alla PK %f", (align.PK))
         #try:
         if align.z == align.PH.coordinates[2] and z_dem > z_top:
             ##### Verifica strato di riferimento per le sezioni di riferimento per pressione minima di stabilità
@@ -711,7 +716,7 @@ class Alignment(BaseSmtModel):
                                                strata_sample[ref_stratus.CODE].inom,
                                                strata_sample[ref_stratus.CODE].c_tr,
                                                strata_sample[ref_stratus.CODE].phi_tr,
-                                               p_wt,
+                                               z_wt,
                                                z_tun,
                                                gamma_muck,
                                                z_base,
@@ -771,25 +776,13 @@ class Alignment(BaseSmtModel):
             # pressione falda in asse tunnel
             p_wt = max(0., (z_wt-z_tun)*9.81)
 
-            gamma_face = align.gamma_face
-            k0_face = align.k0_face
-            young_face = align.young_face
-            ci_face = align.ci_face
-            phi_face = align.phi_face
-            gamma_tun = align.gamma_tun
-            young_tun = align.young_tun
-            nu_tun = align.nu_tun
-            phi_tun = align.phi_tun
-            ci_tun = align.ci_tun
-            beta_tun = align.beta_tun
-
             # calcolo pressione minima secondo tamez
             # p_min_tamez(H, z_wt, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_face_deg, D, a, req_safety_factor, additional_pressure)
             W = z_dem-align.FALDA.coordinates[2]
             a = align.TBM.shield_length
             tamez_safety_factor = 1.3
-            p_tamez = p_min_tamez(copertura, W, gamma_tun, ci_tun, phi_tun, gamma_face, ci_face,
-                                  phi_face, k0_face, 2*r_excav, a, tamez_safety_factor,
+            p_tamez = p_min_tamez(copertura, W, align.gamma_tun, align.ci_tun, align.phi_tun, align.gamma_face, align.ci_face,
+                                  align.phi_face, align.k0_face, 2*r_excav, a, tamez_safety_factor,
                                   self.project.p_safe_cob_kpa, gamma_muck)
 
             # pressione al fronte,  danzi.tn@20160408 strata_sample["p_tbm"] varia da -30 a +30
@@ -819,23 +812,23 @@ class Alignment(BaseSmtModel):
             p_tbm_shield_base = p_tbm_shield
             # calcolo iniziale per greenfield
             self.logger.debug("\t calcolo iniziale per greenfield gap_front(p_tbm_base=%f, p_wt=%f, s_v=%f, k0_face=%f, young_face=%f, ci_face=%f, phi_face=%f, r_excav=%f)",
-                              p_tbm_base, p_wt, s_v, k0_face, young_face, ci_face,
-                              phi_face, r_excav)
-            gf = gap_front(p_tbm_base, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
-            self.logger.debug("\t si ha gap_front gp = %f" % gf)
+                              p_tbm_base, p_wt, s_v, align.k0_face, align.young_face, align.ci_face,
+                              align.phi_face, r_excav)
+            gf = gap_front(p_tbm_base, p_wt, s_v, align.k0_face, align.young_face, align.ci_face, align.phi_face, r_excav)
+            self.logger.debug("\t si ha gap_front gp = %f", gf)
             # ur_max(sigma_v, p_wt, p_tbm, phi, phi_res, ci, ci_res, psi, young, nu, r_excav)
-            ui_shield = max(0., .5*2.*ur_max(s_v, p_wt, p_tbm_shield_base, phi_tun, phi_tun,
-                                             ci_tun, ci_tun, 0., young_tun, nu_tun, r_excav)-gf)
+            ui_shield = max(0., .5*2.*ur_max(s_v, p_wt, p_tbm_shield_base, align.phi_tun, align.phi_tun,
+                                             align.ci_tun, align.ci_tun, 0., align.young_tun, align.nu_tun, r_excav)-gf)
             #ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v, nu_tun, young_tun, r_excav)
             # gap_shield(ui, shield_taper, cutter_bead_thickness)
             gs = gap_shield(ui_shield, shield_taper, cutter_bead_thickness)
-            self.logger.debug("\t si ha gap_shield gs = %f" % gs)
-            ui_tail = max(0., .5*2.*ur_max(s_v, p_wt, p_wt, phi_tun, phi_tun, ci_tun, ci_tun, 0.,
-                                           young_tun, nu_tun, r_excav) - gf - gs)
+            self.logger.debug("\t si ha gap_shield gs = %f", gs)
+            ui_tail = max(0., .5*2.*ur_max(s_v, p_wt, p_wt, align.phi_tun, align.phi_tun, align.ci_tun, align.ci_tun, 0.,
+                                           align.young_tun, align.nu_tun, r_excav) - gf - gs)
             #ui_tail = u_tun(0., p_wt, s_v, nu_tun, young_tun, r_excav)
             # gap_tail(ui, tail_skin_thickness, delta)
             gt = gap_tail(ui_tail, tail_skin_thickness, delta, strata_sample["vloss_tail"])
-            self.logger.debug("\t si ha gap_tail gt = %f" % gt)
+            self.logger.debug("\t si ha gap_tail gt = %f", gt)
             gap = gf + gs + gt
             eps0_base = volume_loss(gap, r_excav)
             # TODO buffer_size deve essere un parametro di progetto
@@ -872,7 +865,7 @@ class Alignment(BaseSmtModel):
                         self.logger.debug("\t\timpronta da %fm a %fm e a una profondita' di %fm dal piano di campagna e con un altezza totale di %fm",
                                           x_min, x_max, b.depth_fondation, h_bldg)
                     except TypeError:
-                        self.logger.debug("Dati errati per l'edificio %s" % (b.code))
+                        self.logger.debug("Dati errati per l'edificio %s", b.code)
                         break
                     # calcolo delta_pk la distanza dell'edificio dalla pk corrente per correggere la distanza
                     # tengo conto anche del passo delle pk per contare fino a meta' di ogni step
@@ -884,7 +877,8 @@ class Alignment(BaseSmtModel):
                     #if pk_min <= align.PK + self.project.align_scan_length/2. and pk_max>align.PK-self.project.align_scan_length/2.:
 
 
-                    # valuto l'incremento di carico dovuto all'edificio come h_bldg * 5.4 kN/m3 + 7.5 kN/m2 (per solaio finale)
+                    # valuto l'incremento di carico dovuto all'edificio come
+                    # h_bldg * 5.4 kN/m3 + 7.5 kN/m2 (per solaio finale)
                     # a cui tolgo il peso del terreno rimosso per l'approfondimento della fondazione
                     p_soil = 0.
                     for ref_stratus in ref_strata:
@@ -904,61 +898,47 @@ class Alignment(BaseSmtModel):
                                       extra_load, qs, Bqs, x_bou, z_bou, p_soil)
                     #Gabriele@20160407 Carico boussinesq - fine
                     s_v_bldg = s_v+extra_load
-                    self.logger.debug("\t\textra carico in galleria %f kN/m2" % (extra_load))
+                    self.logger.debug("\t\textra carico in galleria %f kN/m2", extra_load)
 
 
                     # primo calcolo di base con p_min
                     # calcolo gap e volume perso
-                    VL_base = VolumeLoss(p_tbm_base, p_tbm_shield_base, p_wt, s_v_bldg, k0_face,
-                                         young_face, ci_face, phi_face, phi_tun, phi_tun, ci_tun,
-                                         ci_tun, 0., young_tun, nu_tun, r_excav, shield_taper,
+                    VL_base = VolumeLoss(p_tbm_base, p_tbm_shield_base, p_wt, s_v_bldg, align.k0_face,
+                                         align.young_face, align.ci_face, align.phi_face, align.phi_tun, align.phi_tun, align.ci_tun,
+                                         align.ci_tun, 0., align.young_tun, align.nu_tun, r_excav, shield_taper,
                                          cutter_bead_thickness, tail_skin_thickness,
                                          delta, strata_sample["vloss_tail"])
-                    #TODO ripulire le variabili scalari e usare direttamente la classe dove serve
-                    gf = VL_base.gf
-                    ui_shield = VL_base.ui_shield
-                    gs = VL_base.gs
-                    ui_tail = VL_base.ui_tail
-                    gt = VL_base.gt
-                    gap = VL_base.gap
-                    eps0_b = VL_base.eps0
 
                     # ricerca massimi french-way
-                    damage_base = DamageParametersFrench(eps0_b, r_excav, depth_tun, nu_tun,
-                                                         beta_tun, x_min, x_max, b.depth_fondation)
-                    #TODO ripulive variabili scalari e usare quelle di classe
-                    s_max_ab_b = damage_base.s_max
-                    beta_max_ab_b = damage_base.beta_max
-                    esp_h_max_ab_b = damage_base.esp_h_max
+                    damage_base = DamageParametersFrench(VL_base.eps0, r_excav, depth_tun, align.nu_tun,
+                                                         align.beta_tun, x_min, x_max, b.depth_fondation)
                     vulnerability_class_b = 0.
                     damage_class_b = 0.
                     for dl in b.DAMAGE_LIMITS:
-                        if s_max_ab_b <= dl.uz and beta_max_ab_b <= dl.d_uz_dx and esp_h_max_ab_b <= dl.d_ux_dx:
+                        if damage_base.s_max <= dl.uz and damage_base.beta_max <= dl.d_uz_dx and damage_base.esp_h_max <= dl.d_ux_dx:
                             vulnerability_class_b = dl.vc_lev
                             damage_class_b = dl.dc_lev
                             break
 
                     ###Gabriele@20160409 esp critico Burland and Wroth 1974 - inizio , sere file building_damage_class_Burland_Mair.csv?
-
                     str_type = "M" # TODO leggerlo da info sul building
                     bldg_curr = DamageParametersBurlandWroth(x_min, x_max, str_type, h_bldg,
                                                              b.depth_fondation)
-                    bldg_curr.update_geo(r_excav, depth_tun, beta_tun, nu_tun)
-                    bldg_curr.update_stress(eps0_b)
+                    bldg_curr.update_geo(r_excav, depth_tun, align.beta_tun, align.nu_tun)
+                    bldg_curr.update_stress(VL_base.eps0)
+                    # TODO: qui viene sovrascritto lo stesso elemento del dict!
                     building_item["vulnerability_base"] = bldg_curr.eps_crit
-
                     ###Gabriele@20160409 esp critico Burland and Wroth 1974 - fine
-
                     building_item["vulnerability_base"] = vulnerability_class_b
                     building_item["damage_class_base"] = damage_class_b
-                    building_item["settlement_max_base"] = s_max_ab_b
-                    building_item["tilt_max_base"] = beta_max_ab_b
-                    building_item["esp_h_max_base"] = esp_h_max_ab_b
+                    building_item["settlement_max_base"] = damage_base.s_max
+                    building_item["tilt_max_base"] = damage_base.beta_max
+                    building_item["esp_h_max_base"] = damage_base.esp_h_max
                     building_item["k_peck"] = k_peck
 
 
                     self.logger.debug("\t\tp_tbm_base = %f, s_max_ab_base = %f, beta_max_ab_base = %f, esp_h_max_ab_base = %f, vul_base = %f",
-                                      p_tbm_base, s_max_ab_b, beta_max_ab_b, esp_h_max_ab_b,
+                                      p_tbm_base, damage_base.s_max, damage_base.beta_max, damage_base.esp_h_max,
                                       vulnerability_class_b)
 
                     # aggiorno i parametri di base della pk
@@ -968,38 +948,22 @@ class Alignment(BaseSmtModel):
                     # da qui refactor on parameter min vs actual
                     while True:
                         # calcolo gap e volume perso
-                        VL = VolumeLoss(p_tbm, p_tbm_shield, p_wt, s_v_bldg, k0_face, young_face,
-                                        ci_face, phi_face, phi_tun, phi_tun, ci_tun, ci_tun, 0.,
-                                        young_tun, nu_tun, r_excav, shield_taper,
+                        VL = VolumeLoss(p_tbm, p_tbm_shield, p_wt, s_v_bldg, align.k0_face, align.young_face,
+                                        align.ci_face, align.phi_face, align.phi_tun, align.phi_tun, align.ci_tun, align.ci_tun, 0.,
+                                        align.young_tun, align.nu_tun, r_excav, shield_taper,
                                         cutter_bead_thickness, tail_skin_thickness, delta,
                                         strata_sample["vloss_tail"])
-                        #TODO ripulire le variabili scalari e usare direttamente la classe dove serve
-                        gf = VL.gf
-                        ui_shield = VL.ui_shield
-                        gs = VL.gs
-                        ui_tail = VL.ui_tail
-                        gt = VL.gt
-                        gap = VL.gap
-                        eps0 = VL.eps0
 
                         # ricerca massimi french-way
-                        damage = DamageParametersFrench(eps0, r_excav, depth_tun, nu_tun, beta_tun,
+                        damage = DamageParametersFrench(VL.eps0, r_excav, depth_tun, align.nu_tun, align.beta_tun,
                                                         x_min, x_max, b.depth_fondation)
-                        #TODO ripulive variabili scalari e usare quelle di classe
-                        s_max_ab = damage.s_max
-                        beta_max_ab = damage.beta_max
-                        esp_h_max_ab = damage.esp_h_max
-
-                        ###Gabriele@20160409 esp critico Burland and Wroth 1974 - inizio
-
-                        bldg_curr.update_stress(eps0)
-
-                        ###Gabriele@20160409 esp critico Burland and Wroth 1974 - fine
-
+                        # Gabriele@20160409 esp critico Burland and Wroth 1974 - inizio
+                        bldg_curr.update_stress(VL.eps0)
+                        # Gabriele@20160409 esp critico Burland and Wroth 1974 - fine
                         vulnerability_class = 0.
                         damage_class = 0.
                         for dl in b.DAMAGE_LIMITS:
-                            if s_max_ab <= dl.uz and beta_max_ab <= dl.d_uz_dx and esp_h_max_ab <= dl.d_ux_dx:
+                            if damage.s_max <= dl.uz and damage.beta_max <= dl.d_uz_dx and damage.esp_h_max <= dl.d_ux_dx:
                                 vulnerability_class = dl.vc_lev
                                 damage_class = dl.dc_lev
                                 break
@@ -1019,36 +983,18 @@ class Alignment(BaseSmtModel):
 
                     building_item["vulnerability"] = vulnerability_class
                     building_item["damage_class"] = damage_class
-                    building_item["settlement_max"] = s_max_ab
-                    building_item["tilt_max"] = beta_max_ab
-                    building_item["esp_h_max"] = esp_h_max_ab
-
-                    ###Gabriele@20160409 esp critico Burland and Wroth 1974 - inizio
-
+                    building_item["settlement_max"] = damage.s_max
+                    building_item["tilt_max"] = damage.beta_max
+                    building_item["esp_h_max"] = damage.esp_h_max
+                    # Gabriele@20160409 esp critico Burland and Wroth 1974 - inizio
                     building_item["eps_crit"] = bldg_curr.eps_crit
-
-                    ###Gabriele@20160409 esp critico Burland and Wroth 1974 - fine
-                    """
-                    n_found = self.assign_parameter(b.code, "vulnerability", vulnerability_class)
-                    n_found = self.assign_parameter(b.code, "damage_class", damage_class)
-                    n_found = self.assign_parameter(b.code, "settlement_max", s_max_ab)
-                    n_found = self.assign_parameter(b.code, "tilt_max", beta_max_ab)
-                    n_found = self.assign_parameter(b.code, "esp_h_max", esp_h_max_ab)
-                    """
-
-                    # aghensi@20160404 - aggiunto attributi al database ma non so se è giusto
-
-                    building_item["eps_0"] = eps0
+                    # Gabriele@20160409 esp critico Burland and Wroth 1974 - fine
+                    # aghensi@20160404 - aggiunto attributi al database
+                    building_item["eps_0"] = VL.eps0
                     building_item["p_tbm"] = p_tbm
                     building_item["blowup"] = fBlowUp
                     building_item["tamez"] = p_tamez
 
-                    """
-                    n_found = self.assign_parameter(b.code, "eps_0", eps0)
-                    n_found = self.assign_parameter(b.code, "p_tbm", p_tbm)
-                    n_found = self.assign_parameter(b.code, "blowup", fBlowUp)
-                    n_found = self.assign_parameter(b.code, "tamez", p_tamez)
-                    """
                     #Gabriele@20160330 Vibration analysis
                     # danzi.tn@20160408 checks if VIBRATION_LIMITS is available
                     if "VIBRATION_LIMITS" in b.__dict__:
@@ -1072,15 +1018,10 @@ class Alignment(BaseSmtModel):
                         building_item["vulnerability_class_vibration"] = vulnerability_class_vibration
                         building_item["damage_class_vibration"] = damage_class_vibration
                         building_item["vibration_speed_mm_s"] = vibration_speed_mm_s
-                        """
-                        n_found = self.assign_parameter(b.code, "vulnerability_class_vibration", vulnerability_class_vibration)
-                        n_found = self.assign_parameter(b.code, "damage_class_vibration", damage_class_vibration)
-                        n_found = self.assign_parameter(b.code, "vibration_speed_mm_s", vibration_speed_mm_s)
-                        """
                     for key, val in buildings_limits.iteritems():
                         criteria_tuple = eval(val)
                         if key in building_item:
-                            sCriteria = "%f%s%f".format(building_item[key], criteria_tuple[0],
+                            sCriteria = "{}{}{}".format(building_item[key], criteria_tuple[0],
                                                         float(criteria_tuple[1]))
                             if eval(sCriteria):
                                 building_item["keep_it"] = b_keep_pk = True
@@ -1089,7 +1030,7 @@ class Alignment(BaseSmtModel):
                             else:
                                 self.logger.debug("\t\t skip this building")
                     retVal["BUILDINGS"].append(building_item)
-                    self.logger.debug("doit_sample added building_item %s" % str(building_item))
+                    self.logger.debug("doit_sample added building_item %s", str(building_item))
                     # danzi.tn@20160408 end
                     # fin qui refactor on parameter min vs actual
                     # aggiorno i valori massimi della pk
@@ -1105,29 +1046,21 @@ class Alignment(BaseSmtModel):
                     #, damage_class, s_max_ab, beta_max_ab, esp_h_max_ab)
                     # print "%d %d %s" %(n_found, align.PK, b.code )
                     self.logger.debug("\t\tp_tbm = %f, s_max_ab = %f, beta_max_ab = %f, esp_h_max_ab = %f, vul = %f, eps_0 = %f",
-                                      p_tbm, s_max_ab, beta_max_ab, esp_h_max_ab,
-                                      vulnerability_class, eps0)
+                                      p_tbm, damage.s_max, damage.beta_max, damage.esp_h_max,
+                                      vulnerability_class, VL.eps0)
 
             # calcolo finale per greenfield
-            VL_pk = VolumeLoss(p_tbm, p_tbm_shield, p_wt, s_v, k0_face, young_face, ci_face,
-                               phi_face, phi_tun, phi_tun, ci_tun, ci_tun, 0., young_tun, nu_tun,
+            VL_pk = VolumeLoss(p_tbm, p_tbm_shield, p_wt, s_v, align.k0_face, align.young_face, align.ci_face,
+                               align.phi_face, align.phi_tun, align.phi_tun, align.ci_tun, align.ci_tun, 0., align.young_tun, align.nu_tun,
                                r_excav, shield_taper, cutter_bead_thickness, tail_skin_thickness,
                                delta, strata_sample["vloss_tail"])
-            #TODO ripulire le variabili scalari e usare direttamente la classe dove serve
-            gf = VL_pk.gf
-            ui_shield = VL_pk.ui_shield
-            gs = VL_pk.gs
-            ui_tail = VL_pk.ui_tail
-            gt = VL_pk.gt
-            gap = VL_pk.gap
-            eps0 = VL_pk.eps0
 
             # ricerca massimi french-way
             x_min = -2.5*depth_tun
             x_max = - x_min
             # Sulla PK il DamageParametersFrench calcolato a piano campagna/green field =>  z=0.0
-            damage_pk = DamageParametersFrench(eps0, r_excav, depth_tun, nu_tun, beta_tun, x_min,
-                                               x_max, 0.0)
+            damage_pk = DamageParametersFrench(VL_pk.eps0, r_excav, depth_tun, align.nu_tun, align.beta_tun,
+                                               x_min, x_max, 0.0)
 
             s_calc = 0.
             sett_list = []
@@ -1136,7 +1069,7 @@ class Alignment(BaseSmtModel):
             for fstep in [2., 4., 6., 8., 10., 12., 15., 20., 25., 30., 35., 40., 45., 50., 75.]:
                 # qui il calcolo del SETTLEMENT per lo step corrente
                 # uz_laganathan(eps0, R, H, nu, beta, x, z)
-                s_calc = uz_laganathan(eps0, r_excav, depth_tun, nu_tun, beta_tun, fstep, 0.)
+                s_calc = uz_laganathan(VL_pk.eps0, r_excav, depth_tun, align.nu_tun, align.beta_tun, fstep, 0.)
                 sett_list.append({"code":fstep, "value": s_calc})
 
             # Assegno il valore COB alla PK
@@ -1148,7 +1081,7 @@ class Alignment(BaseSmtModel):
             retVal["BLOWUP"] = fBlowUp
             retVal["P_EPB"] = p_tbm
             retVal["P_EPB_BASE"] = p_tbm_base
-            retVal["VOLUME_LOSS"] = eps0
+            retVal["VOLUME_LOSS"] = VL_pk.eps0
             retVal["VOLUME_LOSS_BASE"] = eps0_base
             retVal["K_PECK"] = k_peck
             retVal["SETTLEMENT_MAX"] = damage_pk.s_max
@@ -1175,14 +1108,14 @@ class Alignment(BaseSmtModel):
             self.logger.debug("\t\tTensione totale verticale =%f kPa e pressione falda =%f kPa",
                               s_v, p_wt)
             self.logger.debug("\t\tal fronte: k0 =%f, E =%f MPa, phi' = %f °, c' = %f kPa",
-                              k0_face, young_face/1000., phi_face, ci_face)
+                              align.k0_face, align.young_face/1000., align.phi_face, align.ci_face)
             self.logger.debug("\t\tsul cavo: E =%f MPa, nu = %f, phi' = %f °",
-                              young_tun/1000., nu_tun, phi_tun)
-            self.logger.debug("\tValore di gap totale, gap = %f cm", gap*100)
+                              align.young_tun/1000., align.nu_tun, align.phi_tun)
+            self.logger.debug("\tValore di gap totale, gap = %f cm", VL_pk.gap*100)
             self.logger.debug("\t\t gap al fronte, gf =%f cm; gap sullo scudo, gs= %f cm; gap in coda,gt = %f cm",
-                              gf*100, gs*100, gt*100)
+                              VL_pk.gf*100, VL_pk.gs*100, VL_pk.gt*100)
             self.logger.debug("\tValore di volume perso, VL = %f percent con k di peck = %f",
-                              eps0*100, k_peck)
+                              VL_pk.eps0*100, k_peck)
             self.logger.debug("\tAnalisi cedimenti")
             self.logger.debug("\t\tCedimento massimo in asse, damage_pk.s_max =%f mm con una pressione al fronte di %fKPa",
                               damage_pk.s_max*1000, p_tbm)
@@ -1206,7 +1139,7 @@ class Alignment(BaseSmtModel):
                                   self.project.p_safe_cob_kpa)
             self.logger.debug(u"\t\tstrato di base %s con gamma = %f, c'= %f, phi'= %f e spessore = %f",
                               code, inom, c_tr, phi_tr, z_top_ref_stratus-z_base_ref_stratus)
-        # se la base dello strato è sotto il top del tunnell allora sono negli strati intermedi
+        # se la base dello strato è sotto il top del tunnel allora sono negli strati intermedi
         elif z_base_ref_stratus <= z_top:
             sigma_v = cob_step_1(z_base_ref_stratus, z_top_ref_stratus, inom, sigma_v)
             fTempCOB = cob_step_2(z_base_ref_stratus, phi_tr, c_tr, sigma_v, z_wt, z_tun,
@@ -1224,35 +1157,36 @@ class Alignment(BaseSmtModel):
         return fCob, sigma_v
 
 
-    @classmethod
-    def aggregate_by_strata(cls, db, domain_id):
-        collection = db[cls.__name__]
-        pipe = [
-            {
-                "$project" : {
-                    "domain_id" : 1,
-                    "REFERENCE_STRATA.CODE" : 1,
-                    "REFERENCE_STRATA.PARAMETERS.inom" : 1,
-                    "REFERENCE_STRATA.PARAMETERS.k0" : 1
-                    }
-            },
-            {
-                "$match": {"domain_id": domain_id}
-            },
-            {
-                "$group": {
-                    "_id":"$REFERENCE_STRATA.CODE",
-                    "domain_id": {"$addToSet":"$domain_id"},
-                    "inom": {"$addToSet":"$REFERENCE_STRATA.PARAMETERS.inom"},
-                    "k0": {"$addToSet":"$REFERENCE_STRATA.PARAMETERS.k0"},
-                    "total": {"$sum": {"$multiply": ["$REFERENCE_STRATA.PARAMETERS.inom", 10]}},
-                    "count": {"$sum": 1}
-                }
-            },
-            {
-                "$sort": {"total" : 1, "count": 1}
-            }]
-        return collection.aggregate(pipeline=pipe)
+# INUTILIZZATO
+#    @classmethod
+#    def aggregate_by_strata(cls, db, project_id): #domain_id):
+#        collection = db[cls.__name__]
+#        pipe = [
+#            {
+#                "$project" : {
+#                    #"domain_id" : 1,
+#                    "REFERENCE_STRATA.CODE" : 1,
+#                    "REFERENCE_STRATA.PARAMETERS.inom" : 1,
+#                    "REFERENCE_STRATA.PARAMETERS.k0" : 1
+#                    }
+#            },
+#            {
+#                "$match": {"project_id": project_id}
+#            },
+#            {
+#                "$group": {
+#                    "_id":"$REFERENCE_STRATA.CODE",
+#                    #"domain_id": {"$addToSet":"$domain_id"},
+#                    "inom": {"$addToSet":"$REFERENCE_STRATA.PARAMETERS.inom"},
+#                    "k0": {"$addToSet":"$REFERENCE_STRATA.PARAMETERS.k0"},
+#                    "total": {"$sum": {"$multiply": ["$REFERENCE_STRATA.PARAMETERS.inom", 10]}},
+#                    "count": {"$sum": 1}
+#                }
+#            },
+#            {
+#                "$sort": {"total" : 1, "count": 1}
+#            }]
+#        return collection.aggregate(pipeline=pipe)
 
 
     @classmethod

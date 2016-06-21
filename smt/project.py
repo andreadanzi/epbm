@@ -9,12 +9,12 @@ from lxml import etree
 from shapely.geometry import MultiPoint, mapping, asShape
 from shapely.ops import transform
 import ifcopenshell
-import helpers
 from utils import toFloat
-from helpers import transform_to_wgs
+from helpers import transform_to_wgs, get_csv_dict_list
 from base import BaseSmtModel
 from building import Building
 from schedule import WBS
+from tbm import TBM
 
 # danzi.tn@20160418 pulizia sui Buildings del progetto dei dati di analisi=>clear_building_analysis
 class Project(BaseSmtModel):
@@ -52,8 +52,7 @@ class Project(BaseSmtModel):
             bldg = Building(self.db, bl_item)
             bldg.load()
             bldg.clear_analysis(b_values_dtype_names)
-            bldg.item["updated_by"] = "Project.clear_building_analysis"
-            bldg.save()
+            bldg.save("Project.clear_building_analysis")
 
 
     def import_objects(self, class_name, csv_file_path):
@@ -64,7 +63,7 @@ class Project(BaseSmtModel):
             req_fields = eval(class_name).REQUIRED_CSV_FIELDS
         except AttributeError:
             req_fields = None
-        obj_list = helpers.get_csv_dict_list(csv_file_path, self.logger, req_fields)
+        obj_list = get_csv_dict_list(csv_file_path, self.logger, req_fields)
         if obj_list:
             common_dict ={"project_id": self._id,
                           "created": datetime.datetime.utcnow(),
@@ -75,14 +74,11 @@ class Project(BaseSmtModel):
 
     def import_schedule(self, csv_file_path):
         '''importa il cronoprogramma e assegna le WBS agli alignment relativi'''
-        wbs_list = helpers.get_csv_dict_list(csv_file_path, self.logger, WBS.REQUIRED_CSV_FIELDS)
+        wbs_list = get_csv_dict_list(csv_file_path, self.logger, WBS.REQUIRED_CSV_FIELDS)
         if wbs_list:
-            common_dict ={"project_id": self._id,
-                          "created": datetime.datetime.utcnow(),
-                          "updated": datetime.datetime.utcnow()}
             a_collection = self.db['AlignmentSet']
             for wbs_dict in wbs_list:
-                wbs_dict.update(common_dict)
+                wbs_dict["project_id"] = self._id
                 cur_wbs = WBS(self.db, wbs_dict)
                 # start_date e end_date devono essere datetime, uso update_schedule per parsing
                 cur_wbs.update_schedule(wbs_dict['start_date'], wbs_dict['end_date'])
@@ -90,10 +86,30 @@ class Project(BaseSmtModel):
                 if aset:
                     cur_wbs.item['alignment_set_id'] = aset['_id']
                     cur_wbs.assign_to_alignment(self.item['align_scan_length'])
-                    cur_wbs.save()
+                    cur_wbs.save("import_schedule", True)
                 else:
                     self.logger.warn('Cannot find alignment_set id of alignment set %s for WBS %s',
                                      cur_wbs.item['alignment_set_code'], cur_wbs.item['code'])
+
+
+# aghensi@20160621 aggiunte multiple TBM su alignment
+    def import_tbm(self, csv_file_path):
+        '''importa le TBM e le assegna agli Alignment relativi'''
+        tbm_list = get_csv_dict_list(csv_file_path, self.logger, TBM.REQUIRED_CSV_FIELDS)
+        if tbm_list:
+            a_collection = self.db['AlignmentSet']
+            for tbm_dict in tbm_list:
+                tbm_dict["project_id"] = self._id
+                tbm_dict['totalContactThrust'] = tbm_dict['loadPerCutter']*tbm_dict['cutterCount']
+                cur_tbm = TBM(self.db, tbm_dict)
+                aset = a_collection.find_one({'code':cur_tbm.item['alignment_set_code']})
+                if aset:
+                    cur_tbm.item['alignment_set_id'] = aset['_id']
+                    cur_tbm.assign_to_alignment()
+                    cur_tbm.save("import_schedule", True)
+                else:
+                    self.logger.warn('Cannot find alignment_set id of alignment set %s for TBM %s',
+                                     cur_tbm.item['alignment_set_code'], cur_tbm.item['code'])
 
 
     def import_stratasurf(self, landxml_file_path, epsg):

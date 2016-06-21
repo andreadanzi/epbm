@@ -4,16 +4,26 @@ import math
 import numpy as np
 # danzi.tn@20160420 fix sui metodi di Gabriele
 def toFloat(s):
-        try:
-            s = s.replace(",",".")
-            s=float(s)
-        except ValueError:
-            pass
-        except TypeError:
-            pass
-        except AttributeError:
-            pass
-        return s
+    '''
+    converte una variabile in float
+    o restituisce il contenuto della variabile se non è possibile convertirla
+
+    Args:
+        * s: variabile da convertire
+
+    Returns:
+        float o variabile di input se non è possibile convertirla
+    '''
+    try:
+        s = s.replace(",",".")
+        s=float(s)
+    except ValueError:
+        pass
+    except TypeError:
+        pass
+    except AttributeError:
+        pass
+    return s
 
 
 # inom	imin	imax	elt	esout	etounnel	phi_dr	c_dr	phi_tr	c_tr	phi_un	c_un	k0	n
@@ -28,7 +38,7 @@ def cob_step_1(z_ref, z_top_ref_stratus,inom_ref_stratus, sigma_v ):
 def cob_step_2(z_ref, phi_tr_ref_stratus,c_tr_ref_stratus,sigma_v,z_wt, z_tun, gamma_muck,  p_safety_cob):
     pCob = 0.0
     # se non ho falda
-    p_wt  = max((0,(z_wt - z_ref)*9.81))
+    p_wt  = max(0, (z_wt - z_ref)*9.81)
     sigma_v_eff = sigma_v - p_wt
     phi = math.radians(phi_tr_ref_stratus)
     ci = c_tr_ref_stratus
@@ -37,17 +47,26 @@ def cob_step_2(z_ref, phi_tr_ref_stratus,c_tr_ref_stratus,sigma_v,z_wt, z_tun, g
     pCob = max(0., sigma_ha_eff) + p_wt + p_safety_cob + (z_ref-z_tun)*gamma_muck
     return pCob
 
-# calcolo pressione minima di supporto secondo Tamez
-# H è copertura netta
-# W e' la distanza tra la falda e il piano di campagna
-# gamma_tun, ci_tun, phi_tun_deg i valori degli strati di copertura (angoli in gradi)
-# gamma_face, ci_face, phi_face_deg i valori degli strati al fronte (angoli in gradi)
-# D e' il diametro di scavo
-# a è la lunghezza non supportata che per EPM/slurry coincide con la lunghezza dello scudo
-# attenzione che in questa formulazione tutto e'riferito alla calotta, non all'asse
-# req_safety_factor e' il fattore di sicurezza richiesto, generalmente 1.5
-# prendo k0 e ka dalla faccia del tunnel
-def p_min_tamez(H, W, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_face_deg, k0_face, D, a, req_safety_factor, additional_pressure, gamma_muck):
+
+def p_min_tamez(H, W, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_face_deg, k0_face,
+                D, a, req_safety_factor, additional_pressure, gamma_muck):
+    '''calcolo pressione minima di supporto secondo Tamez
+
+    prendo k0 e ka dalla faccia del tunnel
+
+    Args:
+        * H (float): copertura netta
+        * W (float): la distanza tra la falda e il piano di campagna
+        * gamma_tun, ci_tun, phi_tun_deg (float): valori degli strati di copertura (angoli in gradi)
+        * gamma_face, ci_face, phi_face_deg (float): valori degli strati al fronte (angoli in gradi)
+        * D (float):  diametro di scavo
+        * a (float): lunghezza non supportata che per EPM/slurry coincide con la lunghezza dello scudo
+            attenzione che in questa formulazione tutto e'riferito alla calotta, non all'asse
+        * req_safety_factor (float): fattore di sicurezza richiesto, generalmente 1.5
+
+    Returns:
+        float, pressione minima di supporto (in kPa?)
+    '''
     p_min = 0.
     H_D = H/D
     phi_tun = math.radians(phi_tun_deg)
@@ -149,61 +168,84 @@ def p_min_tamez(H, W, gamma_tun, ci_tun, phi_tun_deg, gamma_face, ci_face, phi_f
 
 
 # 20160309@Gabriele Aggiunta valutazione blowup - inizio
-# valore pressione di blow up
-# blowup = s_v + R_excav * gamma_muck - p_safety_blowup
-# s_v = pressione geostatica totale in calotta al tunnel
-# R_excav = raggio di scavo
-# gamma_muck = densita' del fluido al fronte
-# p_safety_blowup costante in kPa di sicurezza per blowup
 def blowup(s_v, delta_wt,  R_excav, gamma_muck, p_safety_blowup):
+    '''valore pressione di blow up
+
+    blowup = s_v + R_excav * gamma_muck - p_safety_blowup
+
+    Args:
+        * s_v (float): pressione geostatica totale in calotta al tunnel
+        * R_excav (float) raggio di scavo in metri
+        * gamma_muck (float): densita' del fluido al fronte in kN/m^3
+        * p_safety_blowup (float): costante in kPa di sicurezza per blowup'''
     pBlowUp = s_v + delta_wt + R_excav*gamma_muck - p_safety_blowup
     return pBlowUp
 # 20160309@Gabriele Aggiunta valutazione blowup - fine
 
-# cedimento a profondita' z dalla superficie secondo laganathan 2011
-# eps0 = volume perso (adimensionale)
-# R = raggio di scavo in metri
-# H = profondita' asse tunnel dalla superficie
-# nu = coefficiente di poisson mediato dall'asse galleria alla superficie
-# beta = 45° + coeff. di attrito/2 mediato dall'asse alla superficie. Per argille coeff attrito = 0
-# x distanza planimetrica ortogonale del punto di misura dall'asse
-# z profondita' del punto di misura dalla superficie
 def uz_laganathan(eps0, R, H, nu, beta_deg, x, z):
+    ''''cedimento a profondita' z dalla superficie secondo laganathan 2011
+
+    Args:
+        * eps0 (float): volume perso (adimensionale)
+        * R (float): raggio di scavo in metri
+        * H (float): profondita' asse tunnel dalla superficie in metri
+        * nu (float): coefficiente di poisson mediato dall'asse galleria alla superficie
+        * beta (float): 45° + coeff. di attrito/2 mediato dall'asse alla superficie.
+            Per argille coeff attrito = 0
+        * x (float): distanza planimetrica ortogonale del punto di misura dall'asse in metri
+        * z (float): profondita' del punto di misura dalla superficie in metri
+
+    Returns:
+        float - cedimento in metri'''
     beta = math.radians(beta_deg)
-    uz = eps0*R**2*((H - z)/(x**2 + (-H + z)**2) - (2*z*(x**2 - (H + z)**2))/(x**2 + (H + z)**2)**2 + \
-    ((3. - 4.*nu)*(H + z))/(x**2 + (H + z)**2))*math.exp((-0.69*z**2)/H**2 - (1.38*x**2)/(R + H*math.atan(beta))**2)
+    uz = eps0*R**2*((H-z)/(x**2+(-H+z)**2)-(2*z*(x**2-(H+z)**2))/(x**2+(H+z)**2)**2+ \
+         ((3.-4.*nu)*(H+z))/(x**2+(H+z)**2))*math.exp((-0.69*z**2)/H**2-(1.38*x**2)/(R+H*math.atan(beta))**2)
     return uz
 
-# spostamento orizzontale a profondita' z dalla superficie secondo laganathan 2011
-# eps0 = volume perso (adimensionale)
-# R = raggio di scavo in metri
-# H = profondita' asse tunnel dalla superficie
-# nu = coefficiente di poisson mediato dall'asse galleria alla superficie
-# beta = 45° + coeff. di attrito/2 mediato dall'asse alla superficie. Per argille coeff attrito = 0
-# x distanza planimetrica ortogonale del punto di misura dall'asse
-# z profondita' del punto di misura dalla superficie
 def ux_laganathan(eps0, R, H, nu, beta_deg, x, z):
+    '''spostamento orizzontale a profondita' z dalla superficie secondo laganathan 2011
+
+    Args:
+        * eps0 (float): volume perso (adimensionale)
+        * R (float): raggio di scavo in metri
+        * H (float): profondita' asse tunnel dalla superficie in metri
+        * nu (float): coefficiente di poisson mediato dall'asse galleria alla superficie
+        * beta (float): 45° + coeff. di attrito/2 mediato dall'asse alla superficie.
+            Per argille coeff attrito = 0
+        * x (float): distanza planimetrica ortogonale del punto di misura dall'asse in metri
+        * z (float): profondita' del punto di misura dalla superficie in metri
+
+        Returns:
+            float - spostamento orizzontale in metri'''
     beta = math.radians(beta_deg)
-    ux = -(eps0*R**2*x*(1./(x**2 + (H - z)**2) - (4.*z*(H + z))/(x**2 + (H + z)**2)**2 + \
-    (3. - 4.*nu)/(x**2 + (H + z)**2))*math.exp((-0.69*z**2)/H**2 - (1.38*x**2)/(R + H*math.atan(beta))**2))
+    ux = -(eps0*R**2*x*(1./(x**2+(H-z)**2)-(4.*z*(H+z))/(x**2+(H+z)**2)**2 + \
+         (3.-4.*nu)/(x**2+(H+z)**2))*math.exp((-0.69*z**2)/H**2-(1.38*x**2)/(R + H*math.atan(beta))**2))
     return ux
 
 
-# rotazione o inclinazione superfice (beta) a profondita' z dalla superficie secondo laganathan 2011
-# eps0 = volume perso (adimensionale)
-# R = raggio di scavo in metri
-# H = profondita' asse tunnel dalla superficie
-# nu = coefficiente di poisson mediato dall'asse galleria alla superficie
-# beta = 45° + coeff. di attrito/2 mediato dall'asse alla superficie. Per argille coeff attrito = 0
-# x distanza planimetrica ortogonale del punto di misura dall'asse
-# z profondita' del punto di misura dalla superficie
+
 def d_uz_dx_laganathan(eps0, R, H, nu, beta_deg, x, z):
+    '''# rotazione o inclinazione superfice (beta) a profondita' z dalla superficie secondo laganathan 2011
+
+    Args:
+        * eps0 (float): volume perso (adimensionale)
+        * R (float): raggio di scavo in metri
+        * H (float): profondita' asse tunnel dalla superficie in metri
+        * nu (float): coefficiente di poisson mediato dall'asse galleria alla superficie
+        * beta (float): 45° + coeff. di attrito/2 mediato dall'asse alla superficie.
+            Per argille coeff attrito = 0
+        * x (float): distanza planimetrica ortogonale del punto di misura dall'asse in metri
+        * z (float): profondita' del punto di misura dalla superficie in metri
+
+    Returns:
+        float - rotazione o inclinazione superficie (radianti?)
+    '''
     beta = math.radians(beta_deg)
-    duz=eps0*R**2*((-2.*x*(H - z))/(x**2 + (-H + z)**2)**2 + (8.*x*z*(x**2 - (H + z)**2))/(x**2 + (H + z)**2)**3 - \
-    (4.*x*z)/(x**2 + (H + z)**2)**2 - (2*(3. - 4.*nu)*x*(H + z))/(x**2 + (H + z)**2)**2)*math.exp((-0.69*z**2)/H**2 - \
-    (1.38*x**2)/(R + H*math.atan(beta))**2) - (2.76*eps0*R**2*x*((H - z)/(x**2 + (-H + z)**2) - (2.*z*(x**2 - \
-    (H + z)**2))/(x**2 + (H + z)**2)**2 + ((3. - 4.*nu)*(H + z))/(x**2 + (H + z)**2))*math.exp((-0.69*z**2)/H**2 - \
-    (1.38*x**2)/(R + H*math.atan(beta))**2))/(R + H*math.atan(beta))**2
+    duz = eps0*R**2*((-2.*x*(H - z))/(x**2 + (-H + z)**2)**2 + (8.*x*z*(x**2 - (H + z)**2))/(x**2 + (H + z)**2)**3 - \
+          (4.*x*z)/(x**2 + (H + z)**2)**2 - (2*(3. - 4.*nu)*x*(H + z))/(x**2 + (H + z)**2)**2)*math.exp((-0.69*z**2)/H**2 - \
+          (1.38*x**2)/(R + H*math.atan(beta))**2) - (2.76*eps0*R**2*x*((H - z)/(x**2 + (-H + z)**2) - (2.*z*(x**2 - \
+          (H + z)**2))/(x**2 + (H + z)**2)**2 + ((3. - 4.*nu)*(H + z))/(x**2 + (H + z)**2))*math.exp((-0.69*z**2)/H**2 - \
+          (1.38*x**2)/(R + H*math.atan(beta))**2))/(R + H*math.atan(beta))**2
     return duz
 
 
@@ -546,10 +588,9 @@ class DamageParametersBurlandWroth:
         self.eps_crit = eps_crit_burland_wroth(self.h_bldg, self.str_type, self.L_hog_l, self.L_sag, self.L_hog_r, delta_hog_l, delta_sag, delta_hog_r, delta_h_hog_l, delta_h_sag, delta_h_hog_r)
 
 class VolumeLoss:
-    def __init__(self, p_front, p_shield, p_wt, s_v, \
-                    k0_face, young_face, ci_face, phi_face, \
-                    phi_tun, phi_tun_res, ci_tun, ci_tun_res, psi, young_tun, nu_tun, \
-                    r_excav, shield_taper, cutter_bead_thickness, tail_skin_thickness, delta, v_loss):
+    def __init__(self, p_front, p_shield, p_wt, s_v, k0_face, young_face, ci_face, phi_face,
+                 phi_tun, phi_tun_res, ci_tun, ci_tun_res, psi, young_tun, nu_tun, r_excav,
+                 shield_taper, cutter_bead_thickness, tail_skin_thickness, delta, v_loss):
         self.gf=gap_front(p_front, p_wt, s_v, k0_face, young_face, ci_face, phi_face, r_excav)
         self.ui_shield = max(0., .5*2.*ur_max(s_v, p_wt, p_shield, phi_tun, phi_tun_res, ci_tun, ci_tun_res, psi, young_tun, nu_tun, r_excav)-self.gf)
         #ui_shield = u_tun(p_tbm_shield_base, p_wt, s_v_bldg, nu_tun, young_tun, r_excav)

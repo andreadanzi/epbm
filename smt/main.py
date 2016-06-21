@@ -22,6 +22,7 @@ def import_all_data(project_code):
     '''
     funzione principale per l'inizializzazione del progetto
     '''
+    # TODO: sposto i nomi/prefissi dei file in smt.cfg
     logger = helpers.init_logger('smt_main', 'main.log', logging.DEBUG)
     smt_config = helpers.get_config('smt.cfg')
     mongodb = helpers.init_db(smt_config, True)[1]
@@ -94,7 +95,8 @@ def import_all_data(project_code):
         # Import tunnel sections inside the alignment: one-to-many relationship by embedding
         a_set.import_sections(os.path.join(importdir, "sezioni_progetto-%s.csv" % rel_csv_code))
         # Import TBM inside the alignment: one-to-many relationship by embedding
-        a_set.import_tbm(os.path.join(importdir, "tbm_progetto-%s.csv" % rel_csv_code))
+        # aghensi@20160621 - tbm importate a livello di project, unico CSV per tutti gli aligment_set con pk_start e pk_end
+        #a_set.import_tbm(os.path.join(importdir, "tbm_progetto-%s.csv" % rel_csv_code))
         # Import buildings deistances relative to this aligmentset
         a_set.import_building_pks(os.path.join(importdir, "buildings-%s.csv" % rel_csv_code))
         als = Alignment.find(mongodb, {"alignment_set_id":a_set._id})
@@ -110,6 +112,10 @@ def import_all_data(project_code):
             # TODO buffer_size deve essere un parametr di progetto
             buff = a.define_buffer(0.1)[0]
             a.assign_buildings(buff)
+
+    # aghensi@20160621 - import multiple tbm e cronoprogramma
+    p.import_tbm(os.path.join(importdir, "tbm.csv"))
+    p.import_schedule(os.path.join(importdir, "schedule.csv"))
     helpers.destroy_logger(logger)
 
 def main(argv):

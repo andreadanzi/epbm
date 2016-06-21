@@ -172,32 +172,38 @@ class AlignmentSet(BaseSmtModel):
                     align.save()
 
 
-    #tbm_progetto.csv
-    def import_tbm(self, csv_file_path):
-        '''importa i dati delle TBM da file CSV'''
-        req_fields = ("PK", "excav_diameter", "bead_thickness", "taper", "tail_skin_thickness",
-                      "delta", "gamma_muck", "shield_length", "pressure_max")
-        tbm_list = get_csv_dict_list(csv_file_path, self.logger, req_fields)
-        if tbm_list:
-            pk = -1.0
-            a_collection = self.db["Alignment"]
-            ac = None
-            for row in tbm_list:
-                pk = float(row["PK"])
-                ac = a_collection.find_one({"PK":pk, "alignment_set_id":self._id})
-                if ac:
-                    ac["TBM"] = {
-                        "excav_diameter": toFloat(row["excav_diameter"]),
-                        "bead_thickness": toFloat(row["bead_thickness"]),
-                        "taper": toFloat(row["taper"]),
-                        "tail_skin_thickness": toFloat(row["tail_skin_thickness"]),
-                        "delta": toFloat(row["delta"]),
-                        "gamma_muck": toFloat(row["gamma_muck"]),
-                        "shield_length": toFloat(row["shield_length"]),
-                        "pressure_max": toFloat(row["pressure_max"])
-                        }
-                    align = Alignment(self.db, ac)
-                    align.save()
+#    #tbm_progetto.csv
+#    aghensi@20160621 - possibilità di avere più TBM per calcoli
+#    def import_tbm(self, csv_file_path):
+#        '''importa i dati delle TBM da file CSV'''
+#        req_fields = ("PK", "excav_diameter", "bead_thickness", "taper", "tail_skin_thickness",
+#                      "delta", "gamma_muck", "shield_length", "pressure_max") #,
+#                      # aghensi@20160620 - aggiunto info da smart_tunneling
+#                      # TODO: vale la pena ripetere queste informazioni per ogni pk?
+#                      # di sicuro non esporto un CSV con tutte le tbm per ogni punto!
+##                      'code', 'manifacturer', 'type', 'dstype', 'shieldLength', 'frontShieldLength',
+##                      'frontShieldDiameter', 'tailShieldDiameter', 'excavationDiameter',
+##                      'overcut', 'loadPerCutter', 'cutterCount', 'cutterSize', 'cutterSpacing',
+##                      'cutterThickness', 'referenceRpm', 'nominalTorque', 'breakawayTorque',
+##                      'backupDragForce', 'nominalThrustForce', 'auxiliaryThrustForce',
+##                      'openingRatio', 'cutterheadThickness')
+#        tbm_list = get_csv_dict_list(csv_file_path, self.logger, req_fields)
+#        if tbm_list:
+#            pk = -1.0
+#            a_collection = self.db["Alignment"]
+#            ac = None
+#            for row in tbm_list:
+#                pk = float(row["PK"])
+#                row['totalContactThrust'] = row['loadPerCutter']*row['cutterCount']
+#                ac = a_collection.find_one({"PK":pk, "alignment_set_id":self._id})
+#                if ac:
+#                    try:
+#                        ac['TBM'] = [x for x in ac['TBM'] if x['code'] != row['code']]
+#                        ac["TBM"].append(row)
+#                    except TypeError: #AttributeError?
+#                        ac["TBM"] = [row]
+#                    align = Alignment(self.db, ac)
+#                    align.save()
 
 
     def import_reference_strata(self, csv_file_path):
