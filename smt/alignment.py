@@ -21,7 +21,7 @@ from building import Building
 # danzi.tn@20160419 ottmizzazione dei Buildings collegati all'Alignment: vengono caricati gli oggetti della collection Building in self.building_items
 # danzi.tn@20160420 fix sui metodi di Gabriele
 class Alignment(BaseSmtModel):
-    REQUIRED_CSV_FIELDS = ("pk", "x", "y", "z")
+    REQUIRED_CSV_FIELDS = ["pk", "x", "y", "z"]
 
     def _init_utils(self, **kwargs):
         self.project = None

@@ -1,0 +1,40 @@
+typology;sc_lev;sc_descr;dc_lev;dc_descr;vc_lev_target;vc_lev;vc_descr;uz;d_uz_dx;d_ux_dx
+overground_infrastructure;1;low sensibility;1;architectural damage;1;1;low vulnerability - no monit no treat req;0.02;0.01;0.005
+overground_infrastructure;1;low sensibility;2;functional damage;1;2;medium vulnerability - monit req;0.05;0.015;0.008
+overground_infrastructure;1;low sensibility;3;structural damage;1;3;high vulnerability - monit and treat req;999;999;999
+overground_infrastructure;2;medium sensibility;1;architectural damage;1;1;low vulnerability - no monit no treat req;0.02;0.005;0.0025
+overground_infrastructure;2;medium sensibility;2;functional damage;1;2;medium vulnerability - monit req;0.04;0.01;0.005
+overground_infrastructure;2;medium sensibility;3;structural damage;1;3;high vulnerability - monit and treat req;999;999;999
+overground_infrastructure;3;high sensibility;1;architectural damage;2;2;medium vulnerability - monit req;0.01;0.001;0.0005
+overground_infrastructure;3;high sensibility;2;functional damage;2;3;high vulnerability - monit and treat req;0.02;0.003;0.0015
+overground_infrastructure;3;high sensibility;3;structural damage;2;3;high vulnerability - monit and treat req;999;999;999
+underground_structure;1;low sensibility;1;architectural damage;1;1;low vulnerability - no monit no treat req;0.02;0.01;0.003
+underground_structure;1;low sensibility;2;functional damage;1;2;medium vulnerability - monit req;0.05;0.015;0.005
+underground_structure;1;low sensibility;3;strutural damage;1;3;high vulnerability - monit and treat req;999;999;999
+underground_structure;2;medium sensibility;1;architectural damage;1;1;low vulnerability - no monit no treat req;0.02;0.005;0.0015
+underground_structure;2;medium sensibility;2;functional damage;1;2;medium vulnerability - monit req;0.04;0.01;0.003
+underground_structure;2;medium sensibility;3;strutural damage;1;3;high vulnerability - monit and treat req;999;999;999
+underground_structure;3;high sensibility;1;architectural damage;2;2;medium vulnerability - monit req;0.007;0.001;0.0003
+underground_structure;3;high sensibility;2;functional damage;2;3;high vulnerability - monit and treat req;0.02;0.003;0.001
+underground_structure;3;high sensibility;3;strutural damage;2;3;high vulnerability - monit and treat req;999;999;999
+underground_utility;1;low sensibility;1;architectural damage;1;1;low vulnerability - no monit no treat req;999;0.003;0.001
+underground_utility;1;low sensibility;2;functional damage;1;2;medium vulnerability - monit req;999;0.006;0.002
+underground_utility;1;low sensibility;3;strutural damage;1;3;high vulnerability - monit and treat req;999;999;999
+underground_utility;2;medium sensibility;1;architectural damage;1;1;low vulnerability - no monit no treat req;999;0.0015;0.0005
+underground_utility;2;medium sensibility;2;functional damage;1;2;medium vulnerability - monit req;999;0.003;0.001
+underground_utility;2;medium sensibility;3;strutural damage;1;3;high vulnerability - monit and treat req;999;999;999
+underground_utility;3;high sensibility;1;architectural damage;2;2;medium vulnerability - monit req;999;0.001;0.0003
+underground_utility;3;high sensibility;2;functional damage;2;3;high vulnerability - monit and treat req;999;0.003;0.001
+underground_utility;3;high sensibility;3;strutural damage;2;3;high vulnerability - monit and treat req;999;999;999
+building;1;low sensibility;1;architectural damage;1;1;low vulnerability - no monit no treat req;0.025;0.0015;0.0008
+building;1;low sensibility;2.1;moderate functional damage;1;1;low vulnerability - no monit no treat req;0.03;0.0022;0.0012
+building;1;low sensibility;2.2;functional damage;1;2;medium vulnerability - monit req;0.04;0.003;0.0016
+building;1;low sensibility;3;strutural damage;1;3;high vulnerability - monit and treat req;999;999;999
+building;2;medium sensibility;1;architectural damage;1;1;low vulnerability - no monit no treat req;0.02;0.001;0.0006
+building;2;medium sensibility;2.1;moderate functional damage;1;2;medium vulnerability - monit req;0.25;0.0015;0.0009
+building;2;medium sensibility;2.2;functional damage;1;3;high vulnerability - monit and treat req;0.03;0.002;0.0012
+building;2;medium sensibility;3;strutural damage;1;3;high vulnerability - monit and treat req;999;999;999
+building;3;high sensibility;1;architectural damage;2;2;medium vulnerability - monit req;0.01;0.0005;0.0004
+building;3;high sensibility;2.1;moderate functional damage;2;2;medium vulnerability - monit req;0.015;0.00075;0.0006
+building;3;high sensibility;2.2;functional damage;2;3;high vulnerability - monit and treat req;0.02;0.001;0.0008
+building;3;high sensibility;3;strutural damage;2;3;high vulnerability - monit and treat req;999;999;999

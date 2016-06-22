@@ -25,7 +25,7 @@ from alignment_set import AlignmentSet
 # danzi.tn@20160418 pulizia sui Buildings del progetto dei dati di analisi=>clear_building_analysis
 class Project(BaseSmtModel):
     '''Classe del progetto'''
-    REQUIRED_CSV_FIELDS = ('code', 'align_scan_length', 'epsg')
+    REQUIRED_CSV_FIELDS = ['code', 'align_scan_length', 'epsg']
 
 
     def delete_referencing(self):

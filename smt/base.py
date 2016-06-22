@@ -14,7 +14,7 @@ class BaseStruct(object):
     o.c == 3
     >>>> True
     '''
-    REQUIRED_CSV_FIELDS = ('')
+    REQUIRED_CSV_FIELDS = []
 
     def __init__(self, d):
         '''inizializza la classe'''

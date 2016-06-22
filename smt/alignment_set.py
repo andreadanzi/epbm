@@ -12,7 +12,9 @@ from helpers import transform_to_wgs, get_csv_dict_list
 
 class AlignmentSet(BaseSmtModel):
     '''classe dell'alignment set (tracciato)'''
-    REQUIRED_CSV_FIELDS = ('code')
+    REQUIRED_CSV_FIELDS = ['code']
+
+
     def delete_referencing(self, alignments=False, buildings=False):
         '''
         cancella gli alignments appartenenti a questo alignment set
@@ -63,7 +65,7 @@ class AlignmentSet(BaseSmtModel):
 
     def import_strata(self, csv_file_path):
         '''importa la stratigrafia da file csv'''
-        req_fields = ("PK", "x", "y", "top", "base", "code")
+        req_fields = ["PK", "x", "y", "top", "base", "code"]
         strata_list = get_csv_dict_list(csv_file_path, self.logger, req_fields)
         if strata_list:
             pk = -1.0
@@ -130,7 +132,7 @@ class AlignmentSet(BaseSmtModel):
 
     def import_falda(self, csv_file_path):
         '''importa le informazioni della falda da file CSV'''
-        req_fields = ("PK", "x", "y", "z")
+        req_fields = ["PK", "x", "y", "z"]
         falda_list = get_csv_dict_list(csv_file_path, self.logger, req_fields)
         if falda_list:
             pk = -1.0
@@ -152,8 +154,8 @@ class AlignmentSet(BaseSmtModel):
 
     def import_sections(self, csv_file_path):
         '''importa le informazioni sulle sezioni di scavo da file CSV'''
-        req_fields = ("PK", "Excavation Radius", "Lining Internal Radius",
-                      "Lining Thickness", "Lining Offset")
+        req_fields = ["PK", "Excavation Radius", "Lining Internal Radius",
+                      "Lining Thickness", "Lining Offset"]
         sezioni_list = get_csv_dict_list(csv_file_path, self.logger, req_fields)
         if sezioni_list:
             pk = -1.0
@@ -209,7 +211,7 @@ class AlignmentSet(BaseSmtModel):
 
     def import_reference_strata(self, csv_file_path):
         '''importa i reference_strata da file CSV'''
-        req_fields = ("code") #TODO: aggiungo altri campi obbligatori
+        req_fields = ["code"] #TODO: aggiungo altri campi obbligatori
         reference_strata_list = get_csv_dict_list(csv_file_path, self.logger, req_fields)
         if reference_strata_list:
             self.item["REFERENCE_STRATA"] = {row['code']: row for row in reference_strata_list}
@@ -218,7 +220,7 @@ class AlignmentSet(BaseSmtModel):
 
     def import_building_pks(self, csv_file_path):
         '''importa le informazioni sui pk degli edifici'''
-        req_fields = ("code", "pk_min", "pk_max", "d_min", "d_max")
+        req_fields = ["code", "pk_min", "pk_max", "d_min", "d_max"]
         bldg_list = get_csv_dict_list(csv_file_path, self.logger, req_fields)
         if bldg_list:
             b_num = 0

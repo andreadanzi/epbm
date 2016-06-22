@@ -15,4 +15,4 @@ class ElementClass(BaseSmtModel):
         * dc_lev (float): classe di danno
         ...
     '''
-    pass
+    REQUIRED_CSV_FIELDS = ['typology', 'sc_lev', 'dc_lev']

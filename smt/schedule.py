@@ -21,8 +21,8 @@ class WBS(BaseSmtModel):
     * duration (datetime): timedelta delle due date
     * after (lista di string): eventuale lista dei codici WBS
     '''
-    REQUIRED_CSV_FIELDS = ('code', 'alignment_set_code', 'pk_start',
-                           'pk_end', 'start_date', 'end_date')
+    REQUIRED_CSV_FIELDS = ['code', 'alignment_set_code', 'pk_start',
+                           'pk_end', 'start_date', 'end_date']
 
 
     def update_schedule(self, start, end):

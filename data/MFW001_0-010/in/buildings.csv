@@ -1,4 +1,4 @@
-file_name;bldg_code;parcel;bldg_no;sc_lev;z_dem;z_top_tun;overburden_tun_dem;depth_fondation;z_fondation;overburden_tun_bldg;d_min_range;angle_bldg_tun;stories_underground_no;stories_overground_no;nb_de_niveaux;sc_vbr_lev;footprint;height_overground;typology;pk_min;pk_max;d_min;d_max
+file_name;code;parcel;bldg_no;sc_lev;z_dem;z_top_tun;overburden_tun_dem;depth_fondation;z_fondation;overburden_tun_bldg;d_min_range;angle_bldg_tun;stories_underground_no;stories_overground_no;nb_de_niveaux;sc_vbr_lev;footprint;height_overground;typology;pk_min;pk_max;d_min;d_max
 94002AE0083_01_SEN_ind01.pdf;94002AE0083_01;94002AE0083;1;1;35;5;30;3;32;27;Au dessus de l'axe;entre 60 et 90;1;1;;2;10 X 9;6;building;;;;
 94002AE0084_01_SEN_ind01.pdf;94002AE0084_01;94002AE0084;1;1;35;5;30;2;33;28;Au dessus de l'axe;entre 60 et 90;1;0;1;2;9 X 6;5;building;;;;
 94002AE0085_01_SEN_ind01.pdf;94002AE0085_01;94002AE0085;1;1;35;5;30;2;33;28;Au dessus de l'axe;entre 60 et 90;1;0;1;2;11 X 10;5;building;;;;

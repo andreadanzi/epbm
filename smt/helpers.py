@@ -145,7 +145,7 @@ def get_csv_dict_list(path, logger, required_fields=None):
                 return None
         rows = []
         for row in csv_reader:
-            rows.append({key: toFloat(value) if value != 'code' else value.upper()
+            rows.append({key: toFloat(value) if key != 'code' else value.upper()
                         for key, value in row.iteritems()})
         return rows
 

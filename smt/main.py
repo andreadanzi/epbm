@@ -6,7 +6,6 @@ crea e popola il database MongoDB prendendo le informazioni dai file CSV
 import os
 import sys
 import getopt
-import datetime
 import logging
 import logging.handlers
 
@@ -37,14 +36,13 @@ def import_all_data(project_code):
 
     Project.import_from_csv_file(mongodb, os.path.join(importdir, "project.csv"))
     pd = mongodb.Project.find_one({"code":project_code})
-    p = None
-    # TODO: questo pezzo di codice non dovrebbe servire se imposto bene i CSV!
-    if not pd:
-        p = Project(mongodb, {"project_name":project_code, "code":project_code})
-        p.item["created"] = datetime.datetime.utcnow()
-        p.save()
-    else:
-        p = Project(mongodb, pd)
+#    p = None
+#    if not pd:
+#        p = Project(mongodb, {"project_name":project_code, "code":project_code, 'epsg': 3004})
+#        p.item["created"] = datetime.datetime.utcnow()
+#        p.save()
+#    else:
+    p = Project(mongodb, pd)
     # aghensi@20160617 - importo domini per M3E, non sono più elemento contenitore di AlignmenSet
     p.import_domains(os.path.join(importdir, "domains.csv"))
     # danzi.tn@20160407 nuova collection ReferenceStrata
