@@ -14,7 +14,10 @@ from alignment import Alignment
 from alignment_set import AlignmentSet
 from project import Project
 from building import Building
-
+from reference_strata import ReferenceStrata
+from element_class import ElementClass
+from vibration_class import VibrationClass
+from corridor import Corridor
 
 #PROJECT_CODE = "MDW029_S_E_05"
 
@@ -27,7 +30,7 @@ def import_all_data(project_code):
     smt_config = helpers.get_config('smt.cfg')
     mongodb = helpers.init_db(smt_config, True)[1]
     importdir = os.path.join(helpers.get_project_basedir(project_code), "in")
-
+    logger.info("import started")
     pd = mongodb.Project.find_one({"code":project_code})
     if pd:
         logger.info("Deleting project %s", pd["project_name"])
@@ -46,11 +49,11 @@ def import_all_data(project_code):
     # aghensi@20160617 - importo domini per M3E, non sono più elemento contenitore di AlignmenSet
     p.import_domains(os.path.join(importdir, "domains.csv"))
     # danzi.tn@20160407 nuova collection ReferenceStrata
-    p.import_objects("ReferenceStrata", os.path.join(importdir, "reference_strata.csv"))
+    p.import_objects(ReferenceStrata, os.path.join(importdir, "reference_strata.csv"))
     # Import Buildings
-    p.import_objects("Building", os.path.join(importdir, "buildings.csv"))
+    p.import_objects(Building, os.path.join(importdir, "buildings.csv"))
     # Import Classes
-    p.import_objects("ElementClass", os.path.join(importdir, "element_class.csv"))
+    p.import_objects(ElementClass, os.path.join(importdir, "element_class.csv"))
 #    p.import_objects("BuildingClass", os.path.join(importdir, "building_class.csv"))
 #    p.import_objects("UndergroundStructureClass",
 #                     os.path.join(importdir, "underground_structure_class.csv"))
@@ -58,12 +61,12 @@ def import_all_data(project_code):
 #                     os.path.join(importdir, "underground_utility_class.csv"))
 #    p.import_objects("OvergroundInfrastructureClass",
 #                     os.path.join(importdir, "overground_infrastructure_class.csv"))
-    p.import_objects("VibrationClass", os.path.join(importdir, "vibration_class.csv"))
+    p.import_objects(VibrationClass, os.path.join(importdir, "vibration_class.csv"))
     p.import_stratasurf(os.path.join(importdir, "strata.xml"), p.item["epsg"])
 
     #aghensi@20160617 - nuovi import IFC e definizione corridors
     # TODO: legare queste info alle altre collection
-    p.import_objects("Corridor", os.path.join(importdir, "corridor.csv"))
+    p.import_objects(Corridor, os.path.join(importdir, "corridor.csv"))
     p.import_ifcs(os.path.join(importdir, 'ifc'))
 
     bldgs = Building.find(mongodb, {"project_id": p._id})
@@ -75,11 +78,12 @@ def import_all_data(project_code):
 #    for c in cr:
 #        d = Domain(mongodb, c)
 #        d.load()
-    p.import_objects("AlignmentSet", os.path.join(importdir, "alignment_set.csv"))
+    p.import_objects(AlignmentSet, os.path.join(importdir, "alignment_set.csv"))
+    # aghensi@20160624 import TBM multiple prima degli alignment set senza associarle
+    p.import_tbm(os.path.join(importdir, "tbm.csv"))
     asets = mongodb.AlignmentSet.find({"project_id": p._id})
     for aset in asets:
-        a_set = AlignmentSet(mongodb, aset)
-        a_set.load()
+        a_set = AlignmentSet(mongodb, aset).load()
         s_code = a_set.item["code"]
         rel_csv_code = a_set.item["rel_csv_code"]
         # Import reference strata inside the alignment set: one-to-one relationship by embedding
@@ -94,8 +98,9 @@ def import_all_data(project_code):
         # Import tunnel sections inside the alignment: one-to-many relationship by embedding
         a_set.import_sections(os.path.join(importdir, "sezioni_progetto-%s.csv" % rel_csv_code))
         # Import TBM inside the alignment: one-to-many relationship by embedding
-        # aghensi@20160621 - tbm importate a livello di project, unico CSV per tutti gli aligment_set con pk_start e pk_end
+        # aghensi@20160624 - assegnazione TBM agli alignment
         #a_set.import_tbm(os.path.join(importdir, "tbm_progetto-%s.csv" % rel_csv_code))
+        a_set.assign_tbm_to_alignment()
         # Import buildings deistances relative to this aligmentset
         a_set.import_building_pks(os.path.join(importdir, "buildings-%s.csv" % rel_csv_code))
         als = Alignment.find(mongodb, {"alignment_set_id":a_set._id})
@@ -108,14 +113,14 @@ def import_all_data(project_code):
             # danzi.tn@20160412 define_face_param spostato in alignment.doit
             # con la chiamata a define_face_param_sample prima di processare l'iterazione
             # a.define_face_param()
-            # TODO buffer_size deve essere un parametr di progetto
-            buff = a.define_buffer(0.1)[0]
+            # TODO buffer_size deve essere un parametro di progetto
+            buff = a.define_buffer(0.1)
             a.assign_buildings(buff)
-
-    # aghensi@20160621 - import multiple tbm e cronoprogramma
-    p.import_tbm(os.path.join(importdir, "tbm.csv"))
+    # aghensi@20160621 - import e cronoprogramma
     p.import_schedule(os.path.join(importdir, "schedule.csv"))
+    logger.info("import finished")
     helpers.destroy_logger(logger)
+
 
 def main(argv):
     '''

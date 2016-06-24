@@ -49,7 +49,7 @@ def init_logger(logger_name, file_path, log_level):
         logger.addHandler(file_handler)
         # aghensi@20160502 - messaggi critici anche su stdout
         stdout_handler = logging.StreamHandler(sys.stdout)
-        stdout_handler.setLevel(logging.WARNING)
+        stdout_handler.setLevel(logging.INFO)
         stdout_formatter = logging.Formatter('%(name)s - %(levelname)s - %(funcName)s - %(message)s')
         stdout_handler.setFormatter(stdout_formatter)
         logger.addHandler(stdout_handler)
@@ -145,7 +145,8 @@ def get_csv_dict_list(path, logger, required_fields=None):
                 return None
         rows = []
         for row in csv_reader:
-            rows.append({key: toFloat(value) if key != 'code' else value.upper()
+            # aghensi@20160624 tutti i field che contengono "code" vengono trasformati in UPPERCASE
+            rows.append({key: value.upper() if 'code' in key else toFloat(value)
                         for key, value in row.iteritems()})
         return rows
 

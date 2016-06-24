@@ -4,11 +4,12 @@ import datetime
 from shapely.geometry import asShape, mapping
 from shapely.ops import transform
 
+from helpers import transform_to_wgs, get_csv_dict_list
 from base import BaseSmtModel
 from alignment import Alignment
 from utils import toFloat
 from building import Building
-from helpers import transform_to_wgs, get_csv_dict_list
+from tbm import TBM
 
 class AlignmentSet(BaseSmtModel):
     '''classe dell'alignment set (tracciato)'''
@@ -175,38 +176,30 @@ class AlignmentSet(BaseSmtModel):
                     align.save()
 
 
-#    #tbm_progetto.csv
-#    aghensi@20160621 - possibilità di avere più TBM per calcoli
-#    def import_tbm(self, csv_file_path):
-#        '''importa i dati delle TBM da file CSV'''
-#        req_fields = ("PK", "excav_diameter", "bead_thickness", "taper", "tail_skin_thickness",
-#                      "delta", "gamma_muck", "shield_length", "pressure_max") #,
-#                      # aghensi@20160620 - aggiunto info da smart_tunneling
-#                      # TODO: vale la pena ripetere queste informazioni per ogni pk?
-#                      # di sicuro non esporto un CSV con tutte le tbm per ogni punto!
-##                      'code', 'manifacturer', 'type', 'dstype', 'shieldLength', 'frontShieldLength',
-##                      'frontShieldDiameter', 'tailShieldDiameter', 'excavationDiameter',
-##                      'overcut', 'loadPerCutter', 'cutterCount', 'cutterSize', 'cutterSpacing',
-##                      'cutterThickness', 'referenceRpm', 'nominalTorque', 'breakawayTorque',
-##                      'backupDragForce', 'nominalThrustForce', 'auxiliaryThrustForce',
-##                      'openingRatio', 'cutterheadThickness')
-#        tbm_list = get_csv_dict_list(csv_file_path, self.logger, req_fields)
-#        if tbm_list:
-#            pk = -1.0
-#            a_collection = self.db["Alignment"]
-#            ac = None
-#            for row in tbm_list:
-#                pk = float(row["PK"])
-#                row['totalContactThrust'] = row['loadPerCutter']*row['cutterCount']
-#                ac = a_collection.find_one({"PK":pk, "alignment_set_id":self._id})
-#                if ac:
-#                    try:
-#                        ac['TBM'] = [x for x in ac['TBM'] if x['code'] != row['code']]
-#                        ac["TBM"].append(row)
-#                    except TypeError: #AttributeError?
-#                        ac["TBM"] = [row]
-#                    align = Alignment(self.db, ac)
-#                    align.save()
+    def assign_tbm_to_alignment(self):
+        '''associa le TBM agli alignment relativi (tra pk_start e pk_end)
+
+        è possibile che siano associate più di una TBM, viene quindi utilizzata una lista'''
+        ctbm = self.db["TBM"].find({"alignment_set_id": self._id})
+        if ctbm.count() > 0:
+            for tbmitem in ctbm:
+                cur_tbm = TBM(self.db, tbmitem)
+                cur_tbm.load()
+                min_pk, max_pk = sorted((cur_tbm.item['pk_start'], cur_tbm.item['pk_end']))
+                calign = self.db['Alignment'].find({'alignment_set_id':self._id,
+                                                    'PK': {'$gte': min_pk, '$lte':max_pk}})
+                if calign.count() > 0:
+                    tbm = cur_tbm.item
+                    for curalign in calign:
+                        align = Alignment(self.db, curalign)
+                        align.load()
+                        try:
+                            align.item['TBM'] = [x for x in align.item['TBM']
+                                                 if x['code'] != self.item['code']]
+                            align.item['TBM'].append(tbm)
+                        except (TypeError, KeyError):
+                            align.item['TBM'] = [tbm]
+                        align.save("AlignmentSet.assign_tbm_to_alignment")
 
 
     def import_reference_strata(self, csv_file_path):

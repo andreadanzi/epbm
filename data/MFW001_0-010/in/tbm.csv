@@ -1,0 +1,4 @@
+code;manifacturer;alignment_set_code;pk_start;pk_end;type;dstype;shield_length;frontShieldLength;frontShieldDiameter;tailShieldDiameter;excav_diameter;overcut;loadPerCutter;cutterCount;cutterSize;cutterSpacing;cutterThickness;referenceRpm;nominalTorque;breakawayTorque;backupDragForce;nominalThrustForce;auxiliaryThrustForce;openingRatio;cutterheadThickness;bead_thickness;taper;tail_skin_thickness;delta;gamma_muck;pressure_max
+HRK_SMI;HERRECKNET;SMI;2150000;2151670;DS;O;12.26;3.5;5.06;4.98;5.06;0.04;267;33;0.4318;0.0732;0.02;11.4;3475;5212;3500;20826;27654;0.075;1;0.01;0.05;0.015;0.105;14;300
+HRK_TUN;HERRECKNET;TUN_02;2122088;2125598;DS;O;12.26;3.5;5.06;4.98;5.06;0.04;267;33;0.4318;0.0732;0.02;11.4;3475;5212;3500;20826;27654;0.075;1;0.01;0.05;0.015;0.105;14;300
+HRK_TUN;HERRECKNET;TUN_04;2125668;2129928;DS;O;12.26;3.5;5.06;4.98;5.06;0.04;267;33;0.4318;0.0732;0.02;11.4;3475;5212;3500;20826;27654;0.075;1;0.01;0.05;0.015;0.105;14;300

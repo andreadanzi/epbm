@@ -14,8 +14,6 @@ class BaseStruct(object):
     o.c == 3
     >>>> True
     '''
-    REQUIRED_CSV_FIELDS = []
-
     def __init__(self, d):
         '''inizializza la classe'''
         for a, b in d.iteritems():
@@ -25,8 +23,12 @@ class BaseStruct(object):
                 setattr(self, a, BaseStruct(b) if isinstance(b, dict) else b)
 
 
+
 class BaseSmtModel(object):
     '''classe di base per le collection del database'''
+    REQUIRED_CSV_FIELDS = []
+
+
     @classmethod
     def find(cls, db, parms=None):
         '''cerca gli elmenti nella collection a cui appartiene l'elemento'''

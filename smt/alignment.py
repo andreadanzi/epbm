@@ -206,111 +206,124 @@ class Alignment(BaseSmtModel):
             va a diminuire]
         * dist = distanza tra il baricentro dello strato considerato e l'asse del tunnel
         prendo in considerazione tutti gli strati con top superiore a z_tun meno un diametro'''
-        # TODO: TBM adesso ha più elementi, sistemo
-        retVal = "XXX"
+        # aghensi@20160624 - calcolo fatto per ogni TBM associata
+        retval = "XXX"
         align = BaseStruct(self.item)
-        r_excav = align.TBM.excav_diameter/2.0
-        z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + r_excav
-        z_base = z_top - align.TBM.excav_diameter
-        z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
-        ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > z_tun - align.TBM.excav_diameter]
-        gamma_wg = 0.
-        young_wg = 0.
-        nu_wg = 0.
-        phi_wg = 0.
-        ci_wg = 0.
-        wg_tot = 0.
-        th_tot = 0.
-        for ref_stratus in ref_strata:
-            if ref_stratus.POINTS.top.coordinates[2] > z_base - r_excav:
-                z_max = ref_stratus.POINTS.top.coordinates[2]
-                z_min = max(z_base - r_excav, ref_stratus.POINTS.base.coordinates[2])
-                z_avg = (z_max+z_min)/2.
-                dist = abs(z_avg-z_tun)
-                th = max(0., z_max-z_min)
-                th_tot += th
-                wg = th * 2.*r_excav/max(2.*r_excav, dist)
-                gamma_wg += th * ref_stratus.PARAMETERS.inom
-                young_wg += wg * ref_stratus.PARAMETERS.etounnel
-                nu_wg += wg * ref_stratus.PARAMETERS.n
-                phi_wg += wg * ref_stratus.PARAMETERS.phi_tr
-                ci_wg += wg * ref_stratus.PARAMETERS.c_tr
-                wg_tot += wg
-        gamma_tun = gamma_wg/ th_tot
-        young_tun = 1000.*young_wg/wg_tot
-        nu_tun = nu_wg/wg_tot
-        phi_tun = phi_wg/wg_tot
-        ci_tun = ci_wg/wg_tot
-        beta_tun = 45.+phi_tun/2.
-        self.item["gamma_tun"] = gamma_tun
-        self.item["young_tun"] = young_tun
-        self.item["nu_tun"] = nu_tun
-        self.item["phi_tun"] = phi_tun
-        self.item["ci_tun"] = ci_tun
-        self.item["beta_tun"] = beta_tun
-        self.save()
-        return retVal
+        for tbm in align.TBM:
+            r_excav = tbm.excav_diameter/2.0
+            z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
+            z_base = z_tun - r_excav
+            ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > z_tun - tbm.excav_diameter]
+            gamma_wg = 0.
+            young_wg = 0.
+            nu_wg = 0.
+            phi_wg = 0.
+            ci_wg = 0.
+            wg_tot = 0.
+            th_tot = 0.
+            for ref_stratus in ref_strata:
+                if ref_stratus.POINTS.top.coordinates[2] > z_base - r_excav:
+                    z_max = ref_stratus.POINTS.top.coordinates[2]
+                    z_min = max(z_base - r_excav, ref_stratus.POINTS.base.coordinates[2])
+                    z_avg = (z_max+z_min)/2.
+                    dist = abs(z_avg-z_tun)
+                    th = max(0., z_max-z_min)
+                    th_tot += th
+                    wg = th * 2.*r_excav/max(2.*r_excav, dist)
+                    gamma_wg += th * ref_stratus.PARAMETERS.inom
+                    young_wg += wg * ref_stratus.PARAMETERS.etounnel
+                    nu_wg += wg * ref_stratus.PARAMETERS.n
+                    phi_wg += wg * ref_stratus.PARAMETERS.phi_tr
+                    ci_wg += wg * ref_stratus.PARAMETERS.c_tr
+                    wg_tot += wg
+            gamma_tun = gamma_wg/ th_tot
+            young_tun = 1000.*young_wg/wg_tot
+            nu_tun = nu_wg/wg_tot
+            phi_tun = phi_wg/wg_tot
+            ci_tun = ci_wg/wg_tot
+            beta_tun = 45.+phi_tun/2.
+            # aghensi@20160624 - salvo all'interno delle tbm nell'item con 'code'==tbm.code
+            for item in self.item["TBM"]:
+                if item['code'] == tbm.code:
+                    item["gamma_tun"] = gamma_tun
+                    item["young_tun"] = young_tun
+                    item["nu_tun"] = nu_tun
+                    item["phi_tun"] = phi_tun
+                    item["ci_tun"] = ci_tun
+                    item["beta_tun"] = beta_tun
+#            self.item["gamma_tun"] = gamma_tun
+#            self.item["young_tun"] = young_tun
+#            self.item["nu_tun"] = nu_tun
+#            self.item["phi_tun"] = phi_tun
+#            self.item["ci_tun"] = ci_tun
+#            self.item["beta_tun"] = beta_tun
+            self.save("define_tun_param")
+        return retval
 
-    def define_face_param(self):
-        ''''parametri relativi all'estrusione del fronte (k0, modulo di young, coesione e attrito)
-        come media sull'altezza del fronte piu' mezzo raggio sopra e sotto'''
-        # TODO: TBM adesso ha più elementi, sistemo
-        retVal = "XXX"
-        align = BaseStruct(self.item)
-        r_excav = align.TBM.excav_diameter/2.0
-        z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + r_excav
-        z_base = z_top - align.TBM.excav_diameter
-        z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
-        ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > z_tun - align.TBM.excav_diameter]
-        gamma_th = 0.
-        k0_th = 0.
-        young_th = 0.
-        phi_th = 0.
-        ci_th = 0.
-        th = 0.
-        for ref_stratus in ref_strata:
-            if ref_stratus.POINTS.base.coordinates[2] < z_top + r_excav/2.:
-                z_max = min(z_top + r_excav/2., ref_stratus.POINTS.top.coordinates[2])
-                z_min = max(z_base - r_excav/2., ref_stratus.POINTS.base.coordinates[2])
-                tmp_th = max(0., z_max - z_min)
-                th += tmp_th
-                gamma_th += tmp_th * ref_stratus.PARAMETERS.inom
-                k0_th += tmp_th * ref_stratus.PARAMETERS.k0
-                young_th += tmp_th * ref_stratus.PARAMETERS.etounnel
-                ci_th += tmp_th * ref_stratus.PARAMETERS.c_tr
-                phi_th += tmp_th * ref_stratus.PARAMETERS.phi_tr
-        gamma_face = gamma_th /th
-        k0_face = k0_th/th
-        young_face = 1000.*young_th/th
-        ci_face = ci_th/th
-        phi_face = phi_th/th
-        self.item["gamma_face"] = gamma_face
-        self.item["k0_face"] = k0_face
-        self.item["young_face"] = young_face
-        self.item["phi_face"] = phi_face
-        self.item["ci_face"] = ci_face
-        self.save()
-        return retVal
+# INUTILIZZATA
+#    def define_face_param(self):
+#        ''''parametri relativi all'estrusione del fronte (k0, modulo di young, coesione e attrito)
+#        come media sull'altezza del fronte piu' mezzo raggio sopra e sotto'''
+#        # TODO: TBM adesso ha più elementi, sistemo
+#        retVal = "XXX"
+#        align = BaseStruct(self.item)
+#        r_excav = align.TBM.excav_diameter/2.0
+#        z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + r_excav
+#        z_base = z_top - align.TBM.excav_diameter
+#        z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
+#        ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > z_tun - align.TBM.excav_diameter]
+#        gamma_th = 0.
+#        k0_th = 0.
+#        young_th = 0.
+#        phi_th = 0.
+#        ci_th = 0.
+#        th = 0.
+#        for ref_stratus in ref_strata:
+#            if ref_stratus.POINTS.base.coordinates[2] < z_top + r_excav/2.:
+#                z_max = min(z_top + r_excav/2., ref_stratus.POINTS.top.coordinates[2])
+#                z_min = max(z_base - r_excav/2., ref_stratus.POINTS.base.coordinates[2])
+#                tmp_th = max(0., z_max - z_min)
+#                th += tmp_th
+#                gamma_th += tmp_th * ref_stratus.PARAMETERS.inom
+#                k0_th += tmp_th * ref_stratus.PARAMETERS.k0
+#                young_th += tmp_th * ref_stratus.PARAMETERS.etounnel
+#                ci_th += tmp_th * ref_stratus.PARAMETERS.c_tr
+#                phi_th += tmp_th * ref_stratus.PARAMETERS.phi_tr
+#        gamma_face = gamma_th /th
+#        k0_face = k0_th/th
+#        young_face = 1000.*young_th/th
+#        ci_face = ci_th/th
+#        phi_face = phi_th/th
+#        self.item["gamma_face"] = gamma_face
+#        self.item["k0_face"] = k0_face
+#        self.item["young_face"] = young_face
+#        self.item["phi_face"] = phi_face
+#        self.item["ci_face"] = ci_face
+#        self.save()
+#        return retVal
+
 
     def define_face_param_sample(self, strata_sample):
         ''''parametri relativi all'estrusione del fronte (k0, modulo di young, coesione e attrito)
         come media sull'altezza del fronte piu' mezzo raggio sopra e sotto'''
-        # TODO: TBM adesso ha più elementi, sistemo
-        retVal = "XXX"
+        # aghensi@20160624 - calcolo fatto per ogni TBM associata
+        retval = "XXX"
         align = BaseStruct(self.item)
-        r_excav = align.TBM.excav_diameter/2.0
-        z_top = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset + r_excav
-        z_base = z_top - align.TBM.excav_diameter
-        z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
-        ref_strata = [strato for strato in align.STRATA if strato.POINTS.top.coordinates[2] > z_tun - align.TBM.excav_diameter]
-        gamma_th = 0.
-        k0_th = 0.
-        young_th = 0.
-        phi_th = 0.
-        ci_th = 0.
-        th = 0.
-        for ref_stratus in ref_strata:
-            if ref_stratus.POINTS.base.coordinates[2] < z_top + r_excav/2.:
+        for tbm in align.TBM:
+            r_excav = tbm.excav_diameter/2.0
+            z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
+            z_top = z_tun + r_excav
+            z_base = z_tun - r_excav
+            ref_strata = [strato for strato in align.STRATA
+                          if strato.POINTS.top.coordinates[2] > z_tun - tbm.excav_diameter
+                          and strato.POINTS.base.coordinates[2] < z_top + r_excav/2.]
+            gamma_th = 0.
+            k0_th = 0.
+            young_th = 0.
+            phi_th = 0.
+            ci_th = 0.
+            th = 0.
+            for ref_stratus in ref_strata:
                 z_max = min(z_top + r_excav/2., ref_stratus.POINTS.top.coordinates[2])
                 z_min = max(z_base - r_excav/2., ref_stratus.POINTS.base.coordinates[2])
                 tmp_th = max(0., z_max - z_min)
@@ -320,30 +333,46 @@ class Alignment(BaseSmtModel):
                 young_th += tmp_th * strata_sample[ref_stratus.CODE].e
                 ci_th += tmp_th * strata_sample[ref_stratus.CODE].c_tr
                 phi_th += tmp_th * strata_sample[ref_stratus.CODE].phi_tr
-        gamma_face = gamma_th /th
-        k0_face = k0_th/th
-        young_face = 1000.*young_th/th
-        ci_face = ci_th/th
-        phi_face = phi_th/th
-        self.item["gamma_face"] = gamma_face
-        self.item["k0_face"] = k0_face
-        self.item["young_face"] = young_face
-        self.item["phi_face"] = phi_face
-        self.item["ci_face"] = ci_face
-        return retVal
+            gamma_face = gamma_th /th
+            k0_face = k0_th/th
+            young_face = 1000.*young_th/th
+            ci_face = ci_th/th
+            phi_face = phi_th/th
+            # aghensi@20160624 - salvo all'interno delle tbm nell'item con 'code'==tbm.code
+            for item in self.item["TBM"]:
+                if item['code'] == tbm.code:
+                    item["gamma_face"] = gamma_face
+                    item["k0_face"] = k0_face
+                    item["young_face"] = young_face
+                    item["phi_face"] = phi_face
+                    item["ci_face"] = ci_face
+#            self.item["gamma_face"] = gamma_face
+#            self.item["k0_face"] = k0_face
+#            self.item["young_face"] = young_face
+#            self.item["phi_face"] = phi_face
+#            self.item["ci_face"] = ci_face
+        return retval
+
 
     def define_buffer(self, buffer_size=1.0):
-        # TODO: TBM adesso ha più elementi, sistemo
-        buff = 0.
+        # aghensi@20160624: multiple TBM, restituisco il massimo tra i valori
+        # e memorizzo k_peck nel rispettivo item della TBM
+        buff = self.project.align_scan_length/2
         align = BaseStruct(self.item)
-        r_excav = align.TBM.excav_diameter/2.0
-        z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
-        depth_tun = align.DEM.coordinates[2] - z_tun
-        beta_tun = align.beta_tun
-        k_peck = k_eq(r_excav, depth_tun, beta_tun)
-        # danzi.tn@20160412 modifica sul buffer
-        buff = max(buffer_size*k_peck*depth_tun, self.project.align_scan_length/2)
-        return buff, k_peck
+        for tbm in align.TBM:
+            r_excav = tbm.excav_diameter/2.0
+            z_tun = align.PH.coordinates[2] + align.SECTIONS.Lining.Offset
+            depth_tun = align.DEM.coordinates[2] - z_tun
+            beta_tun = tbm.beta_tun
+            k_peck = k_eq(r_excav, depth_tun, beta_tun)
+            # danzi.tn@20160412 modifica sul buffer
+            buff = max(buffer_size*k_peck*depth_tun, buff)
+            for item in self.item["TBM"]:
+                if item['code'] == tbm.code:
+                    item["k_peck"] = k_peck
+        self.save("define_buffer")
+        return buff
+
 
     def append_building_items(self, b_code):
         bcurr = self.db.Building.find({"$and":[{"project_id":self.project_id}, {"code":b_code}]})
@@ -358,6 +387,7 @@ class Alignment(BaseSmtModel):
             self.building_items[b_code] = bldg
             self.logger.debug("building %s added to PK %f", b_code, self.item["PK"])
         return len(self.building_items)
+
 
     def init_dtype_array(self, retVal):
         b_dtype = None
@@ -402,7 +432,6 @@ class Alignment(BaseSmtModel):
         s_dtype = {'names':s_names, 'formats':s_formats}
         a_dtype = {'names':a_names, 'formats':a_formats}
         return a_dtype, b_dtype, b_len, s_dtype
-
 
 
     # danzi.tn@20160409 samples degli strati e di progetto

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 '''Classe del progetto'''
 import os
-import csv
 import datetime
 import glob
 from math import atan2, degrees, cos, sin
@@ -9,18 +8,12 @@ from lxml import etree
 from shapely.geometry import MultiPoint, mapping, asShape
 from shapely.ops import transform
 import ifcopenshell
-from utils import toFloat
 from helpers import transform_to_wgs, get_csv_dict_list
 from base import BaseSmtModel
 from building import Building
 from schedule import WBS
 from tbm import TBM
-from reference_strata import ReferenceStrata
 from domain import Domain
-from element_class import ElementClass
-from vibration_class import VibrationClass
-from corridor import Corridor
-from alignment_set import AlignmentSet
 
 # danzi.tn@20160418 pulizia sui Buildings del progetto dei dati di analisi=>clear_building_analysis
 class Project(BaseSmtModel):
@@ -38,7 +31,7 @@ class Project(BaseSmtModel):
         as_collection.remove({"project_id":self._id})
         # danzi.tn@20160407 nuova collection ReferenceStrata
         # aghensi@20160620 unica collection ElementClass
-        for db_collection in ["Building", "ElementClass", "Domain", "WBS",
+        for db_collection in ["Building", "ElementClass", "Domain", "WBS", "TBM",
                               "VibrationClass", "ReferenceStrata", "StrataSurfacePoints"]:
             self.db[db_collection].remove({"project_id":self._id})
 
@@ -61,21 +54,23 @@ class Project(BaseSmtModel):
             bldg.save("Project.clear_building_analysis")
 
 
-    def import_objects(self, class_name, csv_file_path):
+    def import_objects(self, cls, csv_file_path):
         '''importa gli oggetti nel database
 
         trasforma tutti gli attributi possibili in float e il valore di 'code' in uppercase'''
         try:
-            req_fields = eval(class_name).REQUIRED_CSV_FIELDS
+            req_fields = cls.REQUIRED_CSV_FIELDS
         except AttributeError:
             req_fields = None
+        self.logger.info("importing %s in collection %s...", csv_file_path, cls.__name__)
         obj_list = get_csv_dict_list(csv_file_path, self.logger, req_fields)
         if obj_list:
             for obj_dict in obj_list:
                 obj_dict["project_id"] = self._id
                 obj_dict["created"] = datetime.datetime.utcnow()
                 obj_dict["updated"] = datetime.datetime.utcnow()
-            self.db[class_name].insert(obj_list)
+            self.db[cls.__name__].insert(obj_list)
+            self.logger.info("%s items imported in %s", len(obj_list), cls.__name__)
 
 
     def import_schedule(self, csv_file_path):
@@ -105,14 +100,15 @@ class Project(BaseSmtModel):
         if tbm_list:
             a_collection = self.db['AlignmentSet']
             for tbm_dict in tbm_list:
+                tbm_dict['alignment_set_code'] = tbm_dict['alignment_set_code'].upper()
                 tbm_dict["project_id"] = self._id
                 tbm_dict['totalContactThrust'] = tbm_dict['loadPerCutter']*tbm_dict['cutterCount']
                 cur_tbm = TBM(self.db, tbm_dict)
                 aset = a_collection.find_one({'code':cur_tbm.item['alignment_set_code']})
                 if aset:
                     cur_tbm.item['alignment_set_id'] = aset['_id']
-                    cur_tbm.assign_to_alignment()
-                    cur_tbm.save("import_schedule", True)
+                    #cur_tbm.assign_to_alignment()
+                    cur_tbm.save("import_tbm", True)
                 else:
                     self.logger.warn('Cannot find alignment_set id of alignment set %s for TBM %s',
                                      cur_tbm.item['alignment_set_code'], cur_tbm.item['code'])
@@ -273,7 +269,7 @@ class Project(BaseSmtModel):
                     }
                 row["boundaries"] = boundary,
                 # uso shapely e proj per salvare coordinate WGS
-                row["bound_wgs"] =mapping(transform(transf, asShape(boundary))),
+                row["bound_wgs"] = mapping(transform(transf, asShape(boundary))),
                 row["project_id"] = self._id,
                 row["export_matrix"] = trasl_rot_matrix,
                 row["import_matrix"] = rot_trasl_matrix
